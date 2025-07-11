@@ -1,0 +1,157 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:l2l_aggregator.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+		xmlns:controls="clr-namespace:Avalonia.Notification.Controls;assembly=Notification.Avalonia"
+		xmlns:keyboard="clr-namespace:l2l_aggregator.Controls.Keyboard"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="l2l_aggregator.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+		Icon="/Assets/Images/Logo2.ico"
+        Title="l2l_aggregator">
+	<Window.Styles>
+		<Style Selector="FlyoutPresenter.wider">
+			<Setter Property="MaxWidth" Value="1700"/>
+		</Style>
+	</Window.Styles>
+	<Window.Resources>
+		<Flyout x:Key="MySharedFlyout">
+		</Flyout>
+	</Window.Resources>
+	<Grid>
+		<Grid>
+			<Grid.RowDefinitions>
+				<RowDefinition Height="70"/>
+				<RowDefinition Height="*"/>
+				<RowDefinition Height="50"/>
+			</Grid.RowDefinitions>
+			<Grid Background="{DynamicResource ResourceKey=PrimaryBackground}" Grid.Row="0" IsVisible="{Binding IsNotLoginPage}">
+
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="*"/>
+					<ColumnDefinition Width="4*"/>
+					<ColumnDefinition Width="*"/>
+				</Grid.ColumnDefinitions>
+				<Border Padding="10" Grid.Column="1">
+					<Image Source="{SvgImage /Assets/Images/logo.svg}"
+						   HorizontalAlignment="Center"
+						   VerticalAlignment="Center"
+					   />
+				</Border>
+				<Button x:Name="NotificationsButton"
+						Grid.Column="2"
+						Content="Уведомления"
+						HorizontalAlignment="Stretch"
+						HorizontalContentAlignment="Center"
+						VerticalAlignment="Stretch"
+						VerticalContentAlignment="Center"
+						Background="Transparent"
+						BorderBrush="Gray"
+						FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ResponsiveFontSizeConverter}}"
+						Margin="0"
+						BorderThickness="1,0,0,0"
+						CornerRadius="0"
+						Flyout="{StaticResource MySharedFlyout}">
+					<Button.Flyout>
+						<Flyout Placement="BottomEdgeAlignedRight" Flyout.FlyoutPresenterClasses="wider" >
+							<Border Background="White"
+									BorderBrush="Gray"
+									BorderThickness="1"
+									Padding="10">
+								<Grid RowDefinitions="*,7*">
+									<!-- Заголовок + Кнопка -->
+									<Grid Grid.Row="0" ColumnDefinitions="2*,*" Margin="0,0,0,10">
+										<TextBlock Text="Уведомления"
+												   Grid.Column="0"
+												   FontWeight="Bold"
+												   FontSize="{Binding Bounds.Width, ElementName=NotificationsButton, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.05;18;40'}"/>
+										<Button Content="Очистить"
+												Grid.Column="1"
+												Command="{Binding ClearNotificationsCommand}"
+												HorizontalAlignment="Stretch"
+												VerticalAlignment="Stretch"
+												HorizontalContentAlignment="Center"
+												VerticalContentAlignment="Center"
+												Padding="10"
+												FontSize="{Binding Bounds.Width, ElementName=NotificationsButton, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.05;18;40'}"/>
+									</Grid>
+
+									<!-- Список с прокруткой -->
+									<ScrollViewer Grid.Row="1" AllowAutoHide="False" IsScrollChainingEnabled="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+										<ItemsControl ItemsSource="{Binding Notifications}">
+											<ItemsControl.ItemTemplate>
+
+												<DataTemplate>
+													<Border Background="{Binding Type, Converter={StaticResource NotificationTypeToBrushConverter}}"
+															Padding="5"
+															CornerRadius="4">
+														<StackPanel>
+															<TextBlock Text="{Binding Type}"
+																	   FontWeight="Bold"
+																	   Foreground="Gray"
+																	   Margin="0,0,0,2"
+																	   FontSize="{Binding Bounds.Width, ElementName=NotificationsButton, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.05;14;30'}"/>
+															
+															<TextBlock Text="{Binding Message}"
+																	   TextWrapping="Wrap"
+																	   Margin="5"
+																	   FontSize="{Binding Bounds.Width, ElementName=NotificationsButton, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.05;18;40'}"/>
+															<Separator Margin="2"/>
+														</StackPanel>
+													</Border>
+												</DataTemplate>
+											</ItemsControl.ItemTemplate>
+										</ItemsControl>
+									</ScrollViewer>
+								</Grid>
+							</Border>
+						</Flyout>
+
+					</Button.Flyout>
+				</Button>
+			</Grid>
+			<ContentControl  Grid.Row="1" Content="{Binding Content}"></ContentControl>
+			<Grid Grid.Row="2" Background="LightBlue" IsVisible="{Binding IsNotLoginPage}" ColumnDefinitions="4*,*,*" >
+				<StackPanel Grid.Column="0" Orientation="Horizontal">
+					<TextBlock Text="Пользователь:" FontSize="16" FontWeight="Bold" Padding="5" VerticalAlignment="Center"/>
+					<TextBlock Text="{Binding User.USER_NAME}" FontSize="16" FontWeight="Bold" Padding="5" VerticalAlignment="Center"/>
+				</StackPanel>
+				<Button Grid.Column="1"
+					Command="{Binding ButtonSettingsCommand}"
+					Content="Настройки"
+					HorizontalAlignment="Stretch"
+					HorizontalContentAlignment="Center"
+					VerticalAlignment="Stretch"
+					VerticalContentAlignment="Center"
+					Background="Transparent"
+					BorderBrush="Gray"
+					FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ResponsiveFontSizeConverter}}"
+					Margin="0"
+					BorderThickness="1,0,0,0"
+					CornerRadius="0"
+					IsVisible="{Binding IsAdmin}"/>
+				<Button Grid.Column="2"
+					Command="{Binding ButtonExitCommand}"
+					Content="Выход"
+					HorizontalAlignment="Stretch"
+					HorizontalContentAlignment="Center"
+					VerticalAlignment="Stretch"
+					VerticalContentAlignment="Center"
+					Background="Transparent"
+					BorderBrush="Gray"
+					FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ResponsiveFontSizeConverter}}"
+					Margin="0"
+					BorderThickness="1,0,0,0"
+					CornerRadius="0"/>
+			</Grid>
+		</Grid>
+		<controls:NotificationMessageContainer Manager="{Binding Manager}"
+											   VerticalAlignment="Bottom"
+											   HorizontalAlignment="Right"  ZIndex="1000"
+											   MaxWidth="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource OneThirdWidthConverter}}"/>
+		<Panel Background="Transparent" Name="dialogpanel"  IsVisible="False">
+			<keyboard:VirtualKeyboard Name="VirtualKeyboardControl" IsVisible="False" ></keyboard:VirtualKeyboard>
+		</Panel>
+	</Grid>
+</Window>

@@ -1,0 +1,94 @@
+{
+  "cells": [
+    {
+      "cell_id": 1,
+      "poseX": 1660,
+      "poseY": 530,
+      "width": 326,
+      "height": 326,
+      "angle": 0,
+      "cell_dm": {
+        "data": "0104603905002474214312272633197\u001D91xxxx\u001D92xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "poseX": 170,
+        "poseY": 227,
+        "width": 132,
+        "height": 130,
+        "angle": 0
+      },
+      "cell_ocr": [
+        {
+          "data": "GTIN",
+          "name": "GTIN",
+          "poseX": 66,
+          "poseY": 206,
+          "width": 84,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "SN",
+          "name": "SN",
+          "poseX": 60,
+          "poseY": 242,
+          "width": 72,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "Серия",
+          "name": "Серия",
+          "poseX": 72,
+          "poseY": 279,
+          "width": 96,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "Годен до",
+          "name": "Годен до",
+          "poseX": 84,
+          "poseY": 315,
+          "width": 121,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "04603905002474",
+          "name": "Gtin",
+          "poseX": 235,
+          "poseY": 206,
+          "width": 205,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "4312272633197",
+          "name": "SerialNumber", //UN_CODE
+          "poseX": 235,
+          "poseY": 242,
+          "width": 205,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "TEST30X30",
+          "name": "SeriesName",
+          "poseX": 235,
+          "poseY": 279,
+          "width": 205,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "06 28",
+          "name": "ExpireDate",
+          "poseX": 247,
+          "poseY": 315,
+          "width": 181,
+          "height": 27,
+          "angle": 1
+        }
+      ]
+    }
+  ]
+}

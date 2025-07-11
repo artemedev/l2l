@@ -1,0 +1,9 @@
+﻿OCR_offset_procH = 1.4
+OCR_offset_procW = 1.1
+DM_offset_proc = 1.2
+DPI_printer = 96.0
+PPMM = 14.0
+printFieldExt_proc = 0.9
+debug_mode = false
+BOX_Score = 0.4
+BOX_Overlay = 0.1

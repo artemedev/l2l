@@ -1,0 +1,31 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="l2l_aggregator.App"
+             xmlns:local="using:l2l_aggregator"
+			 xmlns:converters="using:l2l_aggregator.Converters"
+			 xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia" 
+             RequestedThemeVariant="Default">
+    <Application.DataTemplates>
+        <local:ViewLocator/>
+    </Application.DataTemplates>
+  
+    <Application.Styles>
+        <FluentTheme />
+		<StyleInclude Source="avares://Notification.Avalonia/Themes/Generic.xaml" />
+		<materialIcons:MaterialIconStyles />
+	</Application.Styles>
+	<Application.Resources>
+		<SolidColorBrush x:Key="PrimaryBackground">#d4d6d5</SolidColorBrush>
+		<converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
+		<converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
+		<converters:CenterToLeftConverter x:Key="CenterToLeftConverter" />
+		<converters:CenterToTopConverter x:Key="CenterToTopConverter" />
+		<converters:BooleanToAggregationStatusConverter x:Key="BooleanToAggregationStatusConverter"/>
+		<converters:ResponsiveMarginConverter x:Key="ResponsiveMarginConverter" />
+		<converters:ResponsiveFontSizeConverter x:Key="ResponsiveFontSizeConverter" />
+		<converters:HalfConverter x:Key="HalfConverter" />
+		<converters:OneThirdWidthConverter x:Key="OneThirdWidthConverter"/>
+		<converters:NotificationTypeToBrushConverter x:Key="NotificationTypeToBrushConverter"/>
+		<converters:AngleToRotateTransformConverter x:Key="AngleToRotateTransformConverter" />
+	</Application.Resources>
+</Application>

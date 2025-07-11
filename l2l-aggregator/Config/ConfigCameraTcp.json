@@ -1,0 +1,24 @@
+{
+  "Connection": {
+    "Ip": "192.168.6.4",
+    "Port": 6101,
+    "ConnectTimeout": 5000,
+    "ReceiveTimeout": 1000,
+    "SendTimeout": 1000,
+    "MaxBufferSize": 1048576
+  },
+  "RequestStatusTimeOut": 2000,
+  "TcpKeepAliveTime": 2,
+  "TcpKeepAliveInterval": 1,
+  "TcpKeepAliveRetryCount": 2,
+  "KeepAliveEnable": true,
+
+  "GS": {
+    "GS91": "!",
+    "GS92": "!",
+    "GS93": "!"
+  },
+  "SleepTime": 10,
+  "EndOfLine": "\u0041\u0042",
+  "EncodingName": "ASCII"
+}

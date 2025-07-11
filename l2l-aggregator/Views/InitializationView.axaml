@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+			 x:CompileBindings="True"
+			 xmlns:vm="using:l2l_aggregator.ViewModels"
+			 x:DataType="vm:InitializationViewModel"
+             x:Class="l2l_aggregator.Views.InitializationView">
+	<Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="*"/>
+			<ColumnDefinition Width="*"/>
+			<ColumnDefinition Width="*"/>
+		</Grid.ColumnDefinitions>
+		<Grid Grid.Column="1">
+			<Viewbox Stretch="Uniform">
+				<Grid>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="100"/>
+						<RowDefinition Height="*"/>
+						<RowDefinition Height="*"/>
+						<RowDefinition Height="*"/>
+						<RowDefinition Height="*"/>
+						<RowDefinition Height="*"/>
+					</Grid.RowDefinitions>
+
+					<Image Source="avares://l2l_aggregator/Assets/Images/Logo.png"
+						   Margin="0,10,0,10"
+						   Grid.Row="0"/>
+					<!--<TextBox Text="{Binding DatabaseUri, Mode=TwoWay}"
+							 Margin="0,10,0,10"
+							 Watermark="Введите адрес базы данных"
+							 Grid.Row="2" />-->
+					<TextBox Text="{Binding NameDevice, Mode=TwoWay}"
+							 Margin="0,0,0,0"
+							 Watermark="Введите имя устройства"
+							 Grid.Row="3" />
+					<Button Content="Проверить и Сохранить"
+							Command="{Binding RetryConnectionCommand}"
+							HorizontalAlignment="Stretch"
+							VerticalContentAlignment="Center"
+							HorizontalContentAlignment="Center"
+							Height="50"
+							Margin="0,30,0,0"
+							Grid.Row="4"/>
+
+					<TextBlock Text="{Binding InfoMessage}"
+							   Foreground="Red"
+							   Margin="0,10,0,0"
+							   Grid.Row="5"/>
+
+				</Grid>
+			</Viewbox>
+		</Grid>
+	</Grid>
+</UserControl>

@@ -1,0 +1,185 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="1024"
+			 xmlns:vm="using:l2l_aggregator.ViewModels"
+			 x:DataType="vm:CameraSettingsViewModel"
+             x:Class="l2l_aggregator.Views.CameraSettingsView">
+	<Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="*"/>
+			<RowDefinition Height="Auto"/>
+		</Grid.RowDefinitions>
+
+		<!-- Header -->
+		<Border Grid.Row="0" Background="#2B2B2B" Padding="10">
+			<TextBlock Text="{Binding Title}" FontSize="24" FontWeight="Bold" Foreground="White"/>
+		</Border>
+
+		<!-- Main Content -->
+
+		<Grid Grid.Row="1" Margin="10">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="*"/>
+				<ColumnDefinition Width="10"/>
+				<ColumnDefinition Width="*"/>
+			</Grid.ColumnDefinitions>
+
+			<!-- Left Column - Image -->
+			<Border Grid.Column="0" BorderBrush="Gray" BorderThickness="2" CornerRadius="5">
+				<Grid>
+					<TextBlock Text="Предварительный просмотр"
+							   HorizontalAlignment="Center"
+							   VerticalAlignment="Center"
+							   FontSize="16"
+							   Foreground="Gray"
+							   IsVisible="{Binding ScannedImage, Converter={x:Static ObjectConverters.IsNull}}"/>
+
+					<!-- Упрощенное изображение без SizeChanged -->
+					<Image Source="{Binding ScannedImage}"
+						   Stretch="Uniform"
+						   Name="PreviewImage"
+						   IsVisible="{Binding ScannedImage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+				</Grid>
+			</Border>
+
+			<!-- Right Column - Settings -->
+			<ScrollViewer Grid.Column="2">
+				<StackPanel Spacing="20">
+
+					<!-- Camera Controls -->
+					<Border Background="#F5F5F5" CornerRadius="5" Padding="15">
+						<StackPanel Spacing="10">
+							<TextBlock Text="Управление камерой" FontWeight="Bold" FontSize="16"/>
+							<Button Content="Сканировать"
+									Command="{Binding ScanCommand}"
+									IsEnabled="{Binding CanScan}"
+									HorizontalAlignment="Stretch"
+									Background="#4CAF50"
+									Foreground="White"
+									Padding="10,8"/>
+						</StackPanel>
+					</Border>
+
+					<!-- Positioning Settings -->
+					<Border Background="#F5F5F5" CornerRadius="5" Padding="15">
+						<StackPanel Spacing="10">
+							<TextBlock Text="Настройки позиционирования" FontWeight="Bold" FontSize="16"/>
+
+							<Grid>
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="*"/>
+									<ColumnDefinition Width="200"/>
+								</Grid.ColumnDefinitions>
+								<Grid.RowDefinitions>
+									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
+								</Grid.RowDefinitions>
+
+								<TextBlock Grid.Row="0" Grid.Column="0" Text="Переместить от ZeroPosition (мм):" VerticalAlignment="Center" Margin="5,5"/>
+								<NumericUpDown Grid.Row="0" Grid.Column="1" Value="{Binding RetreatZeroHomePosition}" Minimum="0" Maximum="1000" Margin="5,5"/>
+
+								<TextBlock Grid.Row="1" Grid.Column="0" Text="Время позиционирования Zero (мс):" VerticalAlignment="Center" Margin="5,5"/>
+								<NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding ZeroPositioningTime}" Minimum="1000" Maximum="60000" Margin="5,5"/>
+
+								<TextBlock Grid.Row="2" Grid.Column="0" Text="Расстояние Zero - Home (мм):" VerticalAlignment="Center" Margin="5,5"/>
+								<NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding EstimatedZeroHomeDistance}" Minimum="100" Maximum="500" Margin="5,5"/>
+
+								<TextBlock Grid.Row="3" Grid.Column="0" Text="Время смены направления (мс):" VerticalAlignment="Center" Margin="5,5"/>
+								<NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding DirectionChangeTime}" Minimum="100" Maximum="2000" Margin="5,5"/>
+
+								<TextBlock Grid.Row="4" Grid.Column="0" Text="Скорость стрелы (мм/сек):" VerticalAlignment="Center" Margin="5,5"/>
+								<NumericUpDown Grid.Row="4" Grid.Column="1" Value="{Binding CamMovementVelocity}" Minimum="1" Maximum="100" Margin="5,5"/>
+							</Grid>
+
+							<StackPanel Orientation="Horizontal" Spacing="10">
+								<Button Content="Принудительное позиционирование"
+										Command="{Binding ForcePositioningCommand}"
+										Background="#FF9800"
+										Foreground="White"/>
+								<Button Content="Разрешить позиционирование"
+										Command="{Binding GrantPositioningPermissionCommand}"
+										Background="#2196F3"
+										Foreground="White"/>
+							</StackPanel>
+
+							<Button Content="Сохранить настройки позиционирования"
+									Command="{Binding SavePositioningSettingsCommand}"
+									Background="#4CAF50"
+									Foreground="White"
+									HorizontalAlignment="Stretch"/>
+						</StackPanel>
+					</Border>
+
+					<!-- Lighting Settings -->
+					<Border Background="#F5F5F5" CornerRadius="5" Padding="15">
+						<StackPanel Spacing="10">
+							<TextBlock Text="Настройки освещения" FontWeight="Bold" FontSize="16"/>
+
+							<Grid>
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="*"/>
+									<ColumnDefinition Width="200"/>
+								</Grid.ColumnDefinitions>
+								<Grid.RowDefinitions>
+									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
+								</Grid.RowDefinitions>
+
+								<TextBlock Grid.Row="0" Grid.Column="0" Text="Мин. расстояние камера-стол (мм):" VerticalAlignment="Center" Margin="5,5"/>
+								<NumericUpDown Grid.Row="0" Grid.Column="1" Value="{Binding CamBoxMinDistance}" Minimum="100" Maximum="1000" Margin="5,5"/>
+
+								<TextBlock Grid.Row="1" Grid.Column="0" Text="Интенсивность подсветки (%):" VerticalAlignment="Center" Margin="5,5"/>
+								<NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding LightLevel}" Minimum="0" Maximum="100" Margin="5,5"/>
+
+								<TextBlock Grid.Row="2" Grid.Column="0" Text="Задержка включения (мс):" VerticalAlignment="Center" Margin="5,5"/>
+								<NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding LightDelay}" Minimum="0" Maximum="10000" Margin="5,5"/>
+
+								<TextBlock Grid.Row="3" Grid.Column="0" Text="Выдержка подсветки (мс):" VerticalAlignment="Center" Margin="5,5"/>
+								<NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding LightExposure}" Minimum="100" Maximum="10000" Margin="5,5"/>
+
+								<TextBlock Grid.Row="4" Grid.Column="0" Text="Задержка триггера камеры (мс):" VerticalAlignment="Center" Margin="5,5"/>
+								<NumericUpDown Grid.Row="4" Grid.Column="1" Value="{Binding CamDelay}" Minimum="0" Maximum="5000" Margin="5,5"/>
+
+								<TextBlock Grid.Row="5" Grid.Column="0" Text="Выдержка триггера (мс):" VerticalAlignment="Center" Margin="5,5"/>
+								<NumericUpDown Grid.Row="5" Grid.Column="1" Value="{Binding CamExposure}" Minimum="10" Maximum="1000" Margin="5,5"/>
+
+								<TextBlock Grid.Row="6" Grid.Column="0" Text="Постоянная подсветка:" VerticalAlignment="Center" Margin="5,5"/>
+								<CheckBox Grid.Row="6" Grid.Column="1" IsChecked="{Binding ContinuousLightMode}" VerticalAlignment="Center" Margin="5,5"/>
+							</Grid>
+
+							<Button Content="Сохранить настройки освещения"
+									Command="{Binding SaveLightingSettingsCommand}"
+									Background="#4CAF50"
+									Foreground="White"
+									HorizontalAlignment="Stretch"/>
+						</StackPanel>
+					</Border>
+
+				</StackPanel>
+			</ScrollViewer>
+		</Grid>
+
+
+		<!-- Footer -->
+		<Border Grid.Row="2" Background="#2B2B2B" Padding="10">
+			<Button Content="Назад"
+                    Command="{Binding GoBackCommand}"
+                    HorizontalAlignment="Left"
+                    Background="#757575"
+                    Foreground="White"
+                    Padding="20,10"/>
+		</Border>
+
+	</Grid>
+</UserControl>

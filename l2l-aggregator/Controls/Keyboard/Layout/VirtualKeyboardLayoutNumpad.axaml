@@ -1,0 +1,86 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:keyboard="clr-namespace:l2l_aggregator.Controls.Keyboard"
+             xmlns:avalonia="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="l2l_aggregator.Controls.Keyboard.Layout.VirtualKeyboardLayoutNumpad"
+             Background="LightGray">
+
+	<DockPanel>
+		<Panel DockPanel.Dock="Bottom">
+			<StackPanel VerticalAlignment="Center" HorizontalAlignment="Stretch" Spacing="10" Margin="10">
+
+				<!-- Первая строка -->
+				<Grid HorizontalAlignment="Stretch">
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="3*" />
+					</Grid.ColumnDefinitions>
+
+					<keyboard:VirtualKey Grid.Column="0" NormalKey="ESC" SpecialKey="Escape" />
+					<keyboard:VirtualKey Grid.Column="1" NormalKey="1" ShiftKey="!" />
+					<keyboard:VirtualKey Grid.Column="2" NormalKey="2" ShiftKey="&quot;" AltCtrlKey="²" />
+					<keyboard:VirtualKey Grid.Column="3" NormalKey="3" ShiftKey="§" AltCtrlKey="³" />
+					<keyboard:VirtualKey Grid.Column="4" SpecialKey="Back" SpecialIcon="KeyboardBackspace" />
+				</Grid>
+
+				<!-- Вторая строка -->
+				<Grid HorizontalAlignment="Stretch">
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+					</Grid.ColumnDefinitions>
+
+					<keyboard:VirtualKey Grid.Column="0" NormalKey="*" />
+					<keyboard:VirtualKey Grid.Column="1" NormalKey="4" />
+					<keyboard:VirtualKey Grid.Column="2" NormalKey="5" />
+					<keyboard:VirtualKey Grid.Column="3" NormalKey="6" />
+					<keyboard:VirtualKey Grid.Column="4" NormalKey="." />
+				</Grid>
+
+				<!-- Третья строка -->
+				<Grid HorizontalAlignment="Stretch">
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+					</Grid.ColumnDefinitions>
+
+					<keyboard:VirtualKey Grid.Column="0" NormalKey="-" />
+					<keyboard:VirtualKey Grid.Column="1" NormalKey="7" />
+					<keyboard:VirtualKey Grid.Column="2" NormalKey="8" />
+					<keyboard:VirtualKey Grid.Column="3" NormalKey="9" />
+				</Grid>
+
+				<!-- Четвёртая строка -->
+				<Grid HorizontalAlignment="Stretch">
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="*" />
+					</Grid.ColumnDefinitions>
+
+					<keyboard:VirtualKey Grid.Column="0" NormalKey="_" />
+					<keyboard:VirtualKey Grid.Column="1" NormalKey="" ShiftKey="&quot;" />
+					<keyboard:VirtualKey Grid.Column="2" NormalKey="0" />
+					<keyboard:VirtualKey Grid.Column="3" SpecialKey="Left"  SpecialIcon="ChevronLeft"/>
+					<keyboard:VirtualKey Grid.Column="4" SpecialKey="Right" SpecialIcon="ChevronRight"/>
+					<keyboard:VirtualKey Grid.Column="5" NormalKey="ABC" SpecialKey="BrowserFavorites"/>
+				</Grid>
+
+			</StackPanel>
+		</Panel>
+	</DockPanel>
+</UserControl>

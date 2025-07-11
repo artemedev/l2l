@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignWidth="800"
+             d:DesignHeight="450"
+             x:Class="l2l_aggregator.Views.TaskListView"
+             x:CompileBindings="True"
+             xmlns:vm="using:l2l_aggregator.ViewModels"
+             xmlns:converters="clr-namespace:l2l_aggregator.Converters"
+             x:DataType="vm:TaskListViewModel">
+
+	<UserControl.Resources>
+		<converters:ResponsiveMarginConverter x:Key="ResponsiveMarginConverter"/>
+		<converters:ResponsiveFontSizeConverter x:Key="ResponsiveFontSizeConverter" />
+	</UserControl.Resources>
+
+	<Grid Margin="20">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="*"/>
+			<RowDefinition Height="Auto"/>
+		</Grid.RowDefinitions>
+
+		<TextBlock Text="Список задач"
+                   FontWeight="Bold"
+                   FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}}"
+                   Grid.Row="0"/>
+
+		<ScrollViewer Grid.Row="1" AllowAutoHide="False" IsScrollChainingEnabled="False">
+			<ListBox ItemsSource="{Binding Tasks}"
+                     SelectionMode="Single"
+                     SelectedItem="{Binding SelectedTask, Mode=TwoWay}"
+                     Background="White">
+				<ListBox.Styles>
+					<Style Selector="ListBoxItem">
+						<Setter Property="Padding" Value="0"/>
+						<Setter Property="Background" Value="White"/>
+					</Style>
+
+					<Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+						<Setter Property="Background" Value="#abe0cf"/>
+					</Style>
+
+					<Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+						<Setter Property="Background" Value="LightBlue"/>
+						<Setter Property="FontWeight" Value="Bold"/>
+					</Style>
+
+					<Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
+						<Setter Property="Background" Value="RoyalBlue"/>
+					</Style>
+				</ListBox.Styles>
+
+				<ListBox.ItemTemplate>
+					<DataTemplate>
+						<StackPanel>
+							<StackPanel Margin="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveMarginConverter}}">
+								<TextBlock Text="{Binding DOC_NUM}" FontWeight="Bold"
+                                           FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}}"/>
+								<TextBlock Text="{Binding DOCID}"
+                                           FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}}"/>
+								<TextBlock Text="{Binding RESOURCE_NAME}"
+                                           FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}}"/>
+								<TextBlock Text="{Binding DEPART_NAME}"
+                                           FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}}"/>
+								<TextBlock Text="{Binding AGREGATION_TYPE}"
+                                           FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}}"/>
+								<TextBlock Text="{Binding DOCDATE}"
+                                           FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}}"/>
+								<TextBlock Text="{Binding DOC_TYPE}"
+                                           FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}}"/>
+							</StackPanel>
+
+							<Separator Height="1" Background="Gray" ZIndex="1" Margin="12,4,12,0"
+                                       IsVisible="{Binding IsLast, Converter={StaticResource InverseBoolConverter}}"/>
+						</StackPanel>
+					</DataTemplate>
+				</ListBox.ItemTemplate>
+			</ListBox>
+		</ScrollViewer>
+	</Grid>
+</UserControl>

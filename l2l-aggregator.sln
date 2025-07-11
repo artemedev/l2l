@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35707.178
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "l2l_aggregator", "l2l-aggregator\l2l_aggregator.csproj", "{9774B034-0AA7-4E52-A671-FD3B53894F5E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DM_process_lib", "DM_process_lib\DM_process_lib.csproj", "{8513C468-3163-4A46-ACCE-83C167482843}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DM_wraper_lib", "DM_wraper_lib\DM_wraper_lib.csproj", "{9317E91B-9128-42B7-B143-372FB5C62602}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9774B034-0AA7-4E52-A671-FD3B53894F5E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9774B034-0AA7-4E52-A671-FD3B53894F5E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9774B034-0AA7-4E52-A671-FD3B53894F5E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9774B034-0AA7-4E52-A671-FD3B53894F5E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8513C468-3163-4A46-ACCE-83C167482843}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8513C468-3163-4A46-ACCE-83C167482843}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8513C468-3163-4A46-ACCE-83C167482843}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8513C468-3163-4A46-ACCE-83C167482843}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9317E91B-9128-42B7-B143-372FB5C62602}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9317E91B-9128-42B7-B143-372FB5C62602}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9317E91B-9128-42B7-B143-372FB5C62602}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9317E91B-9128-42B7-B143-372FB5C62602}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

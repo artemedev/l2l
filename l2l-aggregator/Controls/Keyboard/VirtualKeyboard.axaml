@@ -1,0 +1,102 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+			 xmlns:layout="clr-namespace:l2l_aggregator.Controls.Keyboard.Layout"
+			 xmlns:keyboard="clr-namespace:l2l_aggregator.Controls.Keyboard"
+			 xmlns:converters="clr-namespace:l2l_aggregator.Controls.Keyboard.Converters"
+			 Name="vk"
+             x:Class="l2l_aggregator.Controls.Keyboard.VirtualKeyboard" Background="White">
+	<UserControl.Styles>
+
+		<Style Selector="keyboard|VirtualKey">
+			<Setter Property="Background" Value="#33ffffff" />
+			<Setter Property="Foreground" Value="Black" />
+		</Style>
+
+		<Style Selector="keyboard|VirtualKey /template/ Button /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="#33ffffff" />
+			<Setter Property="Foreground" Value="Black" />
+			<Setter Property="CornerRadius" Value="15"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+		</Style>
+
+
+		<Style Selector="keyboard|VirtualKey /template/ Button">
+			<Setter Property="Background" Value="#33ffffff" />
+			<Setter Property="Foreground" Value="Black" />
+			<Setter Property="CornerRadius" Value="15"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+		</Style>
+
+		<Style Selector="keyboard|VirtualKey /template/ Button /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="CornerRadius" Value="15"/>
+		</Style>
+
+		<Style Selector="keyboard|VirtualKey /template/ Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="#33ffffff" />
+			<Setter Property="Foreground" Value="Black" />
+			<Setter Property="CornerRadius" Value="15"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+		</Style>
+		
+	</UserControl.Styles>
+	<UserControl.Resources>
+		<converters:ResponsiveMarginConverter x:Key="ResponsiveMarginConverter" />
+	</UserControl.Resources>
+	<Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="5*"/>
+			<!-- Верхняя панель -->
+			<RowDefinition Height="5*"/>
+			<!-- Оставшееся пространство -->
+		</Grid.RowDefinitions>
+
+		<Grid Grid.Row="0" >
+			<Grid.RowDefinitions>
+				<RowDefinition Height="6*"/>
+				<!-- Верхняя панель -->
+				<RowDefinition Height="2*"/>
+				<!-- Оставшееся пространство -->
+			</Grid.RowDefinitions>
+			<Border Grid.Row="0" 
+					BorderThickness="2" 
+					BorderBrush="{DynamicResource GrayInactiveBrush}" 
+					CornerRadius="45" >
+				<Grid RowDefinitions="2*,*,2*" ColumnDefinitions="10*,2*" >
+					<TextBox Name="TextBox" 
+							 Classes="KeyboardTextBox" 
+							 Grid.Column="0" 
+							 Grid.Row="1" Margin="10" 
+							 VerticalAlignment="Stretch"  
+							 HorizontalAlignment="Stretch"     
+							 FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource Self}, Converter={StaticResource ResponsiveMarginConverter}}"/>
+					<Button Name="AcceptButton" 
+							Grid.Column="1"  
+							Grid.Row="1"
+							CornerRadius="15"
+							Margin="10"
+							FontSize="{DynamicResource Buttons}" Foreground="White"
+							Background="{DynamicResource HighlightBrush}"
+							VerticalAlignment="Stretch"
+							HorizontalAlignment="Stretch"
+							VerticalContentAlignment="Center" 
+							HorizontalContentAlignment="Center">
+						OK
+					</Button>
+				</Grid>
+			</Border>
+			<Panel Grid.Row="1" HorizontalAlignment="Stretch">
+				<Button DockPanel.Dock="Right" Name="CloseButton" Classes="SettingsClose" Margin="20" VerticalAlignment="Center" HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+					<Image Classes="Large" Source="avares://l2l_aggregator/Assets/Close_Icon.png"  MaxWidth="80" MaxHeight="80"/>
+				</Button>
+			</Panel>
+		</Grid>
+
+		<TransitioningContentControl Grid.Row="1" Name="TransitioningContentControl" />
+	</Grid>
+</UserControl>

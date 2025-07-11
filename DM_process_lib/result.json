@@ -1,0 +1,94 @@
+{
+  "cells": [
+    {
+      "cell_id": 1,
+      "poseX": 518,
+      "poseY": 649,
+      "width": 326,
+      "height": 326,
+      "angle": 0,
+      "cell_dm": {
+        "data": "0104603905002474214312272633197\u001D91xxxx\u001D92xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "poseX": 170,
+        "poseY": 100,
+        "width": 132,
+        "height": 130,
+        "angle": 0
+      },
+      "cell_ocr": [
+        {
+          "data": "GTIN",
+          "name": "GTIN",
+          "poseX": 50,
+          "poseY": 190,
+          "width": 84,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "SN",
+          "name": "SN",
+          "poseX": 44,
+          "poseY": 226,
+          "width": 72,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "Серия",
+          "name": "Серия",
+          "poseX": 56,
+          "poseY": 263,
+          "width": 96,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "Годен до",
+          "name": "Годен до",
+          "poseX": 68,
+          "poseY": 299,
+          "width": 121,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "04603905002474",
+          "name": "Gtin",
+          "poseX": 219,
+          "poseY": 190,
+          "width": 205,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "4312272633197",
+          "name": "SerialNumber", 
+          "poseX": 219,
+          "poseY": 226,
+          "width": 205,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "TEST30Х30",
+          "name": "SeriesName",
+          "poseX": 219,
+          "poseY": 263,
+          "width": 205,
+          "height": 27,
+          "angle": 1
+        },
+        {
+          "data": "06 28",
+          "name": "ExpireDate",
+          "poseX": 231,
+          "poseY": 299,
+          "width": 181,
+          "height": 27,
+          "angle": 1
+        }
+      ]
+    }
+  ]
+}
