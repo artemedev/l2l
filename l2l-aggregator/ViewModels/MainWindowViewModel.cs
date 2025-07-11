@@ -8,10 +8,12 @@ using l2l_aggregator.Services;
 using l2l_aggregator.Services.AggregationService;
 using l2l_aggregator.Services.Database;
 using l2l_aggregator.Services.Notification.Interface;
+using l2l_aggregator.Services.ScannerService;
 using System;
 using System.Collections.ObjectModel;
 using System.IO.Ports;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using static l2l_aggregator.Services.Notification.NotificationService;
 
@@ -57,6 +59,7 @@ namespace l2l_aggregator.ViewModels
         public IRelayCommand ToggleNotificationsFlyoutCommand { get; }
 
         private Flyout? _notificationsFlyout;
+
         public IRelayCommand ClearNotificationsCommand { get; }
 
 
@@ -84,9 +87,9 @@ namespace l2l_aggregator.ViewModels
                 // Инициализируем или переинициализируем сканер при смене страницы
                 await InitializeOrReinitializeScannerAsync();
             };
-            
+
             InitializeAsync();
-            
+
             //_ = InitializeSessionFromDatabaseAsync();
             //-------Notification--------
             Notifications = _notificationService.Notifications;
@@ -106,6 +109,83 @@ namespace l2l_aggregator.ViewModels
         /// <summary>
         /// Инициализация или переинициализация сканера при необходимости
         /// </summary>
+        //private async Task InitializeOrReinitializeScannerAsync()
+        //{
+        //    try
+        //    {
+        //        var savedScannerPort = _sessionService.ScannerPort;
+        //        var savedScannerModel = _sessionService.ScannerModel;
+
+        //        // Если настройки сканера отсутствуют, ничего не делаем
+        //        if (string.IsNullOrWhiteSpace(savedScannerPort) || string.IsNullOrWhiteSpace(savedScannerModel))
+        //        {
+        //            DisposeScannerWorker();
+        //            return;
+        //        }
+
+        //        // Если сканер уже инициализирован с теми же настройками, не переинициализируем
+        //        if (_scannerInitialized && _globalScannerWorker != null)
+        //        {
+        //            return;
+        //        }
+
+        //        // Освобождаем старый сканер если он есть
+        //        DisposeScannerWorker();
+
+        //        // Проверяем доступность порта
+
+        //        bool portAvailable = false;
+        //        string[] availablePorts;
+
+        //        //var availablePorts = null;
+        //        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        //        {
+        //            availablePorts = SerialPort.GetPortNames();
+        //            portAvailable = availablePorts.Contains(savedScannerPort);
+        //        }
+        //        else
+        //        {
+        //            var scannerResolver = new LinuxScannerPortResolver();
+        //            var honeywellPorts = scannerResolver.GetHoneywellScannerPorts().ToList();
+        //            portAvailable = honeywellPorts.Contains(savedScannerPort);
+
+        //        }
+        //        //var availablePorts = SerialPort.GetPortNames();
+        //        if (!portAvailable)
+        //        {
+        //            _notificationService.ShowMessage($"Сканер на порту '{savedScannerPort}' не найден.", NotificationType.Warning);
+        //            return;
+        //        }
+
+        //        // Инициализируем новый сканер
+        //        if (savedScannerModel == "Honeywell")
+        //        {
+        //            // Дополнительная проверка доступности порта
+        //            if (!ScannerWorker.IsPortFree(savedScannerPort))
+        //            {
+        //                _notificationService.ShowMessage($"Сканер на порту {savedScannerPort} не подключен", NotificationType.Error);
+        //                return;
+        //            }
+
+        //            _globalScannerWorker = new ScannerWorker(savedScannerPort);
+        //            _globalScannerWorker.BarcodeScanned += HandleGlobalScannedBarcode;
+        //            _globalScannerWorker.ErrorOccurred += HandleScannerError;
+        //            _globalScannerWorker.RunWorkerAsync();
+
+        //            _scannerInitialized = true;
+        //            _notificationService.ShowMessage($"Сканер подключен на порту {savedScannerPort}", NotificationType.Success);
+        //        }
+        //        else
+        //        {
+        //            _notificationService.ShowMessage($"Модель сканера '{savedScannerModel}' не поддерживается.", NotificationType.Warning);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _notificationService.ShowMessage($"Ошибка инициализации сканера: {ex.Message}", NotificationType.Error);
+        //        _scannerInitialized = false;
+        //    }
+        //}
         private async Task InitializeOrReinitializeScannerAsync()
         {
             try
@@ -113,9 +193,12 @@ namespace l2l_aggregator.ViewModels
                 var savedScannerPort = _sessionService.ScannerPort;
                 var savedScannerModel = _sessionService.ScannerModel;
 
+                System.Diagnostics.Debug.WriteLine($"[Debug] Инициализация сканера: порт={savedScannerPort}, модель={savedScannerModel}");
+
                 // Если настройки сканера отсутствуют, ничего не делаем
                 if (string.IsNullOrWhiteSpace(savedScannerPort) || string.IsNullOrWhiteSpace(savedScannerModel))
                 {
+                    System.Diagnostics.Debug.WriteLine("[Debug] Настройки сканера отсутствуют");
                     DisposeScannerWorker();
                     return;
                 }
@@ -123,6 +206,7 @@ namespace l2l_aggregator.ViewModels
                 // Если сканер уже инициализирован с теми же настройками, не переинициализируем
                 if (_scannerInitialized && _globalScannerWorker != null)
                 {
+                    System.Diagnostics.Debug.WriteLine("[Debug] Сканер уже инициализирован");
                     return;
                 }
 
@@ -130,8 +214,26 @@ namespace l2l_aggregator.ViewModels
                 DisposeScannerWorker();
 
                 // Проверяем доступность порта
-                var availablePorts = SerialPort.GetPortNames();
-                if (!availablePorts.Contains(savedScannerPort))
+                bool portAvailable = false;
+                string[] availablePorts = null;
+
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    availablePorts = SerialPort.GetPortNames();
+                    portAvailable = availablePorts.Contains(savedScannerPort);
+                    System.Diagnostics.Debug.WriteLine($"[Debug] Windows - доступные порты: {string.Join(", ", availablePorts)}");
+                }
+                else
+                {
+                    var scannerResolver = new LinuxScannerPortResolver();
+                    var honeywellPorts = scannerResolver.GetHoneywellScannerPorts().ToList();
+                    portAvailable = honeywellPorts.Contains(savedScannerPort);
+                    System.Diagnostics.Debug.WriteLine($"[Debug] Linux - Honeywell порты: {string.Join(", ", honeywellPorts)}");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[Debug] Порт {savedScannerPort} доступен: {portAvailable}");
+
+                if (!portAvailable)
                 {
                     _notificationService.ShowMessage($"Сканер на порту '{savedScannerPort}' не найден.", NotificationType.Warning);
                     return;
@@ -140,12 +242,16 @@ namespace l2l_aggregator.ViewModels
                 // Инициализируем новый сканер
                 if (savedScannerModel == "Honeywell")
                 {
+                    System.Diagnostics.Debug.WriteLine($"[Debug] Проверка свободности порта {savedScannerPort}");
+
                     // Дополнительная проверка доступности порта
                     if (!ScannerWorker.IsPortFree(savedScannerPort))
                     {
                         _notificationService.ShowMessage($"Сканер на порту {savedScannerPort} не подключен", NotificationType.Error);
                         return;
                     }
+
+                    System.Diagnostics.Debug.WriteLine($"[Debug] Создание ScannerWorker для порта {savedScannerPort}");
 
                     _globalScannerWorker = new ScannerWorker(savedScannerPort);
                     _globalScannerWorker.BarcodeScanned += HandleGlobalScannedBarcode;
@@ -154,6 +260,7 @@ namespace l2l_aggregator.ViewModels
 
                     _scannerInitialized = true;
                     _notificationService.ShowMessage($"Сканер подключен на порту {savedScannerPort}", NotificationType.Success);
+                    System.Diagnostics.Debug.WriteLine($"[Debug] Сканер успешно инициализирован");
                 }
                 else
                 {
@@ -162,11 +269,11 @@ namespace l2l_aggregator.ViewModels
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[Debug] Ошибка инициализации сканера: {ex}");
                 _notificationService.ShowMessage($"Ошибка инициализации сканера: {ex.Message}", NotificationType.Error);
                 _scannerInitialized = false;
             }
         }
-
         /// <summary>
         /// Глобальный обработчик отсканированного штрихкода
         /// </summary>
@@ -312,14 +419,31 @@ namespace l2l_aggregator.ViewModels
                 var savedScannerPort = _sessionService.ScannerPort;
                 var savedScannerModel = _sessionService.ScannerModel;
 
+
                 // Если настройки сканера отсутствуют, ничего не проверяем
                 if (string.IsNullOrWhiteSpace(savedScannerPort) || string.IsNullOrWhiteSpace(savedScannerModel))
                 {
                     return;
                 }
+                bool portAvailable = false;
+                string[] availablePorts;
 
-                var availablePorts = SerialPort.GetPortNames();
-                bool portAvailable = availablePorts.Contains(savedScannerPort);
+                //var availablePorts = null;
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    availablePorts = SerialPort.GetPortNames();
+                    portAvailable = availablePorts.Contains(savedScannerPort);
+                }
+                else
+                {
+                    var scannerResolver = new LinuxScannerPortResolver();
+                    var honeywellPorts = scannerResolver.GetHoneywellScannerPorts().ToList();
+                    portAvailable = honeywellPorts.Contains(savedScannerPort);
+
+                }
+
+
+                //bool portAvailable = availablePorts.Contains(savedScannerPort);
 
                 // Если сканер был инициализирован, но порт пропал
                 if (_scannerInitialized && !portAvailable)
