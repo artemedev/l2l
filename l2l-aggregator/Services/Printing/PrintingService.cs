@@ -193,8 +193,6 @@ namespace l2l_aggregator.Services.Printing
             }
         }
 
-
-
         private byte[] GenerateZplFromReportBOX(byte[] frxBytes)
         {
             using var report = new Report();

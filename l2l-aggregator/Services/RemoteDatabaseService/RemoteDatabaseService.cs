@@ -295,20 +295,13 @@ namespace l2l_aggregator.Services.Database
                 // Проверяем, есть ли уже загруженное задание
                 var currentJobId = await GetCurrentJobIdAsync();
 
-                //если выбранное задание и задание которое загруженно не равны то закрываем предыдущее задание
-                if (currentJobId != docId)
-                {
-                    await CloseJobAsync();
-                }
+                //если выбранное задание и задание которое загруженно не равны то закрываем предыдущее задание и загружаем новое
                 // Если текущее задание не совпадает с запрашиваемым, загружаем новое
                 if (currentJobId != docId)
                 {
+                    await CloseJobAsync();
                     await LoadJobAsync(docId);
                 }
-                //else
-                //{
-                //    await StartSessionAsync();
-                //}
 
                 return await WithConnectionAsync(async conn =>
                 {
