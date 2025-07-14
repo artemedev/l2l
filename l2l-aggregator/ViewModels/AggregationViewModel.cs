@@ -250,6 +250,9 @@ namespace l2l_aggregator.ViewModels
             //инициализация SSCC
             InitializeSscc();
 
+            //инициализация CurrentBox из счетчиков
+            InitializeCurrentBoxFromCounters();
+
             //заполнение из шаблона в модальное окно для выбора элементов для сканирования
             InitializeTemplate();
 
@@ -367,6 +370,51 @@ namespace l2l_aggregator.ViewModels
             }
 
             _sessionService.SelectedTaskSscc = ResponseSscc.RECORDSET.FirstOrDefault();
+        }
+
+
+        private async void InitializeCurrentBoxFromCounters()
+        {
+            try
+            {
+                var countersResponse = await _databaseDataService.GetArmCountersAsync();
+
+                if (countersResponse?.RECORDSET != null)
+                {
+                    // Ищем запись с CODE = "UN_STATE_AGREGATE"
+                    var aggregateCounter = countersResponse.RECORDSET
+                        .FirstOrDefault(c => c.CODE == "UN_STATE_AGREGATE");
+
+                    if (aggregateCounter?.QTY != null)
+                    {
+                        // Устанавливаем CurrentBox на основе QTY + 1 (так как это следующий короб)
+                        CurrentBox = aggregateCounter.QTY.Value + 1;
+
+                        InfoMessage = $"Продолжение агрегации с короба №{CurrentBox}";
+                        _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
+                    }
+                    else
+                    {
+                        // Если запись не найдена, начинаем с 1
+                        CurrentBox = 1;
+                        InfoMessage = "Начало новой агрегации";
+                        _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
+                    }
+                }
+                else
+                {
+                    // Если данные не получены, начинаем с 1
+                    CurrentBox = 1;
+                    InfoMessage = "Не удалось получить данные счетчиков, начинаем с короба №1";
+                    _notificationService.ShowMessage(InfoMessage, NotificationType.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                CurrentBox = 1;
+                InfoMessage = $"Ошибка инициализации CurrentBox: {ex.Message}";
+                _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
+            }
         }
 
         private void InitializeTemplate()

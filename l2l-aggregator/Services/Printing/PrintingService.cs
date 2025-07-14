@@ -1,16 +1,14 @@
 ﻿using FastReport;
 using FastReport.Export.Zpl;
-using l2l_aggregator.Helpers.AggregationHelpers;
 using l2l_aggregator.Services.Notification.Interface;
-using MD.Devices;
+using MD.Aggregation.Devices.Printer.ZPL;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using System.Text;
-using MD.Aggregation.Devices.Printer.ZPL;
+using System.Threading;
 
 namespace l2l_aggregator.Services.Printing
 {
@@ -90,7 +88,7 @@ namespace l2l_aggregator.Services.Printing
                     _notificationService.ShowMessage("> Ожидание запуска принтера...");
 
                     // Простое ожидание инициализации устройства
-                    Thread.Sleep(3000);
+                    Thread.Sleep(500);
 
                     _notificationService.ShowMessage("> Принтер успешно запущен");
                     return _labelPrinter;
@@ -101,7 +99,7 @@ namespace l2l_aggregator.Services.Printing
                     try
                     {
                         _labelPrinter.StatusReceived -= Printer_StatusReceived;
-                        _labelPrinter.StopWork();
+                        _labelPrinter.Release();
                     }
                     catch { }
                     throw;
@@ -124,9 +122,9 @@ namespace l2l_aggregator.Services.Printing
             try
             {
                 device.StatusReceived -= Printer_StatusReceived;
-                device.StopWork();
+                device.Release();
                 _notificationService.ShowMessage("> Ожидание остановки принтера...");
-                Thread.Sleep(2000);
+                //Thread.Sleep(2000);
                 _notificationService.ShowMessage("> Принтер остановлен");
             }
             catch (Exception ex)
@@ -183,7 +181,7 @@ namespace l2l_aggregator.Services.Printing
                 // Печать
                 device.SendLabel(zplString);
 
-                Thread.Sleep(1000); // подождать для завершения отправки
+                //Thread.Sleep(1000); // подождать для завершения отправки
                 _notificationService.ShowMessage($"> Данные отправлены на принтер");
                 _notificationService.ShowMessage($"> Состояние устройства: {device.Status}");
             }
@@ -368,21 +366,6 @@ namespace l2l_aggregator.Services.Printing
         {
             using var report = new Report();
 
-
-            // Декодируем из base64, если данные в base64 формате
-            //byte[] reportBytes;
-            //try
-            //{
-            //    string base64String = Encoding.UTF8.GetString(frxBytes);
-            //    reportBytes = Convert.FromBase64String(base64String);
-            //}
-            //catch
-            //{
-            //    // Если декодирование не удалось, возможно данные уже в байтах
-            //    reportBytes = frxBytes;
-            //}
-
-
             using (var ms = new MemoryStream(frxBytes))
             {
                 report.Load(ms);
@@ -408,6 +391,7 @@ namespace l2l_aggregator.Services.Printing
             report.Prepare();
 
             var exporter = new ZplExport();
+            exporter.Density = ZplExport.ZplDensity.d24_dpmm_600_dpi;
             using var exportStream = new MemoryStream();
             exporter.Export(report, exportStream);
 

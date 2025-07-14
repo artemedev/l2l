@@ -262,4 +262,18 @@ namespace l2l_aggregator.Models
         public long? PARENT_UNID { get; set; }
         public int? QTY { get; set; }
     }
+
+    public class ArmCountersResponse
+    {
+        public List<ArmCountersRecord> RECORDSET { get; set; } = new();
+    }
+
+    public class ArmCountersRecord
+    {
+        public long? STATEID { get; set; }
+        public string? CODE { get; set; }
+        public string? NAME { get; set; }
+        public int? QTY { get; set; }
+        public int? JOB_QTY { get; set; }
+    }
 }

@@ -592,5 +592,34 @@ namespace l2l_aggregator.Services.Database
             // Если это другой тип, конвертируем через ToString
             return System.Text.Encoding.UTF8.GetBytes(value.ToString() ?? string.Empty);
         }
+
+        // ---------------- Получение счетчиков ARM ----------------
+        public async Task<ArmCountersResponse?> GetArmCountersAsync()
+        {
+            try
+            {
+                return await WithConnectionAsync(async conn =>
+                {
+                    var sql = @"SELECT * FROM ARM_COUNTERS_SHOW";
+
+                    var records = await conn.QueryAsync(sql);
+
+                    var armCountersRecords = records.Select(r => new ArmCountersRecord
+                    {
+                        STATEID = r.STATEID,
+                        CODE = r.CODE?.ToString(),
+                        NAME = r.NAME?.ToString(),
+                        QTY = r.QTY,
+                        JOB_QTY = r.JOB_QTY
+                    }).ToList();
+
+                    return new ArmCountersResponse { RECORDSET = armCountersRecords };
+                });
+            }
+            catch
+            {
+                throw;
+            }
+        }
     }
 }

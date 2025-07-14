@@ -358,5 +358,30 @@ namespace l2l_aggregator.Services
                 return false;
             }
         }
+
+        // ---------------- Получение счетчиков ARM ----------------
+        public async Task<ArmCountersResponse?> GetArmCountersAsync()
+        {
+            try
+            {
+                if (!await EnsureConnectionAsync())
+                {
+                    return null;
+                }
+
+                var response = await _remoteDatabaseService.GetArmCountersAsync();
+                if (response?.RECORDSET?.Any() == true)
+                {
+                    _notificationService.ShowMessage($"Загружено {response.RECORDSET.Count} счетчиков ARM", NotificationType.Info);
+                }
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _notificationService.ShowMessage($"Ошибка получения счетчиков ARM: {ex.Message}", NotificationType.Error);
+                return null;
+            }
+        }
     }
 }

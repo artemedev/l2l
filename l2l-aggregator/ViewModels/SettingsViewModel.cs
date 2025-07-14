@@ -176,6 +176,9 @@ namespace l2l_aggregator.ViewModels
             CheckControllerBeforeAggregation = _sessionService.CheckController;
             CheckScannerBeforeAggregation = _sessionService.CheckScanner;
             SelectedScannerModel = _sessionService.ScannerModel;
+            // Обновляем состояние подключений после загрузки настроек
+            UpdatePrinterConnectionState();
+            UpdateScannerConnectionState();
         }
 
         [RelayCommand]
@@ -564,12 +567,14 @@ namespace l2l_aggregator.ViewModels
         // Методы для сброса состояния принтера при изменении IP или модели
         partial void OnPrinterIPChanged(string value)
         {
-            IsPrinterConnected = false;
+            //IsPrinterConnected = false;
+            UpdatePrinterConnectionState();
         }
 
         partial void OnSelectedPrinterModelChanged(string value)
         {
-            IsPrinterConnected = false;
+            //IsPrinterConnected = false;
+            UpdatePrinterConnectionState();
         }
 
         [RelayCommand]
@@ -587,7 +592,7 @@ namespace l2l_aggregator.ViewModels
                 TestScanResult = "Ожидание сканирования...";
                 _notificationService.ShowMessage("Отсканируйте штрих-код для проверки", NotificationType.Info);
 
-                // Здесь можно добавить таймер для сброса ожидания через определенное время
+                // Таймер для сброса ожидания через определенное время
                 await Task.Delay(100); // Небольшая задержка для UI
 
                 InfoMessage = "Готов к тестовому сканированию. Отсканируйте штрих-код.";
@@ -616,14 +621,27 @@ namespace l2l_aggregator.ViewModels
         // Методы для сброса состояния сканера при изменении порта или модели
         partial void OnSelectedScannerChanged(ScannerDevice value)
         {
-            IsScannerConnected = false;
+            //IsScannerConnected = false;
+            UpdateScannerConnectionState();
             TestScanResult = "";
         }
 
         partial void OnSelectedScannerModelChanged(string value)
         {
-            IsScannerConnected = false;
+            UpdateScannerConnectionState();
             TestScanResult = "";
+        }
+
+        // Метод для обновления состояния сканера
+        private void UpdateScannerConnectionState()
+        {
+            IsScannerConnected = SelectedScanner != null && !string.IsNullOrWhiteSpace(SelectedScannerModel);
+        }
+
+        // Метод для обновления состояния принтера  
+        private void UpdatePrinterConnectionState()
+        {
+            IsPrinterConnected = !string.IsNullOrWhiteSpace(PrinterIP) && !string.IsNullOrWhiteSpace(SelectedPrinterModel);
         }
     }
 }
