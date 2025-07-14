@@ -1135,12 +1135,6 @@ namespace l2l_aggregator.ViewModels
             if (CurrentStepIndex != 2 && CurrentStepIndex != 3)
                 return;
 
-            //if (responseSscc?.RECORDSET == null || responseSscc.RECORDSET.Count == 0)
-            //{
-            //    InfoMessage = "Данные SSCC отсутствуют.";
-            //    _notificationService.ShowMessage(InfoMessage);
-            //    return;
-            //}
             if (ResponseSscc?.RECORDSET == null || ResponseSscc.RECORDSET.Count == 0)
             {
                 InfoMessage = "Данные SSCC отсутствуют.";
@@ -1203,8 +1197,6 @@ namespace l2l_aggregator.ViewModels
                     //resp.TYPEID == 1 это тип паллеты
                     if (resp.TYPEID == 1 && resp.DISPLAY_BAR_CODE == barcode)
                     {
-                        //добавить сохранение
-                        //!!!!!!!!!!!!!!!!!!!!!!!!!
 
                         //изменение состояния после сканирования
                         CurrentPallet++;
@@ -1238,31 +1230,14 @@ namespace l2l_aggregator.ViewModels
 
                     if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
                     {
-                        // Находим соответствующий UNID в кэшированных данных SGTIN
-                        //var sgtinRecord = _sessionService.CachedSgtinResponse?.RECORDSET?
-                        //    .FirstOrDefault(s => s.UN_CODE?.Contains(parsedData.SerialNumber) == true);
-
-                        //if (sgtinRecord != null)
-                        //{
-                        //    if (sgtinRecord.UNID.HasValue)
-                        //    {
-
                         await _databaseDataService.LogAggregationCompletedAsync(parsedData.SerialNumber, _sessionService.SelectedTaskSscc.SSCC_CODE);
-                        //}
-                        //else
-                        //{
-                        //    _notificationService.ShowMessage(
-                        //        $"UNID пустой для серийного номера: {parsedData.SerialNumber}",
-                        //        NotificationType.Warning);
-                        //    }
-                        //}
+
                     }
                     else
                     {
                         _notificationService.ShowMessage(
                             $"Не найден SGTIN для серийного номера: {parsedData.SerialNumber}",
                             NotificationType.Warning);
-                    //}
                     }
                 }
 
@@ -1278,115 +1253,6 @@ namespace l2l_aggregator.ViewModels
             }
         }
 
-        //        public async void OnCellClicked(DmCellViewModel cell)
-        //        {
-        //            _previousAggregationSummaryText = AggregationSummaryText; // Сохраняем старый текст
-
-        //            double boxRadius = Math.Sqrt(dmrData.BOXs[0].height * dmrData.BOXs[0].height +
-        //                         dmrData.BOXs[0].width * dmrData.BOXs[0].width) / 2;
-        //            int minX = (int)dmrData.BOXs.Min(d => d.poseX - boxRadius);
-        //            int minY = (int)dmrData.BOXs.Min(d => d.poseY - boxRadius);
-        //            int maxX = (int)dmrData.BOXs.Max(d => d.poseX + boxRadius);
-        //            int maxY = (int)dmrData.BOXs.Max(d => d.poseY + boxRadius);
-
-        //            var cropped = _imageProcessingService.CropImage(
-        //                _croppedImageRaw,
-        //                cell.X,
-        //                cell.Y,
-        //                cell.SizeWidth,
-        //                cell.SizeHeight,
-        //                scaleXObrat,
-        //                scaleYObrat,
-        //                (float)cell.Angle
-        //            );
-        //            await Dispatcher.UIThread.InvokeAsync(async () =>
-        //            {
-        //                SelectedSquareImage = _imageProcessingService.ConvertToAvaloniaBitmap(cropped);
-        //                await Task.Delay(100);
-        //            });
-
-        //            var scaleXCell = ImageSizeCell.Width / SelectedSquareImage.PixelSize.Width;
-        //            var scaleYCell = ImageSizeCell.Height / SelectedSquareImage.PixelSize.Height;
-
-
-        //            var newOcrList = new ObservableCollection<SquareCellViewModel>();
-
-        //            foreach (var ocr in cell.OcrCells)
-        //            {
-        //                double newX = ocr.X;
-        //                double newY = ocr.Y;
-
-        //                newOcrList.Add(new SquareCellViewModel
-        //                {
-        //                    X = ocr.X * scaleXCell,
-        //                    Y = ocr.Y * scaleYCell,
-        //                    SizeWidth = ocr.SizeWidth * scaleXCell,
-        //                    SizeHeight = ocr.SizeHeight * scaleYCell,
-        //                    IsValid = ocr.IsValid,
-        //                    Angle = ocr.Angle,
-        //                    OcrName = ocr.OcrName,
-        //                    OcrText = ocr.OcrText
-        //                });
-        //            }
-        //            // Добавим DM элемент (если есть)
-        //            if (cell.Dm_data.Data != null)
-        //            {
-        //                newOcrList.Add(new SquareCellViewModel
-        //                {
-        //                    X = cell.Dm_data.X * scaleXCell,
-        //                    Y = cell.Dm_data.Y * scaleYCell,
-        //                    SizeWidth = cell.Dm_data.SizeWidth * scaleYCell,
-        //                    SizeHeight = cell.Dm_data.SizeHeight * scaleYCell,
-        //                    IsValid = cell.Dm_data.IsValid,
-        //                    Angle = cell.Dm_data.Angle,
-        //                    OcrName = "DM",
-        //                    OcrText = cell.Dm_data.Data ?? "пусто"
-        //                });
-        //            }
-
-        //            cell.OcrCellsInPopUp.Clear();
-        //            foreach (var newOcr in newOcrList)
-        //                cell.OcrCellsInPopUp.Add(newOcr);
-        //            //cell.Angle = 87;
-        //            //foreach(var ocr in cell.)
-        //            IsPopupOpen = true;
-        //            var GS1 = false;
-        //            var GTIN = "";
-        //            var DMData = "";
-        //            var SerialNumber = "";
-        //            if (cell.Dm_data?.Data != null)
-        //            {
-        //                var gS1Parser = new GS1Parser();
-        //                GS1_data newGS = gS1Parser.ParseGTIN(cell.Dm_data?.Data);
-        //                GS1 = newGS.GS1isCorrect;
-        //                GTIN = newGS.GTIN;
-        //                DMData = newGS.DMData;
-        //                SerialNumber = newGS.SerialNumber;
-        //            }
-        //            bool isDuplicate = false;
-        //            if (!string.IsNullOrWhiteSpace(cell.Dm_data?.Data))
-        //            {
-        //                var thisData = cell.Dm_data.Data;
-        //                isDuplicate = DMCells
-        //                    .Where(c => c != cell)
-        //                    .Any(c => string.Equals(c.Dm_data?.Data, thisData, StringComparison.OrdinalIgnoreCase));
-        //            }
-        //            // Обновление текста
-        //            AggregationSummaryText = $"""
-        //GTIN-код: {(string.IsNullOrWhiteSpace(GTIN) ? "нет данных" : GTIN)}
-        //SerialNumber-код: {(string.IsNullOrWhiteSpace(SerialNumber) ? "нет данных" : SerialNumber)}
-        //Валидность: {(cell.Dm_data?.IsValid == true ? "Да" : "Нет")}
-        //Дубликат: {(isDuplicate ? "Да" : "Нет")}
-        //Координаты: {(cell.Dm_data is { } dm1 ? $"({dm1.X:0.##}, {dm1.Y:0.##})" : "нет данных")}
-        //Размер: {(cell.Dm_data is { } dm ? $"({dm.SizeWidth:0.##} x {dm.SizeHeight:0.##})" : "нет данных")}
-        //Угол: {(cell.Dm_data?.Angle is double a ? $"{a:0.##}°" : "нет данных")}
-        //OCR:
-        //{(cell.OcrCells.Count > 0
-        //? string.Join('\n', cell.OcrCells.Select(o =>
-        //    $"- {(string.IsNullOrWhiteSpace(o.OcrName) ? "нет данных" : o.OcrName)}: {(string.IsNullOrWhiteSpace(o.OcrText) ? "нет данных" : o.OcrText)} ({(o.IsValid ? "валид" : "не валид")})"))
-        //: "- нет данных")}
-        //""";
-        //        }
 
         public async void OnCellClicked(DmCellViewModel cell)
         {
