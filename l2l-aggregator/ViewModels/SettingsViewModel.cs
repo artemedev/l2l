@@ -444,7 +444,7 @@ namespace l2l_aggregator.ViewModels
 
             try
             {
-                _printingService.CheckConnectPrinter(PrinterIP, SelectedPrinterModel);
+                await _printingService.CheckConnectPrinterAsync(PrinterIP, SelectedPrinterModel);
 
                 // сохраняем в БД
                 //await _databaseService.Config.SetConfigValueAsync("PrinterIP", PrinterIP);

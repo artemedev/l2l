@@ -69,7 +69,7 @@ namespace l2l_aggregator.Services
 
             try
             {
-                _printingService.CheckConnectPrinter(sessionService.PrinterIP, sessionService.PrinterModel);
+                await _printingService.CheckConnectPrinterAsync(sessionService.PrinterIP, sessionService.PrinterModel);
                 return (true, null);
             }
             catch (Exception ex)
