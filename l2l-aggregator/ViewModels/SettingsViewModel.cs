@@ -63,7 +63,7 @@ namespace l2l_aggregator.ViewModels
         private readonly ConfigurationLoaderService _configLoader;
         private readonly PrintingService _printingService;
 
-        private readonly ILogger<PcPlcConnectionService> _logger;
+        //private readonly ILogger<PcPlcConnectionService> _logger;
 
         // Свойство для отслеживания состояния принтера
         [ObservableProperty] private bool _isPrinterConnected = false;
@@ -74,6 +74,9 @@ namespace l2l_aggregator.ViewModels
 
         // Свойство для отображения результата тестового сканирования
         [ObservableProperty] private string _testScanResult = "";
+
+        private PcPlcConnectionService _plcConnectionService;
+
         public SettingsViewModel(DatabaseService databaseService,
             HistoryRouter<ViewModelBase> router,
             INotificationService notificationService,
@@ -82,7 +85,7 @@ namespace l2l_aggregator.ViewModels
             DmScanService dmScanService,
             ConfigurationLoaderService configLoader,
             PrintingService printingService,
-            ILogger<PcPlcConnectionService> logger)
+            PcPlcConnectionService plcConnectionService)
         {
             _configLoader = configLoader;
             _notificationService = notificationService;
@@ -92,7 +95,8 @@ namespace l2l_aggregator.ViewModels
             _scannerResolver = scannerResolver;
             _dmScanService = dmScanService;
             _printingService = printingService;
-            _logger = logger;
+            _plcConnectionService = plcConnectionService;
+            //_logger = logger;
             _ = InitializeAsync();
         }
         // Метод для уведомления об изменении computed property
@@ -312,8 +316,8 @@ namespace l2l_aggregator.ViewModels
             {
 
                 // Создать службу подключения PLC
-                var plcService = new PcPlcConnectionService(_logger); // Внедрение ILogger
-                bool connected = await plcService.ConnectAsync(ControllerIP);
+                //var plcService = new PcPlcConnectionService(_logger); // Внедрение ILogger
+                bool connected = await _plcConnectionService.ConnectAsync(ControllerIP);
                 if (!connected)
                 {
                     InfoMessage = "Не удалось подключиться к контроллеру!";
@@ -323,7 +327,7 @@ namespace l2l_aggregator.ViewModels
                 }
 
                 // Одиночный тест пинг-понга
-                bool pingPongResult = await plcService.TestConnectionAsync();
+                bool pingPongResult = await _plcConnectionService.TestConnectionAsync();
 
                 if (pingPongResult)
                 {
@@ -342,8 +346,8 @@ namespace l2l_aggregator.ViewModels
                 }
 
                 // Закрыть подключение 
-                plcService.Disconnect();
-                plcService.Dispose();
+                _plcConnectionService.Disconnect();
+                _plcConnectionService.Dispose();
             }
             catch (Exception ex)
             {
@@ -351,35 +355,29 @@ namespace l2l_aggregator.ViewModels
                 InfoMessage = $"Ошибка: {ex.Message}";
                 _notificationService.ShowMessage(InfoMessage);
             }
+            finally
+            {
+                // Безопасное отключение в блоке finally
+                try
+                {
+                    if (_plcConnectionService.IsConnected)
+                    {
+                        // Сначала отключаем управление соединением, пока соединение активно
+                        await _plcConnectionService.EnableConnectionControlAsync(false);
+
+                        // Затем отключаем соединение
+                        _plcConnectionService.Disconnect();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Логируем ошибку отключения, но не показываем пользователю
+                    // так как основная операция уже выполнена
+                    System.Diagnostics.Debug.WriteLine($"Warning during disconnect: {ex.Message}");
+                }
+            }
         }
-        //public async Task TestControllerConnectionAsync()
-        //{
-        //    if (string.IsNullOrWhiteSpace(ControllerIP))
-        //    {
-        //        InfoMessage = "Введите IP контроллера!";
-        //        _notificationService.ShowMessage(InfoMessage);
-        //        return;
-        //    }
 
-        //    try
-        //    {
-        //        await Task.Delay(300);
-
-        //        //await _databaseService.Config.SetConfigValueAsync("ControllerIP", ControllerIP);
-        //        //await _databaseService.Config.SetConfigValueAsync("CheckController", CheckControllerBeforeAggregation.ToString());
-
-        //        _sessionService.ControllerIP = ControllerIP;
-        //        _sessionService.CheckController = CheckControllerBeforeAggregation;
-
-        //        InfoMessage = "Контроллер успешно сохранён!";
-        //        _notificationService.ShowMessage(InfoMessage);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        InfoMessage = $"Ошибка: {ex.Message}";
-        //        _notificationService.ShowMessage(InfoMessage);
-        //    }
-        //}
 
         //Камера - проверка соединения
         [RelayCommand]

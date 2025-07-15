@@ -54,23 +54,28 @@ namespace l2l_aggregator.ViewModels
         private readonly INotificationService _notificationService;
 
 
-        private PcPlcConnectionService _plcConnection;
+        private PcPlcConnectionService _plcConnectionService;
 
-        private readonly ILogger<PcPlcConnectionService> _logger;
+        private readonly ILogger<CameraSettingsViewModel> _logger;
 
         //для отслеживания состояния загрузки камеры
         [ObservableProperty] private bool canScan = true;
 
-        public CameraSettingsViewModel(HistoryRouter<ViewModelBase> router, DmScanService dmScanService, SessionService sessionService, INotificationService notificationService, ILogger<PcPlcConnectionService> logger)
+        public CameraSettingsViewModel(HistoryRouter<ViewModelBase> router, 
+                                        DmScanService dmScanService, 
+                                        SessionService sessionService, 
+                                        INotificationService notificationService, 
+                                        ILogger<CameraSettingsViewModel> logger, 
+                                        PcPlcConnectionService plcConnectionService)
         {
             _sessionService = sessionService;
             _notificationService = notificationService;
-            //_plcConnection = plcConnection;
+            _plcConnectionService = plcConnectionService;
             _router = router;
             _dmScanService = dmScanService;
 
             ImageSizeChangedCommand = new RelayCommand<SizeChangedEventArgs>(OnImageSizeChanged);
-            _ = InitializeAsync();
+            InitializeAsync();
             _logger = logger;
         }
         private async Task InitializeAsync()
@@ -103,8 +108,8 @@ namespace l2l_aggregator.ViewModels
 
             try
             {
-                _plcConnection = new PcPlcConnectionService(_logger);
-                bool connected = await _plcConnection.ConnectAsync(_sessionService.ControllerIP);
+                //_plcConnection = new PcPlcConnectionService(_logger);
+                bool connected = await _plcConnectionService.ConnectAsync(_sessionService.ControllerIP);
 
                 if (!connected)
                 {
@@ -122,12 +127,12 @@ namespace l2l_aggregator.ViewModels
 
         private async Task LoadSettingsFromPlcAsync()
         {
-            if (_plcConnection?.IsConnected != true) return;
+            if (_plcConnectionService?.IsConnected != true) return;
 
             try
             {
                 // Загрузка настроек позиционирования
-                var positioningSettings = await _plcConnection.GetPositioningSettingsAsync();
+                var positioningSettings = await _plcConnectionService.GetPositioningSettingsAsync();
                 RetreatZeroHomePosition = positioningSettings.RetreatZeroHomePosition;
                 ZeroPositioningTime = positioningSettings.ZeroPositioning;
                 EstimatedZeroHomeDistance = positioningSettings.EstimatedZeroHomeDistance;
@@ -135,7 +140,7 @@ namespace l2l_aggregator.ViewModels
                 CamMovementVelocity = positioningSettings.CamMovementVelocity;
 
                 // Загрузка настроек освещения
-                var lightingSettings = await _plcConnection.GetLightingSettingsAsync();
+                var lightingSettings = await _plcConnectionService.GetLightingSettingsAsync();
                 LightLevel = lightingSettings.LightLevel;
                 LightDelay = lightingSettings.LightDelay;
                 LightExposure = lightingSettings.LightExposure;
@@ -154,7 +159,7 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task SavePositioningSettings()
         {
-            if (_plcConnection?.IsConnected != true)
+            if (_plcConnectionService?.IsConnected != true)
             {
                 _notificationService.ShowMessage("Нет подключения к контроллеру!");
                 return;
@@ -171,7 +176,7 @@ namespace l2l_aggregator.ViewModels
                     CamMovementVelocity = CamMovementVelocity
                 };
 
-                await _plcConnection.SetPositioningSettingsAsync(settings);
+                await _plcConnectionService.SetPositioningSettingsAsync(settings);
                 _notificationService.ShowMessage("Настройки позиционирования сохранены");
             }
             catch (Exception ex)
@@ -183,7 +188,7 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task SaveLightingSettings()
         {
-            if (_plcConnection?.IsConnected != true)
+            if (_plcConnectionService?.IsConnected != true)
             {
                 _notificationService.ShowMessage("Нет подключения к контроллеру!");
                 return;
@@ -201,7 +206,7 @@ namespace l2l_aggregator.ViewModels
                     ContinuousLightMode = ContinuousLightMode
                 };
 
-                await _plcConnection.SetLightingSettingsAsync(settings);
+                await _plcConnectionService.SetLightingSettingsAsync(settings);
                 _notificationService.ShowMessage("Настройки освещения сохранены");
             }
             catch (Exception ex)
@@ -213,7 +218,7 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task ForcePositioningCommand()
         {
-            if (_plcConnection?.IsConnected != true)
+            if (_plcConnectionService?.IsConnected != true)
             {
                 _notificationService.ShowMessage("Нет подключения к контроллеру!");
                 return;
@@ -221,7 +226,7 @@ namespace l2l_aggregator.ViewModels
 
             try
             {
-                await _plcConnection.ForcePositioningAsync();
+                await _plcConnectionService.ForcePositioningAsync();
                 _notificationService.ShowMessage("Принудительное позиционирование запущено");
             }
             catch (Exception ex)
@@ -233,7 +238,7 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task GrantPositioningPermission()
         {
-            if (_plcConnection?.IsConnected != true)
+            if (_plcConnectionService?.IsConnected != true)
             {
                 _notificationService.ShowMessage("Нет подключения к контроллеру!");
                 return;
@@ -241,7 +246,7 @@ namespace l2l_aggregator.ViewModels
 
             try
             {
-                await _plcConnection.GrantPositioningPermissionAsync();
+                await _plcConnectionService.GrantPositioningPermissionAsync();
                 _notificationService.ShowMessage("Разрешение на позиционирование выдано");
             }
             catch (Exception ex)
@@ -286,8 +291,8 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public void GoBack()
         {
-            _plcConnection?.Disconnect();
-            _plcConnection?.Dispose();
+            _plcConnectionService?.Disconnect();
+            _plcConnectionService?.Dispose();
             // Переход на страницу назад
             _router.GoTo<SettingsViewModel>();
         }
@@ -295,8 +300,8 @@ namespace l2l_aggregator.ViewModels
         {
             if (disposing)
             {
-                _plcConnection?.Disconnect();
-                _plcConnection?.Dispose();
+                _plcConnectionService?.Disconnect();
+                _plcConnectionService?.Dispose();
             }
             base.Dispose(disposing);
         }

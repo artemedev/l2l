@@ -71,11 +71,42 @@ namespace l2l_aggregator.Services.ControllerService
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(ipAddress))
+                {
+                    throw new ArgumentException("IP address cannot be null or empty", nameof(ipAddress));
+                }
+
+                // Dispose existing connection if any
+                if (_isConnected)
+                {
+                    Disconnect();
+                }
+
                 _tcpClient = new TcpClient();
+                _tcpClient.ReceiveTimeout = 5000; // 5 second timeout
+                _tcpClient.SendTimeout = 5000;
+
                 await _tcpClient.ConnectAsync(ipAddress, ModbusPort);
+
+                if (!_tcpClient.Connected)
+                {
+                    throw new InvalidOperationException("Failed to establish TCP connection");
+                }
 
                 var factory = new ModbusFactory();
                 _master = factory.CreateMaster(_tcpClient);
+
+                if (_master == null)
+                {
+                    throw new InvalidOperationException("Failed to create Modbus master");
+                }
+
+                // Test the connection by reading a register
+                var testRead = await _master.ReadHoldingRegistersAsync(SlaveId, PC_PLC_CONNECT_REGISTER, 1);
+                if (testRead == null || testRead.Length == 0)
+                {
+                    throw new InvalidOperationException("Modbus connection test failed");
+                }
 
                 _isConnected = true;
                 ConnectionStatusChanged?.Invoke(true);
@@ -86,6 +117,13 @@ namespace l2l_aggregator.Services.ControllerService
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Failed to connect to PLC at {ipAddress}");
+
+                // Cleanup on failure
+                _master?.Dispose();
+                _master = null;
+                _tcpClient?.Close();
+                _tcpClient = null;
+
                 _isConnected = false;
                 ConnectionStatusChanged?.Invoke(false);
                 return false;
@@ -156,17 +194,17 @@ namespace l2l_aggregator.Services.ControllerService
             _pingPongTimer?.Dispose();
             _pingPongTimer = null;
 
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await EnableConnectionControlAsync(false);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error disabling connection control");
-                }
-            });
+            //_ = Task.Run(async () =>
+            //{
+            //    try
+            //    {
+            //        await EnableConnectionControlAsync(false);
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        _logger.LogError(ex, "Error disabling connection control");
+            //    }
+            //});
 
             _logger.LogInformation("Stopped ping-pong");
         }
@@ -175,22 +213,39 @@ namespace l2l_aggregator.Services.ControllerService
         {
             try
             {
-                // Узнать текущее состояние
+                if (!_isConnected || _master == null)
+                {
+                    _logger.LogWarning("Cannot perform ping-pong: not connected to PLC");
+                    return false;
+                }
+
+                // Read current state with timeout protection
                 var holdingRegs = await _master.ReadHoldingRegistersAsync(SlaveId, PC_PLC_CONNECT_REGISTER, 1);
+
+                if (holdingRegs == null || holdingRegs.Length == 0)
+                {
+                    _logger.LogWarning("Failed to read PLC connection register");
+                    return false;
+                }
+
                 bool pcPlcConnectBit = GetBit(holdingRegs[0], PC_PLC_CONNECT_BIT);
 
                 if (pcPlcConnectBit)
                 {
-                    // Сбросить бит (с PC в PLC)
+                    // Reset bit (PC to PLC)
                     await SetBitAsync(PC_PLC_CONNECT_REGISTER, PC_PLC_CONNECT_BIT, false);
 
-                    // Установить PLC флаг активности
+                    // Set PLC active flag
                     await SetBitAsync(PC_PLC_CONNECT_REGISTER, PLC_IS_ACTIVE_BIT, true);
 
+                    _logger.LogDebug("Ping-pong cycle completed successfully");
                     return true;
                 }
-
-                return false;
+                else
+                {
+                    _logger.LogDebug("PLC connection bit not set");
+                    return false;
+                }
             }
             catch (Exception ex)
             {
@@ -361,9 +416,30 @@ namespace l2l_aggregator.Services.ControllerService
         // Вспомогательные методы
         private async Task SetBitAsync(ushort register, int bitPosition, bool value)
         {
-            var currentValue = await _master.ReadHoldingRegistersAsync(SlaveId, register, 1);
-            var newValue = SetBit(currentValue[0], bitPosition, value);
-            await _master.WriteSingleRegisterAsync(SlaveId, register, newValue);
+            try
+            {
+                if (!_isConnected || _master == null)
+                {
+                    throw new InvalidOperationException("Not connected to PLC");
+                }
+
+                var currentValue = await _master.ReadHoldingRegistersAsync(SlaveId, register, 1);
+
+                if (currentValue == null || currentValue.Length == 0)
+                {
+                    throw new InvalidOperationException($"Failed to read current value from register {register}");
+                }
+
+                var newValue = SetBit(currentValue[0], bitPosition, value);
+                await _master.WriteSingleRegisterAsync(SlaveId, register, newValue);
+
+                _logger.LogDebug($"Set bit {bitPosition} in register {register} to {value}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error setting bit {bitPosition} in register {register} to {value}");
+                throw;
+            }
         }
 
         private static bool GetBit(ushort value, int bitPosition)
