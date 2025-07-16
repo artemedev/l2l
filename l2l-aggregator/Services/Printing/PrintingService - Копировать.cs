@@ -47,8 +47,8 @@ namespace l2l_aggregator.Services.Printing
             {
                 if (printerModel == "Zebra")
                 {
-                    var device = ConnectToZebraPrinter(printerIP);
-                    DisconnectToZebraPrinter(device);
+                    ConnectToZebraPrinter(printerIP);
+                    //DisconnectToZebraPrinter(device);
                 }
                 else
                 {
@@ -161,10 +161,10 @@ namespace l2l_aggregator.Services.Printing
             }
             finally
             {
-                if (device != null)
-                {
-                    DisconnectToZebraPrinter(device);
-                }
+                //if (device != null)
+                //{
+                //    DisconnectToZebraPrinter(device);
+                //}
             }
         }
 
@@ -350,10 +350,10 @@ namespace l2l_aggregator.Services.Printing
             }
             finally
             {
-                if (device != null)
-                {
-                    DisconnectToZebraPrinter(device);
-                }
+                //if (device != null)
+                //{
+                //    DisconnectToZebraPrinter(device);
+                //}
             }
         }
 

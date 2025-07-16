@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Microsoft.Extensions.Configuration;
 using System.Reflection;
-using Microsoft.Extensions.Configuration;
 
 public static class ConfigurationExtensions
 {

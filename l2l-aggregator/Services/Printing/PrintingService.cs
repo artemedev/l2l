@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -93,7 +94,7 @@ namespace l2l_aggregator.Services.Printing
                 var connection = new MD.Aggregation.Devices.Tcp.Configuration()
                 {
                     Ip = printerIP,
-                    Port = 9100 // Стандартный порт для Zebra принтеров
+                    Port = 9100 // порт для Zebra принтеров
                 };
 
                 IConfiguration conf = new ConfigurationBuilder()
@@ -157,7 +158,6 @@ namespace l2l_aggregator.Services.Printing
                         return true;
 
                     case MD.Aggregation.Devices.DeviceStatusCode.StartingUp:
-                        _notificationService.ShowMessage("> Принтер запускается...");
                         return false;
 
                     case MD.Aggregation.Devices.DeviceStatusCode.Fail:
@@ -368,8 +368,74 @@ namespace l2l_aggregator.Services.Printing
 
             return exportStream.ToArray();
         }
+        private async Task<byte[]> LoadTestTemplateAsync()
+        {
+            try
+            {
+                // Попытка загрузить из встроенного ресурса
+                var assembly = Assembly.GetExecutingAssembly();
+                var resourceName = "l2l_aggregator.Resources.TestTemplate.txt";
 
-        public async void PrintTestLabel()
+                using (var stream = assembly.GetManifestResourceStream(resourceName))
+                {
+                    if (stream != null)
+                    {
+                        using (var reader = new StreamReader(stream))
+                        {
+                            string base64Template = await reader.ReadToEndAsync();
+                            if (!string.IsNullOrEmpty(base64Template))
+                            {
+                                byte[] bytes = Convert.FromBase64String(base64Template.Trim());
+                                string decodedString = Encoding.UTF8.GetString(bytes);
+                                return Encoding.UTF8.GetBytes(decodedString);
+                            }
+                        }
+                    }
+                }
+
+                // Если встроенный ресурс не найден, попытка загрузить из файла
+                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "TestTemplate.txt");
+
+                if (File.Exists(templatePath))
+                {
+                    string base64Template = await File.ReadAllTextAsync(templatePath);
+                    if (!string.IsNullOrEmpty(base64Template))
+                    {
+                        byte[] bytes = Convert.FromBase64String(base64Template);
+                        string decodedString = Encoding.UTF8.GetString(bytes);
+                        return Encoding.UTF8.GetBytes(decodedString);
+                    }
+                }
+
+                logger.LogWarning("Тестовый шаблон не найден ни в ресурсах, ни в файле");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Ошибка при загрузке тестового шаблона");
+                return null;
+            }
+        }
+        private byte[] GetTestTemplate()
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(TEST_TEMPLATE_BASE64))
+                {
+                    byte[] bytes = Convert.FromBase64String(TEST_TEMPLATE_BASE64);
+                    string decodedString = Encoding.UTF8.GetString(bytes);
+                    return Encoding.UTF8.GetBytes(decodedString);
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Ошибка при получении тестового шаблона");
+                return null;
+            }
+        }
+        public async Task PrintTestLabel()
         {
             try
             {
@@ -384,7 +450,7 @@ namespace l2l_aggregator.Services.Printing
                         return;
                     }
 
-                    byte[] templateBytes = GetTestTemplate();
+                    byte[] templateBytes = await LoadTestTemplateAsync();
 
                     if (templateBytes != null && templateBytes.Length > 0)
                     {
@@ -408,25 +474,7 @@ namespace l2l_aggregator.Services.Printing
             }
         }
 
-        private byte[] GetTestTemplate()
-        {
-            try
-            {
-                if (!string.IsNullOrEmpty(TEST_TEMPLATE_BASE64))
-                {
-                    byte[] bytes = Convert.FromBase64String(TEST_TEMPLATE_BASE64);
-                    string decodedString = Encoding.UTF8.GetString(bytes);
-                    return Encoding.UTF8.GetBytes(decodedString);
-                }
 
-                return null;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Ошибка при получении тестового шаблона");
-                return null;
-            }
-        }
 
         private async Task PrintTestToZebraPrinterAsync(byte[] frxBytes)
         {

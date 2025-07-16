@@ -1,0 +1,249 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ErrByteBufNull" xml:space="preserve">
+    <value>Байтовый буфер равен null.</value>
+  </data>
+  <data name="ErrLinesLen" xml:space="preserve">
+    <value>При парсинге получено не верное количество строк. Должно быть 4, а получено {0}.</value>
+  </data>
+  <data name="ErrParsingString1" xml:space="preserve">
+    <value>Ошибка парсинга строки 1.</value>
+  </data>
+  <data name="ErrParsingString2" xml:space="preserve">
+    <value>Ошибка парсинга строки 2.</value>
+  </data>
+  <data name="ErrParsingString3" xml:space="preserve">
+    <value>Ошибка парсинга строки 3.</value>
+  </data>
+  <data name="DbgParsingString1" xml:space="preserve">
+    <value>Строка 1 успешно распарсина.</value>
+  </data>
+  <data name="DbgParsingString2" xml:space="preserve">
+    <value>Строка 2 успешно распарсина.</value>
+  </data>
+  <data name="DbgParsingString3" xml:space="preserve">
+    <value>Строка 3 успешно распарсина.</value>
+  </data>
+  <data name="ExpParsing" xml:space="preserve">
+    <value>Не удалось распарсить полученные данные в байтовом буфере: {0}.</value>
+  </data>
+  <data name="ErrStartEnd1" xml:space="preserve">
+    <value>Неверный символ начала и(или) конца у строки 1.</value>
+  </data>
+  <data name="ErrStartEnd2" xml:space="preserve">
+    <value>Неверный символ начала и(или) конца у строки 2.</value>
+  </data>
+  <data name="ErrStartEnd3" xml:space="preserve">
+    <value>Неверный символ начала и(или) конца у строки 3.</value>
+  </data>
+  <data name="ErrParamLen1" xml:space="preserve">
+    <value>Неверное количество значений в строке 1. Должно быть 12, а не {0}.</value>
+  </data>
+  <data name="DbgPaperOutFlag" xml:space="preserve">
+    <value>Значение параметра "Станица вышла": {0}.</value>
+  </data>
+  <data name="DbgPauseFlag" xml:space="preserve">
+    <value>Значение параметра "Пауза": {0}.</value>
+  </data>
+  <data name="DbgLabelLength" xml:space="preserve">
+    <value>Значение параметра "Длина метки(количество точек)": {0}.</value>
+  </data>
+  <data name="ErrLabelLength" xml:space="preserve">
+    <value>Не удалось получить число из строки '{0}' для параметра "Длина метки(количество точек)".</value>
+  </data>
+  <data name="DbgFormatsInBuffer" xml:space="preserve">
+    <value>Значение параметра "Количество форматов в буфере приема": {0}.</value>
+  </data>
+  <data name="ErrFormatsInBuffer" xml:space="preserve">
+    <value>Не удалось получить число из строки '{0}' для параметра "Количество форматов в буфере приема".</value>
+  </data>
+  <data name="DbgBufferFullFlag" xml:space="preserve">
+    <value>Значение параметра "Флаг заполнения буфера": {0}.</value>
+  </data>
+  <data name="DbgDiagnosticModeFlag" xml:space="preserve">
+    <value>Значение параметра "Флаг диагностического режима связи": {0}.</value>
+  </data>
+  <data name="DbgPartialFormatFlag" xml:space="preserve">
+    <value>Значение параметра "Флаг частичного форматирования": {0}.</value>
+  </data>
+  <data name="DbgCorruptRamFlag" xml:space="preserve">
+    <value>Значение параметра "Флаг повреждения оперативной памяти": {0}.</value>
+  </data>
+  <data name="DbgUnderTemperatureFlag" xml:space="preserve">
+    <value>Значение параметра "Температурный диапазон(пониженная температура)": {0}.</value>
+  </data>
+  <data name="DbgOverTemperatureFlag" xml:space="preserve">
+    <value>Значение параметра "Температурный диапазон(перегрев)": {0}.</value>
+  </data>
+  <data name="ErrParamLen2" xml:space="preserve">
+    <value>Неверное количество значений в строке 2. Должно быть 11, а не {0}.</value>
+  </data>
+  <data name="DbfHeadUpFlag" xml:space="preserve">
+    <value>Значение параметра "Флаг поднятия головы": {0}.</value>
+  </data>
+  <data name="DbfRibbonOutFlag" xml:space="preserve">
+    <value>Значение параметра "Флаг выхода ленты": {0}.</value>
+  </data>
+  <data name="DbfThermalTransferModeFlag" xml:space="preserve">
+    <value>Значение параметра "Флаг режима термопереноса": {0}.</value>
+  </data>
+  <data name="DbgPrintMode" xml:space="preserve">
+    <value>Значение параметра "Режим печати": {0}.</value>
+  </data>
+  <data name="ErrPrintMode" xml:space="preserve">
+    <value>Не удалось получить число из строки '{0}' для параметра "Режим печати".</value>
+  </data>
+  <data name="DbgPrintWidthMode" xml:space="preserve">
+    <value>Значение параметра "Режим ширины печати": {0}.</value>
+  </data>
+  <data name="ErrPrintWidthMode" xml:space="preserve">
+    <value>Не удалось получить число из строки '{0}' для параметра "Режим ширины печати".</value>
+  </data>
+  <data name="DbfLabelWaitingFlag" xml:space="preserve">
+    <value>Значение параметра "Флаг ожидания этикетки": {0}.</value>
+  </data>
+  <data name="DbgLabelsRemainingInBatch" xml:space="preserve">
+    <value>Значение параметра "Этикетки, оставшиеся в партии": {0}.</value>
+  </data>
+  <data name="ErrLabelsRemainingInBatch" xml:space="preserve">
+    <value>Не удалось получить число из строки '{0}' для параметра "Этикетки, оставшиеся в партии".</value>
+  </data>
+  <data name="DbfFormatWhilePrintingFlag" xml:space="preserve">
+    <value>Значение параметра "Флаг формата при печати": {0}.</value>
+  </data>
+  <data name="DbgNumberOfGraphicImages" xml:space="preserve">
+    <value>Значение параметра "Количество графических изображений, хранящихся в памяти": {0}.</value>
+  </data>
+  <data name="ErrNumberOfGraphicImages" xml:space="preserve">
+    <value>Не удалось получить число из строки '{0}' для параметра "Количество графических изображений, хранящихся в памяти".</value>
+  </data>
+  <data name="ErrParamLen3" xml:space="preserve">
+    <value>Неверное количество значений в строке 2. Должно быть 2, а не {0}.</value>
+  </data>
+  <data name="DbgIsStaticRamInstalled" xml:space="preserve">
+    <value>Значение параметра "Флаг установки статической RAM": {0}.</value>
+  </data>
+  <data name="DbgPassword" xml:space="preserve">
+    <value>Значение параметра "Пароль": {0}.</value>
+  </data>
+  <data name="ErrPrintModeEnum" xml:space="preserve">
+    <value>Не удалось преобразовать число в enum: {0}</value>
+  </data>
+</root>

@@ -1,0 +1,1 @@
+dotnet nuget push Printers\bin\Release\MD.AGGR.Devices.Printers.8.6.1.nupkg -s https://git.medtechtd.ru/api/v4/projects/142/packages/nuget/index.json

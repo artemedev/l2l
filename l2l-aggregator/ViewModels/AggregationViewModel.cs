@@ -1162,11 +1162,11 @@ namespace l2l_aggregator.ViewModels
                         //изменение состояния после сканирования
                         if (CurrentBox == _sessionService.SelectedTaskInfo.IN_PALLET_BOX_QTY)
                         {
-                            // Добавляем валидные коды в глобальную коллекцию
-                            foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
-                            {
-                                _sessionService.AllScannedDmCodes.Add(cell.Dm_data.Data);
-                            }
+                            //// Добавляем валидные коды в глобальную коллекцию
+                            //foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
+                            //{
+                            //    _sessionService.AllScannedDmCodes.Add(cell.Dm_data.Data);
+                            //}
 
                             await SaveAllDmCellsAsync();
                             //DMCells

@@ -1,0 +1,82 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<PackageId>MD.AGGR.Devices.Tcp</PackageId>
+		<AssemblyName>MD.AGGR.Devices.Tcp</AssemblyName>
+		<RootNamespace>MD.Aggregation.Devices.Tcp</RootNamespace>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<Version>8.1.10</Version>
+		<Authors>ООО "Медтех ТД"</Authors>
+		<Company>ООО "Медтех ТД"</Company>
+		<Description>Унифицированное устройство TCP</Description>
+		<Copyright>MD.AGGR.Devices.Tcp (C) 2024 ООО "Медтех ТД"</Copyright>
+		<PackageProjectUrl>https://git.medtechtd.ru/aggregation/home</PackageProjectUrl>
+		<RepositoryUrl>https://git.medtechtd.ru/aggregation/development/devices/tcp</RepositoryUrl>
+		<PackageReleaseNotes>Начальная реализация</PackageReleaseNotes>
+		<NoWarn>1701;1702;CS1591;CS0659;CA2254</NoWarn>
+		<NeutralLanguage>ru-RU</NeutralLanguage>
+		<PackageReadmeFile>Readme.md</PackageReadmeFile>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<DebugType>full</DebugType>
+		<GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<DebugType>none</DebugType>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+	</PropertyGroup>
+	<ItemGroup>
+		<None Include="..\Readme.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Include="..\ChangeLog.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+	  <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
+	  <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.0" />
+	  <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.0" />
+	  <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
+	  <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Compile Update="Resources\Builder.Designer.cs">
+	    <DesignTime>True</DesignTime>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>Builder.resx</DependentUpon>
+	  </Compile>
+	  <Compile Update="Resources\Device.Designer.cs">
+	    <DesignTime>True</DesignTime>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>Device.resx</DependentUpon>
+	  </Compile>
+	  <Compile Update="Resources\RequestStatusWorker.Designer.cs">
+	    <DesignTime>True</DesignTime>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>RequestStatusWorker.resx</DependentUpon>
+	  </Compile>
+	</ItemGroup>
+	<ItemGroup>
+	  <EmbeddedResource Update="Resources\Builder.resx">
+	    <Generator>ResXFileCodeGenerator</Generator>
+	    <LastGenOutput>Builder.Designer.cs</LastGenOutput>
+	  </EmbeddedResource>
+	  <EmbeddedResource Update="Resources\Device.resx">
+	    <Generator>ResXFileCodeGenerator</Generator>
+	    <LastGenOutput>Device.Designer.cs</LastGenOutput>
+	  </EmbeddedResource>
+	  <EmbeddedResource Update="Resources\RequestStatusWorker.resx">
+	    <Generator>ResXFileCodeGenerator</Generator>
+	    <LastGenOutput>RequestStatusWorker.Designer.cs</LastGenOutput>
+	  </EmbeddedResource>
+	</ItemGroup>
+
+</Project>

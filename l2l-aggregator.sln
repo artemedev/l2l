@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DM_process_lib", "DM_proces
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DM_wraper_lib", "DM_wraper_lib\DM_wraper_lib.csproj", "{9317E91B-9128-42B7-B143-372FB5C62602}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Devices", "tcp-develop\Devices\Devices.csproj", "{98181CED-D1F1-4E65-898E-125126A39B96}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Printers", "zebra-develop\Printers\Printers.csproj", "{EB9C6474-831B-4812-9EC7-A7D2439C3E89}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +31,14 @@ Global
 		{9317E91B-9128-42B7-B143-372FB5C62602}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9317E91B-9128-42B7-B143-372FB5C62602}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9317E91B-9128-42B7-B143-372FB5C62602}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98181CED-D1F1-4E65-898E-125126A39B96}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98181CED-D1F1-4E65-898E-125126A39B96}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98181CED-D1F1-4E65-898E-125126A39B96}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98181CED-D1F1-4E65-898E-125126A39B96}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB9C6474-831B-4812-9EC7-A7D2439C3E89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB9C6474-831B-4812-9EC7-A7D2439C3E89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB9C6474-831B-4812-9EC7-A7D2439C3E89}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB9C6474-831B-4812-9EC7-A7D2439C3E89}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

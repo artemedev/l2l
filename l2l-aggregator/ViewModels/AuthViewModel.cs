@@ -122,7 +122,7 @@ namespace l2l_aggregator.ViewModels
                             // Загружаем сохранённое состояние (если есть)
                             await _sessionService.LoadAggregationStateAsync(_databaseService);
                             long? currentTask = await _databaseDataService.GetCurrentJobIdAsync();
-                            if (currentTask != null)
+                            if (currentTask != 0)
                             {
                                 await GoAggregationAsync(currentTask);
                                 _notificationService.ShowMessage("Обнаружена незавершённая агрегация. Продолжаем...");

@@ -1,0 +1,89 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<AssemblyName>MD.AGGR.Devices.Printers</AssemblyName>
+		<RootNamespace>MD.Aggregation.Devices.Printer</RootNamespace>
+		<Version>8.6.12</Version>
+		<Authors>ООО "Медтех ТД"</Authors>
+		<Company>ООО "Медтех ТД"</Company>
+		<Description>Унифицированный интерфейс работы с принтером</Description>
+		<Copyright>MD.Aggregation.Devices.Printers (C) 2024 ООО "Медтех ТД"</Copyright>
+		<PackageProjectUrl>https://git.medtechtd.ru/aggregation/home</PackageProjectUrl>
+		<RepositoryUrl>https://git.medtechtd.ru/aggregation/development/devices/zebra</RepositoryUrl>
+		<PackageReleaseNotes>Начальная реализация</PackageReleaseNotes>
+		<NoWarn>1701;1702;CS1591;CS0659;CA2254</NoWarn>
+		<NeutralLanguage>ru-RU</NeutralLanguage>
+		<PackageReadmeFile>Readme.md</PackageReadmeFile>	
+		<Title>Принтеры</Title>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<DebugType>full</DebugType>
+		<GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<DebugType>none</DebugType>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+	</PropertyGroup>
+	<ItemGroup>
+		<None Include="..\Readme.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<None Include="..\ChangeLog.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+	  <PackageReference Include="MD.AGGR.DTO" Version="8.17.4" />
+	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\..\tcp-develop\Devices\Devices.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Compile Update="Resources\Printer.Designer.cs">
+	    <DesignTime>True</DesignTime>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>Printer.resx</DependentUpon>
+	  </Compile>
+	  <Compile Update="Resources\ZPL\GetStatusWorker.Designer.cs">
+	    <DesignTime>True</DesignTime>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>GetStatusWorker.resx</DependentUpon>
+	  </Compile>
+	  <Compile Update="Resources\ZPL\Printer.Designer.cs">
+	    <DesignTime>True</DesignTime>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>Printer.resx</DependentUpon>
+	  </Compile>
+	  <Compile Update="Resources\ZPL\Status.Designer.cs">
+	    <DesignTime>True</DesignTime>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>Status.resx</DependentUpon>
+	  </Compile>
+	</ItemGroup>
+	<ItemGroup>
+	  <EmbeddedResource Update="Resources\Printer.resx">
+	    <Generator>ResXFileCodeGenerator</Generator>
+	    <LastGenOutput>Printer.Designer.cs</LastGenOutput>
+	  </EmbeddedResource>
+	  <EmbeddedResource Update="Resources\ZPL\GetStatusWorker.resx">
+	    <Generator>ResXFileCodeGenerator</Generator>
+	    <LastGenOutput>GetStatusWorker.Designer.cs</LastGenOutput>
+	  </EmbeddedResource>
+	  <EmbeddedResource Update="Resources\ZPL\Printer.resx">
+	    <Generator>ResXFileCodeGenerator</Generator>
+	    <LastGenOutput>Printer.Designer.cs</LastGenOutput>
+	  </EmbeddedResource>
+	  <EmbeddedResource Update="Resources\ZPL\Status.resx">
+	    <Generator>ResXFileCodeGenerator</Generator>
+	    <LastGenOutput>Status.Designer.cs</LastGenOutput>
+	  </EmbeddedResource>
+	</ItemGroup>
+
+</Project>

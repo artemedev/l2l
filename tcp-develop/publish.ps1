@@ -1,0 +1,1 @@
+dotnet nuget push Devices\bin\Release\MD.AGGR.Devices.Tcp.8.1.9.nupkg -s https://git.medtechtd.ru/api/v4/projects/154/packages/nuget/index.json

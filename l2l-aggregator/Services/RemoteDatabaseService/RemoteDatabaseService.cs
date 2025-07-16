@@ -84,42 +84,32 @@ namespace l2l_aggregator.Services.Database
             {
                 return await WithConnectionAsync(async conn =>
                 {
-                    using var transaction = await conn.BeginTransactionAsync();
-                    try
+                    var sql = "SELECT * FROM MARK_ARM_USER_AUTH(@USER_IDENT, @USER_PASSWD)";
+
+                    var result = await conn.QueryFirstOrDefaultAsync(sql, new
                     {
-                        var sql = "SELECT * FROM MARK_ARM_USER_AUTH(@USER_IDENT, @USER_PASSWD)";
+                        USER_IDENT = login,
+                        USER_PASSWD = password
+                    });
 
-                        var result = await conn.QueryFirstOrDefaultAsync(sql, new
-                        {
-                            USER_IDENT = login,
-                            USER_PASSWD = password
-                        }, transaction);
-
-                        if (result != null)
-                        {
-                            return new UserAuthResponse
-                            {
-                                USERID = result.USERID?.ToString(),
-                                USER_NAME = result.USER_NAME,
-                                PERSONID = result.PERSONID?.ToString(),
-                                PERSON_NAME = result.PERSON_NAME,
-                                PERSON_DELETE_FLAG = result.PERSON_DELETE_FLAG?.ToString(),
-                                AUTH_OK = result.AUTH_OK?.ToString(),
-                                ERROR_TEXT = result.ERROR_TEXT,
-                                NEED_CHANGE_FLAG = result.NEED_CHANGE_FLAG?.ToString(),
-                                EXPIRATION_DATE = result.EXPIRATION_DATE?.ToString("dd.MM.yyyy HH:mm:ss"),
-                                REC_TYPE = result.REC_TYPE?.ToString()
-                            };
-                        }
-
-                        await transaction.CommitAsync();
-                        return null;
-                    }
-                    catch
+                    if (result != null)
                     {
-                        await transaction.RollbackAsync();
-                        throw;
+                        return new UserAuthResponse
+                        {
+                            USERID = result.USERID?.ToString(),
+                            USER_NAME = result.USER_NAME,
+                            PERSONID = result.PERSONID?.ToString(),
+                            PERSON_NAME = result.PERSON_NAME,
+                            PERSON_DELETE_FLAG = result.PERSON_DELETE_FLAG?.ToString(),
+                            AUTH_OK = result.AUTH_OK?.ToString(),
+                            ERROR_TEXT = result.ERROR_TEXT,
+                            NEED_CHANGE_FLAG = result.NEED_CHANGE_FLAG?.ToString(),
+                            EXPIRATION_DATE = result.EXPIRATION_DATE?.ToString("dd.MM.yyyy HH:mm:ss"),
+                            REC_TYPE = result.REC_TYPE?.ToString()
+                        };
                     }
+
+                    return null;
                 });
             }
             catch
@@ -155,49 +145,38 @@ namespace l2l_aggregator.Services.Database
             {
                 return await WithConnectionAsync(async conn =>
                 {
-                    using var transaction = await conn.BeginTransactionAsync();
-                    try
+                    var sql = @"SELECT * FROM MARK_ARM_DEVICE_REGISTER(
+                        @NAME, @MAC_ADDRESS, @SERIAL_NUMBER, @NET_ADDRESS, 
+                        @KERNEL_VERSION, @HARDWARE_VERSION, @SOFTWARE_VERSION, 
+                        @FIRMWARE_VERSION, @DEVICE_TYPE)";
+
+                    var result = await conn.QueryFirstOrDefaultAsync(sql, new
                     {
-                        var sql = @"SELECT * FROM MARK_ARM_DEVICE_REGISTER(
-                    @NAME, @MAC_ADDRESS, @SERIAL_NUMBER, @NET_ADDRESS, 
-                    @KERNEL_VERSION, @HARDWARE_VERSION, @SOFTWARE_VERSION, 
-                    @FIRMWARE_VERSION, @DEVICE_TYPE)";
+                        NAME = data.NAME,
+                        MAC_ADDRESS = data.MAC_ADDRESS,
+                        SERIAL_NUMBER = data.SERIAL_NUMBER,
+                        NET_ADDRESS = data.NET_ADDRESS,
+                        KERNEL_VERSION = data.KERNEL_VERSION,
+                        HARDWARE_VERSION = data.HARDWARE_VERSION,
+                        SOFTWARE_VERSION = data.SOFTWARE_VERSION,
+                        FIRMWARE_VERSION = data.FIRMWARE_VERSION,
+                        DEVICE_TYPE = data.DEVICE_TYPE
+                    });
 
-                        var result = await conn.QueryFirstOrDefaultAsync(sql, new
-                        {
-                            NAME = data.NAME,
-                            MAC_ADDRESS = data.MAC_ADDRESS,
-                            SERIAL_NUMBER = data.SERIAL_NUMBER,
-                            NET_ADDRESS = data.NET_ADDRESS,
-                            KERNEL_VERSION = data.KERNEL_VERSION,
-                            HARDWARE_VERSION = data.HARDWARE_VERSION,
-                            SOFTWARE_VERSION = data.SOFTWARE_VERSION,
-                            FIRMWARE_VERSION = data.FIRMWARE_VERSION,
-                            DEVICE_TYPE = data.DEVICE_TYPE
-                        }, transaction);
-
-                        if (result != null)
-                        {
-                            _currentDeviceId = result.DEVICEID;
-
-                            await transaction.CommitAsync();
-                            return new ArmDeviceRegistrationResponse
-                            {
-                                DEVICEID = result.DEVICEID?.ToString(),
-                                DEVICE_NAME = result.DEVICE_NAME,
-                                LICENSE_DATA = result.LICENSE_DATA?.ToString(),
-                                SETTINGS_DATA = result.SETTINGS_DATA?.ToString()
-                            };
-                        }
-
-                        await transaction.CommitAsync();
-                        return null;
-                    }
-                    catch
+                    if (result != null)
                     {
-                        await transaction.RollbackAsync();
-                        throw;
+                        _currentDeviceId = result.DEVICEID;
+
+                        return new ArmDeviceRegistrationResponse
+                        {
+                            DEVICEID = result.DEVICEID?.ToString(),
+                            DEVICE_NAME = result.DEVICE_NAME,
+                            LICENSE_DATA = result.LICENSE_DATA?.ToString(),
+                            SETTINGS_DATA = result.SETTINGS_DATA?.ToString()
+                        };
                     }
+
+                    return null;
                 });
             }
             catch
@@ -425,14 +404,14 @@ namespace l2l_aggregator.Services.Database
             {
                 return await WithConnectionAsync(async conn =>
                 {
-                    using var transaction = await conn.BeginTransactionAsync();
+                    using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = "EXECUTE PROCEDURE ARM_JOB_CLOSE";
 
                         await conn.ExecuteAsync(sql, transaction: transaction);
 
-                        await transaction.CommitAsync();
+                        transaction.Commit();
                         return true;
                     }
                     catch
@@ -524,25 +503,16 @@ namespace l2l_aggregator.Services.Database
             {
                 return await WithConnectionAsync(async conn =>
                 {
-                    using var transaction = await conn.BeginTransactionAsync();
-                    try
-                    {
-                        var sql = @"EXECUTE PROCEDURE MARK_ARM_SESSION_START";
+                    var sql = @"EXECUTE PROCEDURE MARK_ARM_SESSION_START";
 
-                        await conn.ExecuteAsync(sql, transaction: transaction);
+                    await conn.ExecuteAsync(sql);
 
-                        await transaction.CommitAsync();
-                        return true;
-                    }
-                    catch
-                    {
-                        await transaction.RollbackAsync();
-                        throw;
-                    }
+                    return true;
                 });
             }
             catch
             {
+
                 throw;
             }
         }

@@ -552,7 +552,7 @@ namespace l2l_aggregator.ViewModels
 
             try
             {
-                _printingService.PrintTestLabel();
+                await _printingService.PrintTestLabel();
                 InfoMessage = "Тестовая печать выполнена успешно!";
                 _notificationService.ShowMessage(InfoMessage);
             }
