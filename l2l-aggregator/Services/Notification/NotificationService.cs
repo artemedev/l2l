@@ -1,4 +1,5 @@
 ﻿using Avalonia.Notification;
+using Avalonia.Threading;
 using l2l_aggregator.Services.Database.Repositories.Interfaces;
 using l2l_aggregator.Services.Notification.Interface;
 using System;
@@ -6,7 +7,6 @@ using System.Collections.ObjectModel;
 
 namespace l2l_aggregator.Services.Notification
 {
-
     public class NotificationService : INotificationService
     {
         private readonly INotificationLogRepository _notificationLog;
@@ -14,7 +14,6 @@ namespace l2l_aggregator.Services.Notification
         public INotificationMessageManager Manager { get; }
 
         // Коллекция всех уведомлений
-
         public class NotificationItem
         {
             public string Message { get; set; } = "";
@@ -22,8 +21,8 @@ namespace l2l_aggregator.Services.Notification
             public string? UserName { get; set; } // может быть null
             public DateTime CreatedAt { get; set; } = DateTime.Now;
         }
-        public ObservableCollection<NotificationItem> Notifications { get; } = new();
 
+        public ObservableCollection<NotificationItem> Notifications { get; } = new();
 
         public NotificationService(SessionService sessionService, INotificationLogRepository notificationLog)
         {
@@ -31,7 +30,6 @@ namespace l2l_aggregator.Services.Notification
             _notificationLog = notificationLog;
             _sessionService = sessionService;
         }
-
 
         // Билдер по умолчанию для уведомлений
         public NotificationMessageBuilder Default()
@@ -44,7 +42,27 @@ namespace l2l_aggregator.Services.Notification
 
         public INotificationMessage ShowMessage(string message, NotificationType type = NotificationType.Info, Action closeAction = null)
         {
+            // Проверяем, находимся ли мы в UI потоке
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                return ShowMessageInternal(message, type, closeAction);
+            }
+            else
+            {
+                // Переключаемся на UI поток
+                INotificationMessage result = null;
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    result = ShowMessageInternal(message, type, closeAction);
+                });
+                return result;
+            }
+        }
+
+        private INotificationMessage ShowMessageInternal(string message, NotificationType type, Action closeAction)
+        {
             var userName = _sessionService.User?.USER_NAME;
+
             // Настройка цветов и заголовков по типу уведомления
             var (accentColor, header) = type switch
             {
@@ -54,6 +72,7 @@ namespace l2l_aggregator.Services.Notification
                 NotificationType.Success => ("#4BB543", "Успешно"),
                 _ => ("#1751c3", "Информация")
             };
+
             var item = new NotificationItem
             {
                 Message = message,
@@ -61,14 +80,13 @@ namespace l2l_aggregator.Services.Notification
                 UserName = userName,
                 CreatedAt = DateTime.Now
             };
+
             // Добавляем сообщение в список
             Notifications.Add(item);
 
-            // Сохраняем в БД
+            // Сохраняем в БД (асинхронно, не блокируя UI)
             _ = _notificationLog.SaveNotificationAsync(item);
 
-            //HasHeader type "Info","Warn", "Error"
-            //Accent "Info"-"#1751c3", "Warn"-"#E0A030", "Error"-#e03030
             var builder = Manager
                 .CreateMessage()
                 .Accent(accentColor)
@@ -78,7 +96,6 @@ namespace l2l_aggregator.Services.Notification
                 .HasHeader(header)
                 .HasMessage(message)
                 .Dismiss().WithButton("OK", button => { }); // Кнопка
-
 
             if (closeAction != null)
             {

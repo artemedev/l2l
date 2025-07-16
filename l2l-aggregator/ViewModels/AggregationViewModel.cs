@@ -45,7 +45,7 @@ namespace l2l_aggregator.ViewModels
         //сервис обработки шаблона, после выбора пользователя элементов в ui. Для дальнейшей отправки в библиотеку распознавания
         private readonly TemplateService _templateService;
 
-    
+
 
         //сервис работы с бд
         private readonly DatabaseService _databaseService;
@@ -373,11 +373,11 @@ namespace l2l_aggregator.ViewModels
         }
 
 
-        private async void InitializeCurrentBoxFromCounters()
+        private void InitializeCurrentBoxFromCounters()
         {
             try
             {
-                var countersResponse = await _databaseDataService.GetArmCountersAsync();
+                var countersResponse = _databaseDataService.GetArmCounters();
 
                 if (countersResponse?.RECORDSET != null)
                 {
@@ -483,7 +483,7 @@ namespace l2l_aggregator.ViewModels
         }
 
         [RelayCommand]
-        public async Task StartTask()
+        public void StartTask()
         {
             if (_sessionService.SelectedTaskInfo == null)
             {
@@ -491,7 +491,7 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage(InfoMessage);
                 return;
             }
-            if (!await _databaseDataService.StartAggregationSessionAsync())
+            if (!_databaseDataService.StartAggregationSession())
             {
                 _notificationService.ShowMessage("Ошибка начала сессии агрегации", NotificationType.Error);
                 return; // Остановить, если позиционирование не удалось
@@ -504,7 +504,7 @@ namespace l2l_aggregator.ViewModels
             try
             {
                 //отправляет шаблон распознавания в библиотеку
-                templateOk = await SendTemplateToRecognizerAsync();
+                templateOk = SendTemplateToRecognizer();
 
                 if (templateOk)
                 {
@@ -702,7 +702,7 @@ namespace l2l_aggregator.ViewModels
 
 
         //отправляет шаблон распознавания в библиотеку
-        public async Task<bool> SendTemplateToRecognizerAsync()
+        public bool SendTemplateToRecognizer()
         {
             // Генерация шаблона из ui
             var currentTemplate = _templateService.GenerateTemplate(TemplateFields.ToList());
@@ -992,10 +992,13 @@ namespace l2l_aggregator.ViewModels
             if (CurrentLayer == _sessionService.SelectedTaskInfo.LAYERS_QTY &&
                 validCountDMCells == numberOfLayers)
             {
+
                 CanScan = false;
                 CanOpenTemplateSettings = false;
                 CanPrintBoxLabel = true;
                 CurrentStepIndex = 2;
+                _printingService.PrintReportTEST(frxBoxBytes, true);
+
                 // Метод подтверждения обработки фотографий в ПЛК
                 await ConfirmPhotoToPlcAsync();
             }
@@ -1080,7 +1083,7 @@ namespace l2l_aggregator.ViewModels
             CurrentStepIndex = 5;
         }
         [RelayCommand]
-        public async Task StopSession()
+        public void StopSession()
         {
             _dmScanService.StopScan();
 
@@ -1090,7 +1093,7 @@ namespace l2l_aggregator.ViewModels
             CanOpenTemplateSettings = false;
             CanPrintBoxLabel = false;
 
-            await _databaseDataService.CloseJobAsync();
+            _databaseDataService.CloseJob();
 
         }
         //Завершить агрегацию
@@ -1099,8 +1102,8 @@ namespace l2l_aggregator.ViewModels
         {
             await _databaseService.AggregationState.ClearStateAsync(_sessionService.User.USER_NAME);
             _dmScanService.StopScan();
-            await _databaseDataService.CloseAggregationSessionAsync();
-            await _databaseDataService.CloseJobAsync();
+             _databaseDataService.CloseAggregationSession();
+            _databaseDataService.CloseJob();
 
             // Очищаем кэшированные данные
             _sessionService.ClearCachedAggregationData();
@@ -1112,12 +1115,14 @@ namespace l2l_aggregator.ViewModels
 
         //отменить агрегацию
         [RelayCommand]
-        public async Task CancelAggregation()
+        public void CancelAggregation()
         {
 
             // await _databaseService.AggregationState.ClearStateAsync(_sessionService.User.USER_NAME);
             _dmScanService.StopScan();
-            await _databaseDataService.CloseAggregationSessionAsync();
+            _databaseDataService.CloseAggregationSession();
+            _databaseDataService.CloseJob();
+
             // Очищаем кэшированные данные
             // _sessionService.ClearCachedAggregationData();
             // Очищаем коды при конце задания
@@ -1128,7 +1133,7 @@ namespace l2l_aggregator.ViewModels
         }
 
         //сканирование кода этикетки
-        public async void HandleScannedBarcode(string barcode)
+        public void HandleScannedBarcode(string barcode)
         {
 
             // Проверка, что мы находимся на шаге 2
@@ -1160,20 +1165,21 @@ namespace l2l_aggregator.ViewModels
                         //!!!!!!!!!!!!!!!!!!!!!!!!!
 
                         //изменение состояния после сканирования
-                        if (CurrentBox == _sessionService.SelectedTaskInfo.IN_PALLET_BOX_QTY)
-                        {
-                            //// Добавляем валидные коды в глобальную коллекцию
-                            //foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
-                            //{
-                            //    _sessionService.AllScannedDmCodes.Add(cell.Dm_data.Data);
-                            //}
+                        //if (CurrentBox == _sessionService.SelectedTaskInfo.IN_PALLET_BOX_QTY)
+                        //{
+                        //// Добавляем валидные коды в глобальную коллекцию
+                        //foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
+                        //{
+                        //    _sessionService.AllScannedDmCodes.Add(cell.Dm_data.Data);
+                        //}
 
-                            await SaveAllDmCellsAsync();
-                            //DMCells
-                            //_databaseDataService.LogAggregationCompletedAsync(, _sessionService.SelectedTaskSscc.SSCCID);
-                            CanPrintBoxLabel = false;
-                            //сanPrintPalletLabel = true;
-                        }
+                        SaveAllDmCells();
+                        //DMCells
+                        //_databaseDataService.LogAggregationCompletedAsync(, _sessionService.SelectedTaskSscc.SSCCID);
+                        CanPrintBoxLabel = false;
+                        //сanPrintPalletLabel = true;
+                        //}
+                        CanScan = true;
                         CurrentBox++;
                         CurrentLayer = 1;
                         CurrentStepIndex = 1;
@@ -1218,7 +1224,7 @@ namespace l2l_aggregator.ViewModels
 
         }
         //Сохранение в бд.
-        private async Task SaveAllDmCellsAsync()
+        private void SaveAllDmCells()
         {
             try
             {
@@ -1230,26 +1236,23 @@ namespace l2l_aggregator.ViewModels
 
                     if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
                     {
-                        await _databaseDataService.LogAggregationCompletedAsync(parsedData.SerialNumber, _sessionService.SelectedTaskSscc.SSCC_CODE);
+                        _databaseDataService.LogAggregationCompleted(parsedData.SerialNumber, _sessionService.SelectedTaskSscc.CHECK_BAR_CODE);
 
                     }
                     else
                     {
-                        _notificationService.ShowMessage(
-                            $"Не найден SGTIN для серийного номера: {parsedData.SerialNumber}",
-                            NotificationType.Warning);
+                        //_notificationService.ShowMessage($"Не найден SGTIN для серийного номера: {parsedData.SerialNumber}", NotificationType.Warning);
                     }
                 }
-
-                _notificationService.ShowMessage(
-                    $"Сохранено {DMCells.Count(c => c.IsValid)} кодов агрегации",
-                    NotificationType.Success);
+                InfoMessage = $"Коды сохранены";
+               // _notificationService.ShowMessage(InfoMessage);
+                //_notificationService.ShowMessage(
+                //    $"Сохранено {countCode} кодов агрегации",
+                //    Notificatio);
             }
             catch (Exception ex)
             {
-                _notificationService.ShowMessage(
-                    $"Ошибка сохранения кодов агрегации: {ex.Message}",
-                    NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка сохранения кодов агрегации: {ex.Message}", NotificationType.Error);
             }
         }
 
@@ -1405,7 +1408,7 @@ OCR:
             {
                 // Очищаем коды при конце задания
                 _sessionService.ClearScannedCodes();
-                _ = _databaseDataService.CloseAggregationSessionAsync();
+                _databaseDataService.CloseAggregationSession();
                 _plcConnection?.StopPingPong();
                 _plcConnection?.Disconnect();
                 _plcConnection?.Dispose();

@@ -9,14 +9,14 @@ using System.Threading.Tasks;
 
 namespace l2l_aggregator.Services
 {
-    public class DatabaseDataService
+    public class DatabaseDataServiceBEZAYSNCNONERABORAET
     {
         private readonly RemoteDatabaseService _remoteDatabaseService;
         private readonly DatabaseService _localDatabaseService;
         //private readonly INotificationService _notificationService;
         private bool _isConnectionInitialized = false;
 
-        public DatabaseDataService(
+        public DatabaseDataServiceBEZAYSNCNONERABORAET(
             RemoteDatabaseService remoteDatabaseService,
             DatabaseService localDatabaseService,
             INotificationService notificationService)
@@ -27,7 +27,7 @@ namespace l2l_aggregator.Services
         }
 
         // Метод для инициализации подключения (вызывается один раз)
-        private bool EnsureConnection()
+        private bool EnsureConnectionAsync()
         {
             if (!_isConnectionInitialized)
             {
@@ -41,12 +41,12 @@ namespace l2l_aggregator.Services
         }
 
         // Принудительная проверка соединения
-        public bool TestConnection()
+        public async Task<bool> TestConnectionAsync()
         {
             try
             {
                 _isConnectionInitialized = false; // Сбрасываем флаг для повторной проверки
-                return EnsureConnection();
+                return EnsureConnectionAsync();
             }
             catch (Exception ex)
             {
@@ -56,11 +56,11 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- AUTH ----------------
-        public async Task<UserAuthResponse?> Login(string login, string password)
+        public async Task<UserAuthResponse?> LoginAsync(string login, string password)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!EnsureConnectionAsync())
                 {
                     //_notificationService.ShowMessage("Нет подключения к удаленной БД", NotificationType.Error);
                     return null;
@@ -91,11 +91,11 @@ namespace l2l_aggregator.Services
         }
 
         // Проверка прав администратора
-        public bool CheckAdminRole(string userId)
+        public async Task<bool> CheckAdminRoleAsync(string userId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!EnsureConnectionAsync())
                 {
                     return false;
                 }
@@ -115,11 +115,11 @@ namespace l2l_aggregator.Services
         }
 
         //Регистрация устройства
-        public ArmDeviceRegistrationResponse? RegisterDevice(ArmDeviceRegistrationRequest data)
+        public async Task<ArmDeviceRegistrationResponse?> RegisterDeviceAsync(ArmDeviceRegistrationRequest data)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!EnsureConnectionAsync())
                 {
                     return null;
                 }
@@ -140,11 +140,11 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- JOB LIST ----------------
-        public ArmJobResponse? GetJobs(string userId)
+        public async Task<ArmJobResponse?> GetJobsAsync(string userId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!EnsureConnectionAsync())
                 {
                     return null;
                 }
@@ -169,11 +169,11 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- JOB DETAILS ----------------
-        public ArmJobInfoRecord? GetJobDetails(long docId)
+        public async Task<ArmJobInfoRecord?> GetJobDetailsAsync(long docId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!EnsureConnectionAsync())
                 {
                     return null;
                 }
@@ -193,11 +193,11 @@ namespace l2l_aggregator.Services
             }
         }
 
-        public long? GetCurrentJobId()
+        public async Task<long?> GetCurrentJobIdAsync()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!EnsureConnectionAsync())
                 {
                     return null;
                 }
@@ -211,11 +211,11 @@ namespace l2l_aggregator.Services
             }
         }
         // Закрытие задания
-        public bool CloseJob()
+        public async Task<bool> CloseJobAsync()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!EnsureConnectionAsync())
                 {
                     return false;
                 }
@@ -236,11 +236,11 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- Получение Sgtin ----------------
-        public ArmJobSgtinResponse? GetSgtin(long docId)
+        public async Task<ArmJobSgtinResponse?> GetSgtinAsync(long docId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!EnsureConnectionAsync())
                 {
                     return null;
                 }
@@ -261,11 +261,11 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- Получение Sscc ----------------
-        public ArmJobSsccResponse? GetSscc(long docId)
+        public async Task<ArmJobSsccResponse?> GetSsccAsync(long docId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!EnsureConnectionAsync())
                 {
                     return null;
                 }
@@ -287,11 +287,11 @@ namespace l2l_aggregator.Services
 
 
         // ---------------- SESSION MANAGEMENT ----------------
-        public bool StartAggregationSession()
+        public async Task<bool> StartAggregationSessionAsync()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!EnsureConnectionAsync())
                 {
                     return false;
                 }
@@ -312,11 +312,11 @@ namespace l2l_aggregator.Services
             }
         }
 
-        public bool CloseAggregationSession()
+        public async Task<bool> CloseAggregationSessionAsync()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!EnsureConnectionAsync())
                 {
                     return false;
                 }
@@ -335,11 +335,11 @@ namespace l2l_aggregator.Services
             }
         }
         //  ---------------- Логирование агрегации ----------------
-        public bool LogAggregationCompleted(string UNID, string SSCCID)
+        public async Task<bool> LogAggregationCompletedAsync(string UNID, string SSCCID)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!EnsureConnectionAsync())
                 {
                     return false;
                 }
@@ -360,11 +360,11 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- Получение счетчиков ARM ----------------
-        public ArmCountersResponse? GetArmCounters()
+        public async Task<ArmCountersResponse?> GetArmCountersAsync()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!EnsureConnectionAsync())
                 {
                     return null;
                 }

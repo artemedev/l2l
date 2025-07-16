@@ -99,7 +99,7 @@ namespace l2l_aggregator.ViewModels
                 // Попытка входа через удаленную БД
                 try
                 {
-                    UserAuthResponse response = await _databaseDataService.LoginAsync(Login, HashPassword(Password));
+                    UserAuthResponse response = await _databaseDataService.Login(Login, HashPassword(Password));
                     if (response != null)
                     {
                         if (response.AUTH_OK == "1")
@@ -110,7 +110,7 @@ namespace l2l_aggregator.ViewModels
                             await _databaseService.UserAuth.SaveUserAuthAsync(response);
 
                             // Проверяем права администратора
-                            bool isAdmin = await _databaseDataService.CheckAdminRoleAsync(response.USERID);
+                            bool isAdmin = _databaseDataService.CheckAdminRole(response.USERID);
                             _sessionService.IsAdmin = isAdmin;
                             // Успешная авторизация
                             _notificationService.ShowMessage("Авторизация прошла успешно!");
@@ -121,8 +121,8 @@ namespace l2l_aggregator.ViewModels
                             }
                             // Загружаем сохранённое состояние (если есть)
                             await _sessionService.LoadAggregationStateAsync(_databaseService);
-                            long? currentTask = await _databaseDataService.GetCurrentJobIdAsync();
-                            if (currentTask != 0)
+                            long? currentTask = _databaseDataService.GetCurrentJobId();
+                            if (currentTask != 0 && currentTask != null)
                             {
                                 await GoAggregationAsync(currentTask);
                                 _notificationService.ShowMessage("Обнаружена незавершённая агрегация. Продолжаем...");
@@ -181,7 +181,7 @@ namespace l2l_aggregator.ViewModels
                 InfoMessage = "Обнаружены изменения в конфигурации устройства. Выполняется перерегистрация...";
 
                 // Проверяем подключение к базе данных
-                bool isConnected = await _databaseDataService.TestConnectionAsync();
+                bool isConnected = _databaseDataService.TestConnection();
 
                 if (!isConnected)
                 {
@@ -191,7 +191,7 @@ namespace l2l_aggregator.ViewModels
                 }
 
                 // Выполняем перерегистрацию устройства
-                var deviceRegistered = await _databaseDataService.RegisterDeviceAsync(currentRequest);
+                var deviceRegistered = _databaseDataService.RegisterDevice(currentRequest);
 
                 if (deviceRegistered != null)
                 {
@@ -247,7 +247,7 @@ namespace l2l_aggregator.ViewModels
             InfoMessage = "Загружаем детальную информацию о задаче...";
 
             // Загружаем детальную информацию о задаче
-            var jobInfo = await _databaseDataService.GetJobDetailsAsync(currentTask ?? 0);
+            var jobInfo = _databaseDataService.GetJobDetails(currentTask ?? 0);
             if (jobInfo == null)
             {
                 _notificationService.ShowMessage("Не удалось загрузить детальную информацию о задаче.", NotificationType.Error);
@@ -258,7 +258,7 @@ namespace l2l_aggregator.ViewModels
 
 
             // Загружаем данные SSCC
-            await LoadSsccDataAsync(currentTask ?? 0);
+            LoadSsccData(currentTask ?? 0);
 
             // Проверяем, что все необходимые данные загружены
             if (_responseSscc == null)
@@ -267,7 +267,7 @@ namespace l2l_aggregator.ViewModels
                 return;
             }
             // Загружаем данные SGTIN
-            await LoadSgtinDataAsync(currentTask ?? 0);
+            LoadSgtinDataAsync(currentTask ?? 0);
 
             if (_responseSgtin == null)
             {
@@ -283,11 +283,11 @@ namespace l2l_aggregator.ViewModels
 
             _router.GoTo<AggregationViewModel>();
         }
-        private async Task LoadSsccDataAsync(long docId)
+        private void LoadSsccData(long docId)
         {
             try
             {
-                _responseSscc = await _databaseDataService.GetSsccAsync(docId);
+                _responseSscc = _databaseDataService.GetSscc(docId);
                 if (_responseSscc != null)
                 {
                     // Сохраняем первую запись SSCC в сессию
@@ -307,11 +307,11 @@ namespace l2l_aggregator.ViewModels
             }
         }
 
-        private async Task LoadSgtinDataAsync(long docId)
+        private void LoadSgtinDataAsync(long docId)
         {
             try
             {
-                _responseSgtin = await _databaseDataService.GetSgtinAsync(docId);
+                _responseSgtin = _databaseDataService.GetSgtin(docId);
                 if (_responseSgtin != null)
                 {
                     InfoMessage = "SGTIN данные загружены успешно.";

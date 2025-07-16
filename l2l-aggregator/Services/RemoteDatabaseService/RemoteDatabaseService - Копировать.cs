@@ -8,12 +8,12 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Linq;
 using System.Reflection.Emit;
-using System.Threading;
+using System.Threading.Tasks;
 using System.Transactions;
 
 namespace l2l_aggregator.Services.Database
 {
-    public class RemoteDatabaseService : IDisposable
+    public class RemoteDatabaseServiceASYNCTEST
     {
         private readonly IConfigRepository _configRepository;
         //private readonly INotificationService _notificationService;
@@ -21,11 +21,7 @@ namespace l2l_aggregator.Services.Database
         private long? _currentDeviceId;
         private readonly string _connectionString;
         private IConfiguration _configuration;
-
-        // Мьютекс для синхронизации операций с базой данных
-        private readonly Mutex _dbMutex = new Mutex();
-
-        public RemoteDatabaseService(IConfigRepository configRepository, IConfiguration configuration, INotificationService notificationService)
+        public RemoteDatabaseServiceASYNCTEST(IConfigRepository configRepository, IConfiguration configuration, INotificationService notificationService)
         {
             _configRepository = configRepository;
             _configuration = configuration;
@@ -33,12 +29,12 @@ namespace l2l_aggregator.Services.Database
             _connectionString = _configuration.GetConnectionString("FirebirdDatabase");
         }
 
-        public bool InitializeConnection()
+        public async Task<bool> InitializeConnectionAsync()
         {
             try
             {
                 //_notificationService.ShowMessage($"Подключение к БД", NotificationType.Info);
-                return TestConnection();
+                return await TestConnectionAsync();
             }
             catch (Exception ex)
             {
@@ -47,7 +43,7 @@ namespace l2l_aggregator.Services.Database
             }
         }
 
-        public bool TestConnection()
+        public async Task<bool> TestConnectionAsync()
         {
             if (string.IsNullOrWhiteSpace(_connectionString))
                 return false;
@@ -56,7 +52,7 @@ namespace l2l_aggregator.Services.Database
             {
                 using (FbConnection connection = new FbConnection(_connectionString))
                 {
-                    connection.Open();
+                    await connection.OpenAsync();
                 }
                 return true;
             }
@@ -67,80 +63,33 @@ namespace l2l_aggregator.Services.Database
             }
         }
 
-        // Метод для принудительной синхронизации БД
-        private void EnsureDatabaseSync(FbConnection connection)
+        private async Task<T> WithConnectionAsync<T>(Func<FbConnection, Task<T>> action)
         {
-            try
-            {
-                // Выполняем простой запрос для убеждения что все изменения применены
-                using var syncTransaction = connection.BeginTransaction();
-                connection.QueryFirstOrDefault("SELECT 1 FROM RDB$DATABASE", transaction: syncTransaction);
-                syncTransaction.Commit();
-
-                // Небольшая пауза для гарантии
-                Thread.Sleep(10);
-            }
-            catch
-            {
-                // Если синхронизация не удалась, добавляем паузу
-                Thread.Sleep(50);
-            }
+            using var connection = new FbConnection(_connectionString);
+            await connection.OpenAsync();
+            return await action(connection);
         }
 
-        private T WithConnection<T>(Func<FbConnection, T> action)
+        private async Task WithConnectionAsync(Func<FbConnection, Task> action)
         {
-            _dbMutex.WaitOne();
-            try
-            {
-                using var connection = new FbConnection(_connectionString);
-                connection.Open();
-                var result = action(connection);
-
-                // Принудительная синхронизация перед освобождением мьютекса
-                EnsureDatabaseSync(connection);
-
-                connection.Close();
-                return result;
-            }
-            finally
-            {
-                _dbMutex.ReleaseMutex();
-            }
-        }
-
-        private void WithConnection(Action<FbConnection> action)
-        {
-            _dbMutex.WaitOne();
-            try
-            {
-                using var connection = new FbConnection(_connectionString);
-                connection.Open();
-                action(connection);
-
-                // Принудительная синхронизация перед освобождением мьютекса
-                EnsureDatabaseSync(connection);
-
-                connection.Close();
-            }
-            finally
-            {
-                _dbMutex.ReleaseMutex();
-            }
+            using var connection = new FbConnection(_connectionString);
+            await connection.OpenAsync();
+            await action(connection);
         }
 
         // ---------------- AUTH ----------------
-        public UserAuthResponse? Login(string login, string password)
+        public async Task<UserAuthResponse?> LoginAsync(string login, string password)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
-                    using var transaction = conn.BeginTransaction();
+                    using var transaction = await conn.BeginTransactionAsync();
                     try
                     {
                         var sql = "SELECT * FROM MARK_ARM_USER_AUTH(@USER_IDENT, @USER_PASSWD)";
 
-                        var result = conn.QueryFirstOrDefault(sql, new
+                        var result = await conn.QueryFirstOrDefaultAsync(sql, new
                         {
                             USER_IDENT = login,
                             USER_PASSWD = password
@@ -148,8 +97,6 @@ namespace l2l_aggregator.Services.Database
 
                         if (result != null)
                         {
-                            transaction.Commit();
-
                             return new UserAuthResponse
                             {
                                 USERID = result.USERID?.ToString(),
@@ -165,61 +112,58 @@ namespace l2l_aggregator.Services.Database
                             };
                         }
 
-                        transaction.Rollback();
                         return null;
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        transaction.Rollback();
+                        await transaction.RollbackAsync();
                         throw;
                     }
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
         }
 
         // ---------------- Проверка прав администратора ----------------
-        public bool CheckAdminRole(long userId)
+        public async Task<bool> CheckAdminRoleAsync(long userId)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
-                    using var transaction = conn.BeginTransaction();
+                    using var transaction = await conn.BeginTransactionAsync();
                     try
                     {
                         var sql = "SELECT * FROM ACL_CHECK_ADMIN_ROLE(@USERID)";
 
-                        var result = conn.QueryFirstOrDefault(sql, new { USERID = userId }, transaction);
+                        var result = await conn.QueryFirstOrDefaultAsync(sql, new { USERID = userId }, transaction);
 
-                        var isAdmin = result?.RES == 1;
-                        transaction.Commit();
-                        return isAdmin;
+                        return result?.RES == 1;
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        transaction.Rollback();
+                        await transaction.RollbackAsync();
                         throw;
                     }
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
         }
 
         // ---------------- Регистрация устройства ----------------
-        public ArmDeviceRegistrationResponse? RegisterDevice(ArmDeviceRegistrationRequest data)
+        public async Task<ArmDeviceRegistrationResponse?> RegisterDeviceAsync(ArmDeviceRegistrationRequest data)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
-                    using var transaction = conn.BeginTransaction();
+                    using var transaction = await conn.BeginTransactionAsync();
                     try
                     {
                         var sql = @"SELECT * FROM MARK_ARM_DEVICE_REGISTER(
@@ -227,7 +171,7 @@ namespace l2l_aggregator.Services.Database
                         @KERNEL_VERSION, @HARDWARE_VERSION, @SOFTWARE_VERSION, 
                         @FIRMWARE_VERSION, @DEVICE_TYPE)";
 
-                        var result = conn.QueryFirstOrDefault(sql, new
+                        var result = await conn.QueryFirstOrDefaultAsync(sql, new
                         {
                             NAME = data.NAME,
                             MAC_ADDRESS = data.MAC_ADDRESS,
@@ -244,44 +188,40 @@ namespace l2l_aggregator.Services.Database
                         {
                             _currentDeviceId = result.DEVICEID;
 
-                            var response = new ArmDeviceRegistrationResponse
+                            return new ArmDeviceRegistrationResponse
                             {
                                 DEVICEID = result.DEVICEID?.ToString(),
                                 DEVICE_NAME = result.DEVICE_NAME,
                                 LICENSE_DATA = result.LICENSE_DATA?.ToString(),
                                 SETTINGS_DATA = result.SETTINGS_DATA?.ToString()
                             };
-
-                            transaction.Commit();
-                            return response;
                         }
 
-                        transaction.Rollback();
                         return null;
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        transaction.Rollback();
+                        await transaction.RollbackAsync();
                         throw;
                     }
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
         }
 
         // ---------------- Загрузка списка задач ----------------
-        public ArmJobResponse? GetJobs(string userId)
+        public async Task<ArmJobResponse?> GetJobsAsync(string userId)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     var sql = "SELECT * FROM MARK_ARM_JOB_GET";
 
-                    var records = conn.Query(sql);
+                    var records = await conn.QueryAsync(sql);
 
                     var armJobRecords = records.Select(r => new ArmJobRecord
                     {
@@ -318,190 +258,163 @@ namespace l2l_aggregator.Services.Database
                     return new ArmJobResponse { RECORDSET = armJobRecords };
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
         }
-
         // ---------------- Загрузка задания в бд ----------------
-        public bool LoadJob(long jobId)
+        public async Task<bool> LoadJobAsync(long jobId)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
-                    using var transaction = conn.BeginTransaction();
+                    using var transaction = await conn.BeginTransactionAsync();
                     try
                     {
                         var sql = "EXECUTE PROCEDURE ARM_JOB_LOAD(@JOBID)";
 
-                        var result = conn.QueryFirstOrDefault<int>(sql, new { JOBID = jobId }, transaction);
+                        var result = await conn.QueryFirstOrDefaultAsync<int>(sql, new { JOBID = jobId }, transaction);
 
-                        transaction.Commit();
+                        await transaction.CommitAsync();
                         return result == 1;
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        transaction.Rollback();
+                        await transaction.RollbackAsync();
                         throw;
                     }
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
         }
 
         // ---------------- Загрузка задания ----------------
-        public ArmJobInfoRecord? GetJobDetails(long docId)
+        public async Task<ArmJobInfoRecord?> GetJobDetailsAsync(long docId)
         {
             try
             {
                 // Проверяем, есть ли уже загруженное задание
-                var currentJobId = GetCurrentJobId();
+                var currentJobId = await GetCurrentJobIdAsync();
 
                 //если выбранное задание и задание которое загруженно не равны то закрываем предыдущее задание и загружаем новое
                 // Если текущее задание не совпадает с запрашиваемым, загружаем новое
                 if (currentJobId != docId)
                 {
-                    CloseJob();
-                    LoadJob(docId);
+                    await CloseJobAsync();
+                    await LoadJobAsync(docId);
                 }
 
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
-                    using var transaction = conn.BeginTransaction();
-                    try
+                    // Теперь получаем данные из таблицы ARM_TASK, куда они загружены после ARM_JOB_LOAD
+                    var sql = @"SELECT * FROM ARM_TASK WHERE DOCID = @DOCID";
+
+                    var record = await conn.QueryFirstOrDefaultAsync(sql, new { DOCID = docId });
+
+                    if (record != null)
                     {
-                        // Теперь получаем данные из таблицы ARM_TASK, куда они загружены после ARM_JOB_LOAD
-                        var sql = @"SELECT * FROM ARM_TASK WHERE DOCID = @DOCID";
-
-                        var record = conn.QueryFirstOrDefault(sql, new { DOCID = docId }, transaction);
-
-                        if (record != null)
+                        return new ArmJobInfoRecord
                         {
-                            var response = new ArmJobInfoRecord
-                            {
-                                // Nullable long/int поля
-                                DOCID = record.DOCID as long?,
-                                RESOURCEID = record.RESOURCEID as long?,
-                                SERIESID = record.SERIESID as long?,
-                                RES_BOXID = record.RES_BOXID as long?,
-                                DOC_ORDER = record.DOC_ORDER as int?,
-                                FIRMID = record.FIRMID as long?,
+                            // Nullable long/int поля
+                            DOCID = record.DOCID as long?,
+                            RESOURCEID = record.RESOURCEID as long?,
+                            SERIESID = record.SERIESID as long?,
+                            RES_BOXID = record.RES_BOXID as long?,
+                            DOC_ORDER = record.DOC_ORDER as int?,
+                            FIRMID = record.FIRMID as long?,
 
-                                // String поля с проверкой на null
-                                DOCDATE = record.DOCDATE?.ToString("dd.MM.yyyy"),
-                                MOVEDATE = record.MOVEDATE?.ToString("dd.MM.yyyy"),
-                                BUHDATE = record.BUHDATE?.ToString("dd.MM.yyyy"),
-                                DOC_NUM = record.DOC_NUM?.ToString(),
-                                DEPART_NAME = record.DEPART_NAME?.ToString(),
-                                RESOURCE_NAME = record.RESOURCE_NAME?.ToString(),
-                                RESOURCE_ARTICLE = record.RESOURCE_ARTICLE?.ToString(),
-                                SERIES_NAME = record.SERIES_NAME?.ToString(),
-                                RES_BOX_NAME = record.RES_BOX_NAME?.ToString(),
-                                GTIN = record.GTIN?.ToString(),
-                                EXPIRE_DATE_VAL = record.EXPIRE_DATE_VAL?.ToString("dd.MM.yyyy"),
-                                MNF_DATE_VAL = record.MNF_DATE_VAL?.ToString("dd.MM.yyyy"),
+                            // String поля с проверкой на null
+                            DOCDATE = record.DOCDATE?.ToString("dd.MM.yyyy"),
+                            MOVEDATE = record.MOVEDATE?.ToString("dd.MM.yyyy"),
+                            BUHDATE = record.BUHDATE?.ToString("dd.MM.yyyy"),
+                            DOC_NUM = record.DOC_NUM?.ToString(),
+                            DEPART_NAME = record.DEPART_NAME?.ToString(),
+                            RESOURCE_NAME = record.RESOURCE_NAME?.ToString(),
+                            RESOURCE_ARTICLE = record.RESOURCE_ARTICLE?.ToString(),
+                            SERIES_NAME = record.SERIES_NAME?.ToString(),
+                            RES_BOX_NAME = record.RES_BOX_NAME?.ToString(),
+                            GTIN = record.GTIN?.ToString(),
+                            EXPIRE_DATE_VAL = record.EXPIRE_DATE_VAL?.ToString("dd.MM.yyyy"),
+                            MNF_DATE_VAL = record.MNF_DATE_VAL?.ToString("dd.MM.yyyy"),
 
-                                // Специальные типы согласно модели
-                                DOC_TYPE = record.DOC_TYPE?.ToString(), // string? в модели
-                                AGREGATION_CODE = record.AGREGATION_CODE as int?, // int? в модели
-                                AGREGATION_TYPE = record.AGREGATION_TYPE?.ToString(), // string? в модели
-                                CRYPTO_CODE_FLAG = record.CRYPTO_CODE_FLAG as short?,
-                                FIRM_NAME = record.FIRM_NAME?.ToString(),
-                                QTY = record.QTY as int?,
-                                AGGR_FLAG = record.AGGR_FLAG as short?,
+                            // Специальные типы согласно модели
+                            DOC_TYPE = record.DOC_TYPE?.ToString(), // string? в модели
+                            AGREGATION_CODE = record.AGREGATION_CODE as int?, // int? в модели
+                            AGREGATION_TYPE = record.AGREGATION_TYPE?.ToString(), // string? в модели
+                            CRYPTO_CODE_FLAG = record.CRYPTO_CODE_FLAG as short?,
+                            FIRM_NAME = record.FIRM_NAME?.ToString(),
+                            QTY = record.QTY as int?,
+                            AGGR_FLAG = record.AGGR_FLAG as short?,
 
-                                // Nullable long поля
-                                UN_TEMPLATEID = record.UN_TEMPLATEID as long?,
-                                UN_RESERVE_DOCID = record.UN_RESERVE_DOCID as long?,
+                            // Nullable long поля
+                            UN_TEMPLATEID = record.UN_TEMPLATEID as long?,
+                            UN_RESERVE_DOCID = record.UN_RESERVE_DOCID as long?,
 
-                                // byte[] поля с правильной обработкой
-                                UN_TEMPLATE = ConvertToByteArray(record.UN_TEMPLATE),
-                                UN_TEMPLATE_FR = ConvertToByteArray(record.UN_TEMPLATE_FR),
+                            // byte[] поля с правильной обработкой
+                            UN_TEMPLATE = ConvertToByteArray(record.UN_TEMPLATE),
+                            UN_TEMPLATE_FR = ConvertToByteArray(record.UN_TEMPLATE_FR),
 
-                                // Дополнительные поля из ARM_TASK
-                                IN_BOX_QTY = record.IN_BOX_QTY as int?,
-                                IN_INNER_BOX_QTY = record.IN_INNER_BOX_QTY as int?,
-                                INNER_BOX_FLAG = record.INNER_BOX_FLAG as short?,
-                                INNER_BOX_AGGR_FLAG = record.INNER_BOX_AGGR_FLAG as short?,
-                                INNER_BOX_QTY = record.INNER_BOX_QTY as int?,
-                                IN_PALLET_BOX_QTY = record.IN_PALLET_BOX_QTY as int?,
-                                LAST_PACKAGE_LOCATION_INFO = record.LAST_PACKAGE_LOCATION_INFO?.ToString(),
-                                PALLET_NOT_USE_FLAG = record.PALLET_NOT_USE_FLAG as short?,
-                                PALLET_AGGR_FLAG = record.PALLET_AGGR_FLAG as short?,
-                                AGREGATION_TYPEID = record.AGREGATION_TYPEID as long?,
-                                SERIES_SYS_NUM = record.SERIES_SYS_NUM as int?, // int? в модели
-                                LAYERS_QTY = record.LAYERS_QTY as int?,
-                                LAYER_ROW_QTY = record.LAYER_ROW_QTY as int?,
-                                LAYER_ROWS_QTY = record.LAYER_ROWS_QTY as int?,
-                                PACK_HEIGHT = record.PACK_HEIGHT as int?,
-                                PACK_WIDTH = record.PACK_WIDTH as int?,
-                                PACK_LENGTH = record.PACK_LENGTH as int?,
-                                PACK_WEIGHT = record.PACK_WEIGHT as int?,
-                                PACK_CODE_POSITION = record.PACK_CODE_POSITION?.ToString(), // string? в модели
-                                BOX_TEMPLATEID = record.BOX_TEMPLATEID as long?,
-                                BOX_RESERVE_DOCID = record.BOX_RESERVE_DOCID as long?,
-                                BOX_TEMPLATE = ConvertToByteArray(record.BOX_TEMPLATE),
-                                PALLETE_TEMPLATEID = record.PALLETE_TEMPLATEID as long?,
-                                PALLETE_RESERVE_DOCID = record.PALLETE_RESERVE_DOCID as long?,
-                                PALLETE_TEMPLATE = ConvertToByteArray(record.PALLETE_TEMPLATE),
-                                INT_BOX_TEMPLATEID = record.INT_BOX_TEMPLATEID as long?,
-                                INT_BOX_RESERVE_DOCID = record.INT_BOX_RESERVE_DOCID as long?,
-                                INT_BOX_TEMPLATE = ConvertToByteArray(record.INT_BOX_TEMPLATE),
-                                LOAD_START_TIME = record.LOAD_START_TIME?.ToString("dd.MM.yyyy HH:mm:ss"),
-                                LOAD_FINISH_TIME = record.LOAD_FINISH_TIME?.ToString("dd.MM.yyyy HH:mm:ss"),
-                                EXPIRE_DATE = record.EXPIRE_DATE?.ToString(),
-                                MNF_DATE = record.MNF_DATE?.ToString()
-                            };
-
-                            transaction.Commit();
-                            return response;
-                        }
-
-                        transaction.Rollback();
-                        return null;
-
+                            // Дополнительные поля из ARM_TASK
+                            IN_BOX_QTY = record.IN_BOX_QTY as int?,
+                            IN_INNER_BOX_QTY = record.IN_INNER_BOX_QTY as int?,
+                            INNER_BOX_FLAG = record.INNER_BOX_FLAG as short?,
+                            INNER_BOX_AGGR_FLAG = record.INNER_BOX_AGGR_FLAG as short?,
+                            INNER_BOX_QTY = record.INNER_BOX_QTY as int?,
+                            IN_PALLET_BOX_QTY = record.IN_PALLET_BOX_QTY as int?,
+                            LAST_PACKAGE_LOCATION_INFO = record.LAST_PACKAGE_LOCATION_INFO?.ToString(),
+                            PALLET_NOT_USE_FLAG = record.PALLET_NOT_USE_FLAG as short?,
+                            PALLET_AGGR_FLAG = record.PALLET_AGGR_FLAG as short?,
+                            AGREGATION_TYPEID = record.AGREGATION_TYPEID as long?,
+                            SERIES_SYS_NUM = record.SERIES_SYS_NUM as int?, // int? в модели
+                            LAYERS_QTY = record.LAYERS_QTY as int?,
+                            LAYER_ROW_QTY = record.LAYER_ROW_QTY as int?,
+                            LAYER_ROWS_QTY = record.LAYER_ROWS_QTY as int?,
+                            PACK_HEIGHT = record.PACK_HEIGHT as int?,
+                            PACK_WIDTH = record.PACK_WIDTH as int?,
+                            PACK_LENGTH = record.PACK_LENGTH as int?,
+                            PACK_WEIGHT = record.PACK_WEIGHT as int?,
+                            PACK_CODE_POSITION = record.PACK_CODE_POSITION?.ToString(), // string? в модели
+                            BOX_TEMPLATEID = record.BOX_TEMPLATEID as long?,
+                            BOX_RESERVE_DOCID = record.BOX_RESERVE_DOCID as long?,
+                            BOX_TEMPLATE = ConvertToByteArray(record.BOX_TEMPLATE),
+                            PALLETE_TEMPLATEID = record.PALLETE_TEMPLATEID as long?,
+                            PALLETE_RESERVE_DOCID = record.PALLETE_RESERVE_DOCID as long?,
+                            PALLETE_TEMPLATE = ConvertToByteArray(record.PALLETE_TEMPLATE),
+                            INT_BOX_TEMPLATEID = record.INT_BOX_TEMPLATEID as long?,
+                            INT_BOX_RESERVE_DOCID = record.INT_BOX_RESERVE_DOCID as long?,
+                            INT_BOX_TEMPLATE = ConvertToByteArray(record.INT_BOX_TEMPLATE),
+                            LOAD_START_TIME = record.LOAD_START_TIME?.ToString("dd.MM.yyyy HH:mm:ss"),
+                            LOAD_FINISH_TIME = record.LOAD_FINISH_TIME?.ToString("dd.MM.yyyy HH:mm:ss"),
+                            EXPIRE_DATE = record.EXPIRE_DATE?.ToString(),
+                            MNF_DATE = record.MNF_DATE?.ToString()
+                        };
                     }
-                    catch (Exception ex)
-                    {
-                        transaction.Rollback();
-                        throw;
-                    }
+
+                    return null;
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
         }
-
         // ---------------- Проверка есть ли текущее загруженное задание ----------------
-        public long? GetCurrentJobId()
+        public async Task<long?> GetCurrentJobIdAsync()
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
-                    using var transaction = conn.BeginTransaction();
-                    try
-                    {
-                        var sql = "SELECT * FROM JOBID_GET";
+                    var sql = "SELECT * FROM JOBID_GET";
 
-                        var result = conn.QueryFirstOrDefault(sql, transaction:transaction);
+                    var result = await conn.QueryFirstOrDefaultAsync(sql);
 
-                        var jobId = result?.JOBID as long?;
-                        transaction.Commit();
-                        return jobId;
-                    }
-                    catch (Exception ex)
-                    {
-                        transaction.Rollback();
-                        throw;
-                    }
+                    return result?.JOBID as long?;
                 });
             }
             catch (Exception ex)
@@ -512,48 +425,48 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Закрытие задания ----------------
-        public bool CloseJob()
+        public async Task<bool> CloseJobAsync()
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = "EXECUTE PROCEDURE ARM_JOB_CLOSE";
 
-                        conn.Execute(sql, transaction: transaction);
+                        await conn.ExecuteAsync(sql, transaction: transaction);
 
                         transaction.Commit();
                         return true;
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        transaction.Rollback();
+                        transaction.RollbackAsync();
                         throw;
                     }
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
         }
 
         // ---------------- Получение Sgtin ----------------
-        public ArmJobSgtinResponse? GetSgtin(long docId)
+        public async Task<ArmJobSgtinResponse?> GetSgtinAsync(long docId)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = @"SELECT * FROM MARK_UN_CODE";
 
-                        var records = conn.Query(sql, transaction: transaction);
+                        var records = await conn.QueryAsync(sql, transaction: transaction);
 
                         var sgtinRecords = records.Select(r => new ArmJobSgtinRecord
                         {
@@ -569,36 +482,34 @@ namespace l2l_aggregator.Services.Database
                             QTY = r.QTY
                         }).ToList();
 
-                        var response = new ArmJobSgtinResponse { RECORDSET = sgtinRecords };
-                        transaction.Commit();
-                        return response;
+                        return new ArmJobSgtinResponse { RECORDSET = sgtinRecords };
                     }
-                    catch (Exception ex)
+                    catch
                     {
                         transaction.Rollback();
                         throw;
                     }
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
         }
 
         // ---------------- Получение Sscc ----------------
-        public ArmJobSsccResponse? GetSscc(long docId)
+        public async Task<ArmJobSsccResponse?> GetSsccAsync(long docId)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = @"SELECT * FROM MARK_SSCC_CODE";
 
-                        var records = conn.Query(sql, transaction: transaction);
+                        var records = await conn.QueryAsync(sql, transaction: transaction);
 
                         var ssccRecords = records.Select(r => new ArmJobSsccRecord
                         {
@@ -615,96 +526,94 @@ namespace l2l_aggregator.Services.Database
                             PARENT_SSCCID = r.PARENT_SSCCID
                         }).ToList();
 
-                        var response = new ArmJobSsccResponse { RECORDSET = ssccRecords };
-                        transaction.Commit();
-                        return response;
+                        return new ArmJobSsccResponse { RECORDSET = ssccRecords };
                     }
-                    catch (Exception ex)
+                    catch
                     {
                         transaction.Rollback();
                         throw;
                     }
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
         }
 
         // ---------------- SESSION MANAGEMENT ----------------
-        public bool StartSession()
+        public async Task<bool> StartSessionAsync()
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = @"EXECUTE PROCEDURE MARK_ARM_SESSION_START";
 
-                        conn.Execute(sql, transaction: transaction);
+                        await conn.ExecuteAsync(sql, transaction: transaction);
 
                         transaction.Commit();
                         return true;
                     }
-                    catch (Exception ex)
+                    catch
                     {
                         transaction.Rollback();
                         throw;
                     }
                 });
             }
-            catch (Exception ex)
+            catch
             {
 
                 throw;
             }
         }
 
-        public bool CloseSession()
+        public async Task<bool> CloseSessionAsync()
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = @"EXECUTE PROCEDURE MARK_ARM_SESSION_CLOSE";
 
-                        conn.Execute(sql, transaction: transaction);
+                        await conn.ExecuteAsync(sql, transaction: transaction);
 
                         transaction.Commit();
                         return true;
                     }
-                    catch (Exception ex)
+                    catch
                     {
                         transaction.Rollback();
                         throw;
                     }
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
         }
 
         //  ---------------- Логирование агрегации ----------------
-        public bool LogAggregation(string UNID, string SSCCID)
+        public async Task<bool> LogAggregationAsync(string UNID, string SSCCID)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = "EXECUTE PROCEDURE ARM_SGTIN_SSCC_ADD(@UNID, @SSCCID)";
 
-                        conn.Execute(sql, new
+                        await conn.ExecuteAsync(sql, new
                         {
                             UNID = UNID,
                             SSCCID = SSCCID
@@ -713,14 +622,14 @@ namespace l2l_aggregator.Services.Database
                         transaction.Commit();
                         return true;
                     }
-                    catch (Exception ex)
+                    catch
                     {
                         transaction.Rollback();
                         throw;
                     }
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
@@ -743,18 +652,18 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Получение счетчиков ARM ----------------
-        public ArmCountersResponse? GetArmCounters()
+        public async Task<ArmCountersResponse?> GetArmCountersAsync()
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = @"SELECT * FROM ARM_COUNTERS_SHOW";
 
-                        var records = conn.Query(sql, transaction: transaction);
+                        var records = await conn.QueryAsync(sql, transaction);
 
                         var armCountersRecords = records.Select(r => new ArmCountersRecord
                         {
@@ -765,28 +674,19 @@ namespace l2l_aggregator.Services.Database
                             JOB_QTY = r.JOB_QTY
                         }).ToList();
 
-                        var response = new ArmCountersResponse { RECORDSET = armCountersRecords };
-                        transaction.Commit();
-                        return response;
+                        return new ArmCountersResponse { RECORDSET = armCountersRecords };
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        ex.ToString();
                         transaction.Rollback();
                         throw;
                     }
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
-        }
-
-        // Освобождение ресурсов
-        public void Dispose()
-        {
-            _dbMutex?.Dispose();
         }
     }
 }

@@ -9,15 +9,15 @@ using System.Threading.Tasks;
 
 namespace l2l_aggregator.Services
 {
-    public class DatabaseDataService
+    public class DatabaseDataServiceASYNCTEST
     {
-        private readonly RemoteDatabaseService _remoteDatabaseService;
+        private readonly RemoteDatabaseServiceASYNCTEST _remoteDatabaseService;
         private readonly DatabaseService _localDatabaseService;
         //private readonly INotificationService _notificationService;
         private bool _isConnectionInitialized = false;
 
-        public DatabaseDataService(
-            RemoteDatabaseService remoteDatabaseService,
+        public DatabaseDataServiceASYNCTEST(
+            RemoteDatabaseServiceASYNCTEST remoteDatabaseService,
             DatabaseService localDatabaseService,
             INotificationService notificationService)
         {
@@ -27,11 +27,11 @@ namespace l2l_aggregator.Services
         }
 
         // Метод для инициализации подключения (вызывается один раз)
-        private bool EnsureConnection()
+        private async Task<bool> EnsureConnectionAsync()
         {
             if (!_isConnectionInitialized)
             {
-                _isConnectionInitialized = _remoteDatabaseService.InitializeConnection();
+                _isConnectionInitialized = await _remoteDatabaseService.InitializeConnectionAsync();
                 if (_isConnectionInitialized)
                 {
                     //_notificationService.ShowMessage("Соединение с удаленной БД установлено", NotificationType.Success);
@@ -41,12 +41,12 @@ namespace l2l_aggregator.Services
         }
 
         // Принудительная проверка соединения
-        public bool TestConnection()
+        public async Task<bool> TestConnectionAsync()
         {
             try
             {
                 _isConnectionInitialized = false; // Сбрасываем флаг для повторной проверки
-                return EnsureConnection();
+                return await EnsureConnectionAsync();
             }
             catch (Exception ex)
             {
@@ -56,17 +56,17 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- AUTH ----------------
-        public async Task<UserAuthResponse?> Login(string login, string password)
+        public async Task<UserAuthResponse?> LoginAsync(string login, string password)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnectionAsync())
                 {
                     //_notificationService.ShowMessage("Нет подключения к удаленной БД", NotificationType.Error);
                     return null;
                 }
 
-                var response = _remoteDatabaseService.Login(login, password);
+                var response = await _remoteDatabaseService.LoginAsync(login, password);
 
                 if (response?.AUTH_OK == "1")
                 {
@@ -91,18 +91,18 @@ namespace l2l_aggregator.Services
         }
 
         // Проверка прав администратора
-        public bool CheckAdminRole(string userId)
+        public async Task<bool> CheckAdminRoleAsync(string userId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnectionAsync())
                 {
                     return false;
                 }
 
                 if (long.TryParse(userId, out var userIdLong))
                 {
-                    return _remoteDatabaseService.CheckAdminRole(userIdLong);
+                    return await _remoteDatabaseService.CheckAdminRoleAsync(userIdLong);
                 }
 
                 return false;
@@ -115,16 +115,16 @@ namespace l2l_aggregator.Services
         }
 
         //Регистрация устройства
-        public ArmDeviceRegistrationResponse? RegisterDevice(ArmDeviceRegistrationRequest data)
+        public async Task<ArmDeviceRegistrationResponse?> RegisterDeviceAsync(ArmDeviceRegistrationRequest data)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnectionAsync())
                 {
                     return null;
                 }
 
-                var response = _remoteDatabaseService.RegisterDevice(data);
+                var response = await _remoteDatabaseService.RegisterDeviceAsync(data);
                 if (response != null)
                 {
                     //_notificationService.ShowMessage($"Устройство '{response.DEVICE_NAME}' зарегистрировано", NotificationType.Success);
@@ -140,16 +140,16 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- JOB LIST ----------------
-        public ArmJobResponse? GetJobs(string userId)
+        public async Task<ArmJobResponse?> GetJobsAsync(string userId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnectionAsync())
                 {
                     return null;
                 }
 
-                var response = _remoteDatabaseService.GetJobs(userId);
+                var response = await _remoteDatabaseService.GetJobsAsync(userId);
                 if (response?.RECORDSET?.Any() == true)
                 {
                     //_notificationService.ShowMessage($"Загружено {response.RECORDSET.Count} заданий", NotificationType.Info);
@@ -169,16 +169,16 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- JOB DETAILS ----------------
-        public ArmJobInfoRecord? GetJobDetails(long docId)
+        public async Task<ArmJobInfoRecord?> GetJobDetailsAsync(long docId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnectionAsync())
                 {
                     return null;
                 }
 
-                var response = _remoteDatabaseService.GetJobDetails(docId);
+                var response = await _remoteDatabaseService.GetJobDetailsAsync(docId);
                 if (response != null)
                 {
                     //_notificationService.ShowMessage($"Задание {response.DOC_NUM} загружено", NotificationType.Success);
@@ -193,16 +193,16 @@ namespace l2l_aggregator.Services
             }
         }
 
-        public long? GetCurrentJobId()
+        public async Task<long?> GetCurrentJobIdAsync()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnectionAsync())
                 {
                     return null;
                 }
 
-                return _remoteDatabaseService.GetCurrentJobId();
+                return await _remoteDatabaseService.GetCurrentJobIdAsync();
             }
             catch (Exception ex)
             {
@@ -211,16 +211,16 @@ namespace l2l_aggregator.Services
             }
         }
         // Закрытие задания
-        public bool CloseJob()
+        public async Task<bool> CloseJobAsync()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnectionAsync())
                 {
                     return false;
                 }
 
-                var result = _remoteDatabaseService.CloseJob();
+                var result = await _remoteDatabaseService.CloseJobAsync();
                 if (result)
                 {
                     //_notificationService.ShowMessage("Задание успешно закрыто", NotificationType.Success);
@@ -236,16 +236,16 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- Получение Sgtin ----------------
-        public ArmJobSgtinResponse? GetSgtin(long docId)
+        public async Task<ArmJobSgtinResponse?> GetSgtinAsync(long docId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnectionAsync())
                 {
                     return null;
                 }
 
-                var response = _remoteDatabaseService.GetSgtin(docId);
+                var response = await _remoteDatabaseService.GetSgtinAsync(docId);
                 if (response?.RECORDSET?.Any() == true)
                 {
                     //_notificationService.ShowMessage($"Загружено {response.RECORDSET.Count} SGTIN кодов", NotificationType.Info);
@@ -261,16 +261,16 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- Получение Sscc ----------------
-        public ArmJobSsccResponse? GetSscc(long docId)
+        public async Task<ArmJobSsccResponse?> GetSsccAsync(long docId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnectionAsync())
                 {
                     return null;
                 }
 
-                var response = _remoteDatabaseService.GetSscc(docId);
+                var response = await _remoteDatabaseService.GetSsccAsync(docId);
                 if (response?.RECORDSET?.Any() == true)
                 {
                     //_notificationService.ShowMessage($"Загружено {response.RECORDSET.Count} SSCC кодов", NotificationType.Info);
@@ -287,17 +287,17 @@ namespace l2l_aggregator.Services
 
 
         // ---------------- SESSION MANAGEMENT ----------------
-        public bool StartAggregationSession()
+        public async Task<bool> StartAggregationSessionAsync()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnectionAsync())
                 {
                     return false;
                 }
 
 
-                var result = _remoteDatabaseService.StartSession();
+                var result = await _remoteDatabaseService.StartSessionAsync();
                 if (result)
                 {
                     //_notificationService.ShowMessage($"Сессия агрегации начата", NotificationType.Success);
@@ -312,16 +312,16 @@ namespace l2l_aggregator.Services
             }
         }
 
-        public bool CloseAggregationSession()
+        public async Task<bool> CloseAggregationSessionAsync()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnectionAsync())
                 {
                     return false;
                 }
 
-                var result = _remoteDatabaseService.CloseSession();
+                var result = await _remoteDatabaseService.CloseSessionAsync();
                 if (result)
                 {
                     //_notificationService.ShowMessage("Сессия агрегации завершена", NotificationType.Success);
@@ -335,16 +335,16 @@ namespace l2l_aggregator.Services
             }
         }
         //  ---------------- Логирование агрегации ----------------
-        public bool LogAggregationCompleted(string UNID, string SSCCID)
+        public async Task<bool> LogAggregationCompletedAsync(string UNID, string SSCCID)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnectionAsync())
                 {
                     return false;
                 }
 
-                var result = _remoteDatabaseService.LogAggregation(UNID, SSCCID);
+                var result = await _remoteDatabaseService.LogAggregationAsync(UNID, SSCCID);
                 if (result)
                 {
                     //_notificationService.ShowMessage("Агрегация успешно зарегистрирована", NotificationType.Success);
@@ -360,16 +360,16 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- Получение счетчиков ARM ----------------
-        public ArmCountersResponse? GetArmCounters()
+        public async Task<ArmCountersResponse?> GetArmCountersAsync()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnectionAsync())
                 {
                     return null;
                 }
 
-                var response = _remoteDatabaseService.GetArmCounters();
+                var response = await _remoteDatabaseService.GetArmCountersAsync();
                 if (response?.RECORDSET?.Any() == true)
                 {
                     //_notificationService.ShowMessage($"Загружено {response.RECORDSET.Count} счетчиков ARM", NotificationType.Info);

@@ -58,16 +58,16 @@ namespace l2l_aggregator.ViewModels
             _databaseDataService = databaseDataService;
 
 
-            InitializeAsync();
+            Initialize();
             //string userId = await _databaseService.UserAuth.GetLastUserIdAsync();
             //LoadTasksAsync(userId).ConfigureAwait(false);
         }
-        private async void InitializeAsync()
+        private void Initialize()
         {
             try
             {
                 var userId = _sessionService.User.USERID;
-                await LoadTasksAsync(userId).ConfigureAwait(false);
+                LoadTasks(userId);
             }
             catch (Exception ex)
             {
@@ -75,7 +75,7 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage($"Ошибка инициализации: {ex.Message}");
             }
         }
-        public async Task LoadTasksAsync(string userId)
+        public void LoadTasks(string userId)
         {
             try
             {
@@ -95,7 +95,7 @@ namespace l2l_aggregator.ViewModels
 
                 var request = new ArmJobRequest { userid = userId };
                 //var response = await _dataApiService.GetJobsAsync(userId);
-                var response = await _databaseDataService.GetJobsAsync(userId);
+                var response = _databaseDataService.GetJobs(userId);
                 if (response != null)
                 {
                     //client.GetJobs(request);

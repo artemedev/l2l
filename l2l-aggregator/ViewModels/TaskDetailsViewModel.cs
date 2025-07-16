@@ -87,7 +87,7 @@ namespace l2l_aggregator.ViewModels
             InfoMessage = "Загружаем детальную информацию о задаче...";
 
             // Загружаем детальную информацию о задаче
-            var jobInfo = await _databaseDataService.GetJobDetailsAsync(Task.DOCID);
+            var jobInfo = _databaseDataService.GetJobDetails(Task.DOCID);
             if (jobInfo == null)
             {
                 _notificationService.ShowMessage("Не удалось загрузить детальную информацию о задаче.", NotificationType.Error);
@@ -98,7 +98,7 @@ namespace l2l_aggregator.ViewModels
 
 
             // Загружаем данные SSCC
-            await LoadSsccDataAsync(Task.DOCID);
+            LoadSsccData(Task.DOCID);
 
             // Проверяем, что все необходимые данные загружены
             if (_responseSscc == null)
@@ -107,7 +107,7 @@ namespace l2l_aggregator.ViewModels
                 return;
             }
             // Загружаем данные SGTIN
-            await LoadSgtinDataAsync(Task.DOCID);
+            LoadSgtinData(Task.DOCID);
 
             if (_responseSgtin == null)
             {
@@ -123,11 +123,11 @@ namespace l2l_aggregator.ViewModels
 
             _router.GoTo<AggregationViewModel>();
         }
-        private async Task LoadSsccDataAsync(long docId)
+        private void LoadSsccData(long docId)
         {
             try
             {
-                _responseSscc = await _databaseDataService.GetSsccAsync(docId);
+                _responseSscc = _databaseDataService.GetSscc(docId);
                 if (_responseSscc != null)
                 {
                     // Сохраняем первую запись SSCC в сессию
@@ -147,11 +147,11 @@ namespace l2l_aggregator.ViewModels
             }
         }
 
-        private async Task LoadSgtinDataAsync(long docId)
+        private void LoadSgtinData(long docId)
         {
             try
             {
-                _responseSgtin = await _databaseDataService.GetSgtinAsync(docId);
+                _responseSgtin = _databaseDataService.GetSgtin(docId);
                 if (_responseSgtin != null)
                 {
                     InfoMessage = "SGTIN данные загружены успешно.";

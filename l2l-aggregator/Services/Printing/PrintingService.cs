@@ -43,7 +43,40 @@ namespace l2l_aggregator.Services.Printing
                 _notificationService.ShowMessage($"Модель принтера '{_sessionService.PrinterModel}' не поддерживается.");
             }
         }
-
+        public void PrintReportTEST(byte[] frxBytes, bool typePrint)
+        {
+            if (_sessionService.PrinterModel == "Zebra")
+            {
+                PrintToZebraPrinterTEST(frxBytes, typePrint);
+            }
+            else
+            {
+                _notificationService.ShowMessage($"Модель принтера '{_sessionService.PrinterModel}' не поддерживается.");
+            }
+        }
+        private async void PrintToZebraPrinterTEST(byte[] frxBytes, bool typePrint)
+        {
+            try
+            {
+                byte[] zplBytes;
+                if (typePrint)
+                {
+                    zplBytes = GenerateZplFromReportBOX(frxBytes);
+                }
+                else
+                {
+                    zplBytes = GenerateZplFromReportPALLET(frxBytes);
+                }
+                string zplString = Encoding.UTF8.GetString(zplBytes);
+                _notificationService.ShowMessage($"сформирован zplString");
+                //PrintZpl(zplBytes);
+            }
+            catch (Exception ex)
+            {
+                _notificationService.ShowMessage($"Ошибка принтера: {ex.Message}");
+                logger.LogError(ex, "Ошибка при печати на Zebra принтере");
+            }
+        }
         public async Task<bool> CheckConnectPrinterAsync(string printerIP, string printerModel)
         {
             try
@@ -104,7 +137,7 @@ namespace l2l_aggregator.Services.Printing
                 _labelPrinter = new LabelPrinter("ZebraPrinter", printerLogger);
                 _labelPrinter.StatusReceived += Printer_StatusReceived;
 
-                _notificationService.ShowMessage("> Подключение к принтеру...");
+                _notificationService.ShowMessage("Подключение к принтеру...");
 
                 _labelPrinter.Configure(conf);
                 _labelPrinter.StartWork();
@@ -121,12 +154,12 @@ namespace l2l_aggregator.Services.Printing
 
                 if (_labelPrinter.Status == MD.Aggregation.Devices.DeviceStatusCode.Ready)
                 {
-                    _notificationService.ShowMessage("> Принтер успешно подключен");
+                    _notificationService.ShowMessage("Принтер успешно подключен");
                     return true;
                 }
                 else
                 {
-                    _notificationService.ShowMessage($"> Ошибка подключения. Статус: {_labelPrinter.Status}");
+                    _notificationService.ShowMessage($"Ошибка подключения. Статус: {_labelPrinter.Status}");
                     DisconnectPrinter();
                     return false;
                 }
@@ -161,16 +194,16 @@ namespace l2l_aggregator.Services.Printing
                         return false;
 
                     case MD.Aggregation.Devices.DeviceStatusCode.Fail:
-                        _notificationService.ShowMessage("> Принтер недоступен, переподключение...");
+                        _notificationService.ShowMessage("Принтер недоступен, переподключение...");
                         DisconnectPrinter();
                         return await ConnectToPrinterAsync(_sessionService.PrinterIP);
 
                     case MD.Aggregation.Devices.DeviceStatusCode.Unknow:
-                        _notificationService.ShowMessage("> Неизвестное состояние принтера");
+                        _notificationService.ShowMessage("Неизвестное состояние принтера");
                         return false;
 
                     default:
-                        _notificationService.ShowMessage($"> Статус принтера: {_labelPrinter.Status}");
+                        _notificationService.ShowMessage($"Статус принтера: {_labelPrinter.Status}");
                         return false;
                 }
             }
@@ -189,7 +222,8 @@ namespace l2l_aggregator.Services.Printing
             switch (e.NewStatus)
             {
                 case MD.Aggregation.Devices.DeviceStatusCode.Fail:
-                    _notificationService.ShowMessage("> Принтер сообщил об ошибке");
+                    _notificationService.ShowMessage("Принтер недоступен");
+                    DisconnectPrinter();
                     break;
                 case MD.Aggregation.Devices.DeviceStatusCode.Ready:
                     logger.LogDebug("Принтер готов к работе");
@@ -207,7 +241,7 @@ namespace l2l_aggregator.Services.Printing
                     _labelPrinter.StopWork();
                     _labelPrinter.Release();
                     _labelPrinter = null;
-                    _notificationService.ShowMessage("> Принтер отключен");
+                    _notificationService.ShowMessage("Принтер отключен");
                 }
                 catch (Exception ex)
                 {
@@ -295,12 +329,12 @@ namespace l2l_aggregator.Services.Printing
 
                 if (_labelPrinter.SendLabel(zplString))
                 {
-                    _notificationService.ShowMessage($"> Данные отправлены на принтер");
-                    _notificationService.ShowMessage($"> Состояние устройства: {_labelPrinter.Status}");
+                    _notificationService.ShowMessage($"Данные отправлены на принтер");
+                    _notificationService.ShowMessage($"Состояние устройства: {_labelPrinter.Status}");
                 }
                 else
                 {
-                    _notificationService.ShowMessage($"> Ошибка отправки данных на принтер");
+                    _notificationService.ShowMessage($"Ошибка отправки данных на принтер");
                 }
             }
             catch (Exception ex)

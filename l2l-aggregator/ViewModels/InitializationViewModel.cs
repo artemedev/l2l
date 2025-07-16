@@ -56,7 +56,7 @@ namespace l2l_aggregator.ViewModels
 
             try
             {
-                bool isConnected = await _databaseDataService.TestConnectionAsync();
+                bool isConnected = _databaseDataService.TestConnection();
 
                 if (isConnected)
                 {
@@ -65,7 +65,7 @@ namespace l2l_aggregator.ViewModels
                     // Создаем запрос с корректными данными для всех платформ
                     var request = _deviceInfoService.CreateRegistrationRequest();
 
-                    var deviceRegistered = await _databaseDataService.RegisterDeviceAsync(request);
+                    var deviceRegistered = _databaseDataService.RegisterDevice(request);
 
                     if (deviceRegistered != null)
                     {
