@@ -247,11 +247,11 @@ namespace l2l_aggregator.ViewModels
             //инициализация колличества пачек на слое
             InitializeNumberOfLayers();
 
-            //инициализация SSCC
-            InitializeSscc();
-
             //инициализация CurrentBox из счетчиков
             InitializeCurrentBoxFromCounters();
+
+            //инициализация SSCC
+            InitializeSscc();
 
             //заполнение из шаблона в модальное окно для выбора элементов для сканирования
             InitializeTemplate();
@@ -368,7 +368,22 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage(InfoMessage);
                 return;
             }
+            //!!!!!!!!!!!!!!!!!!!!!!!!!
+            var boxRecord = ResponseSscc.RECORDSET
+                                       .Where(r => r.TYPEID == 0)
+                                       .ElementAtOrDefault(CurrentBox - 1);
 
+
+            if (boxRecord != null)
+            {
+                _sessionService.SelectedTaskSscc = boxRecord;
+                //_printingService.PrintReport(frxBoxBytes, true);
+            }
+            else
+            {
+                InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
+                _notificationService.ShowMessage(InfoMessage);
+            }
             _sessionService.SelectedTaskSscc = ResponseSscc.RECORDSET.FirstOrDefault();
         }
 
@@ -498,7 +513,7 @@ namespace l2l_aggregator.ViewModels
             }
 
             // Очищаем коды при начале нового задания
-            _sessionService.ClearScannedCodes();
+            //_sessionService.ClearScannedCodes();
             CanStartTask = false; // Отключаем кнопку во время выполнения
 
             try
@@ -764,7 +779,21 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage("Шаблон не отправлен. Сначала выполните отправку шаблона.");
                 return;
             }
+            var boxRecord = ResponseSscc.RECORDSET
+                           .Where(r => r.TYPEID == 0)
+                           .ElementAtOrDefault(CurrentBox - 1);
 
+
+            if (boxRecord != null)
+            {
+                _sessionService.SelectedTaskSscc = boxRecord;
+                //_printingService.PrintReport(frxBoxBytes, true);
+            }
+            else
+            {
+                InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
+                _notificationService.ShowMessage(InfoMessage);
+            }
             if (!await TryReceiveScanDataSoftwareAsync())
                 return;
 
@@ -993,7 +1022,7 @@ namespace l2l_aggregator.ViewModels
                 validCountDMCells == numberOfLayers)
             {
 
-                CanScan = false;
+                //CanScan = false;
                 CanOpenTemplateSettings = false;
                 CanPrintBoxLabel = true;
                 CurrentStepIndex = 2;
@@ -1163,15 +1192,29 @@ namespace l2l_aggregator.ViewModels
                     {
                         //добавить сохранение
                         //!!!!!!!!!!!!!!!!!!!!!!!!!
+                        var boxRecord = ResponseSscc.RECORDSET
+                                                   .Where(r => r.TYPEID == 0)
+                                                   .ElementAtOrDefault(CurrentBox - 1);
 
+
+                        if (boxRecord != null)
+                        {
+                            _sessionService.SelectedTaskSscc = boxRecord;
+                            //_printingService.PrintReport(frxBoxBytes, true);
+                        }
+                        else
+                        {
+                            InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
+                            _notificationService.ShowMessage(InfoMessage);
+                        }
                         //изменение состояния после сканирования
                         //if (CurrentBox == _sessionService.SelectedTaskInfo.IN_PALLET_BOX_QTY)
                         //{
                         //// Добавляем валидные коды в глобальную коллекцию
-                        //foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
-                        //{
-                        //    _sessionService.AllScannedDmCodes.Add(cell.Dm_data.Data);
-                        //}
+                        foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
+                        {
+                            _sessionService.AllScannedDmCodes.Add(cell.Dm_data.Data);
+                        }
 
                         SaveAllDmCells();
                         //DMCells
@@ -1241,11 +1284,11 @@ namespace l2l_aggregator.ViewModels
                     }
                     else
                     {
-                        //_notificationService.ShowMessage($"Не найден SGTIN для серийного номера: {parsedData.SerialNumber}", NotificationType.Warning);
+                        _notificationService.ShowMessage($"Не найден SGTIN для серийного номера: {parsedData.SerialNumber}", NotificationType.Warning);
                     }
                 }
-                InfoMessage = $"Коды сохранены";
-               // _notificationService.ShowMessage(InfoMessage);
+                //InfoMessage = $"Коды сохранены";
+                // _notificationService.ShowMessage(InfoMessage);
                 //_notificationService.ShowMessage(
                 //    $"Сохранено {countCode} кодов агрегации",
                 //    Notificatio);
@@ -1407,7 +1450,7 @@ OCR:
             if (disposing)
             {
                 // Очищаем коды при конце задания
-                _sessionService.ClearScannedCodes();
+                //_sessionService.ClearScannedCodes();
                 _databaseDataService.CloseAggregationSession();
                 _plcConnection?.StopPingPong();
                 _plcConnection?.Disconnect();

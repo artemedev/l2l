@@ -10,17 +10,18 @@ namespace DM_process_lib
 {
     internal class MainProces : IDM_process
     {
-        private static int _usedDataIndex = 0;
+        private static int _currentBatchStartIndex = 0; // Индекс начала текущей партии (0, 84, 168, ...)
         private static readonly object _lockObject = new object();
         private static readonly Random _random = new Random();
         private const double ERROR_PERCENTAGE = 0.05; // 5% error rate
         private const double DUPLICATE_PERCENTAGE = 0.15; // 15% chance of duplicate
-        private static List<int> _lastScanRecordIndices = new List<int>(); // Track which records were used in last scan
-        private static bool _hasErrorsInLastScan = false; // Track if last scan had any errors
+        private const int BATCH_SIZE = 84; // Размер партии для сканирования
+        private static bool _lastScanHadErrors = false; // Был ли последний скан с ошибками
+        private static List<int> _currentBatchIndices = new List<int>(); // Индексы текущей партии
 
         // Добавляем хранилище для отслеживания уже использованных DataMatrix кодов
         private static readonly List<string> _usedDataMatrixCodes = new List<string>();
-        private static readonly int MAX_STORED_CODES = 100; // Максимальное количество хранимых кодов для дубликатов
+        private static readonly int MAX_STORED_CODES = 500; // Максимальное количество хранимых кодов для дубликатов
 
         public MainProces()
         {
@@ -37,9 +38,9 @@ namespace DM_process_lib
         {
             lock (_lockObject)
             {
-                _usedDataIndex = 0; // Reset to start from beginning
-                _lastScanRecordIndices.Clear(); // Clear last scan tracking
-                _hasErrorsInLastScan = false; // Reset error tracking
+                _currentBatchStartIndex = 0; // Reset to start from beginning
+                _lastScanHadErrors = false; // Reset error tracking
+                _currentBatchIndices.Clear(); // Clear current batch tracking
                 // Очищаем историю DataMatrix кодов при остановке
                 _usedDataMatrixCodes.Clear();
             }
@@ -71,30 +72,26 @@ namespace DM_process_lib
 
             lock (_lockObject)
             {
-                if (_hasErrorsInLastScan && _lastScanRecordIndices.Count > 0)
+                if (_lastScanHadErrors)
                 {
-                    // Rescan mode: use the same records as last scan, but without errors
-                    // НЕ сдвигаем _usedDataIndex - остаемся на тех же записях
-                    recordIndicesToUse = new List<int>(_lastScanRecordIndices);
+                    // Режим пересканирования: используем те же записи, что и в предыдущем скане
+                    recordIndicesToUse = new List<int>(_currentBatchIndices);
                     isRescanMode = true;
-                    _hasErrorsInLastScan = false; // Reset for next iteration
-                    Console.WriteLine($"RESCAN MODE: Re-processing {recordIndicesToUse.Count} records from indices {recordIndicesToUse[0] + 1} to {recordIndicesToUse[recordIndicesToUse.Count - 1] + 1} WITHOUT errors/duplicates");
+                    _lastScanHadErrors = false; // Сбрасываем флаг ошибок для следующей итерации
+                    Console.WriteLine($"RESCAN MODE: Re-processing {recordIndicesToUse.Count} records from indices {recordIndicesToUse[0]} to {recordIndicesToUse[recordIndicesToUse.Count - 1]} WITHOUT errors/duplicates");
                 }
                 else
                 {
-                    // Normal mode: get next 20 records
-                    // Только здесь сдвигаем _usedDataIndex если предыдущее сканирование было успешным
-                    for (int i = 0; i < 20; i++)
+                    // Обычный режим: берем следующие 84 записи
+                    _currentBatchIndices.Clear();
+                    for (int i = 0; i < BATCH_SIZE; i++)
                     {
-                        if (_usedDataIndex >= armData.RECORDSET.Count)
-                        {
-                            _usedDataIndex = 0; // Cycle back to beginning
-                        }
-                        recordIndicesToUse.Add(_usedDataIndex);
-                        _usedDataIndex++;
+                        int recordIndex = (_currentBatchStartIndex + i) % armData.RECORDSET.Count;
+                        _currentBatchIndices.Add(recordIndex);
                     }
-                    _lastScanRecordIndices = new List<int>(recordIndicesToUse);
-                    Console.WriteLine($"NORMAL MODE: Processing NEW records {recordIndicesToUse[0] + 1} to {recordIndicesToUse[recordIndicesToUse.Count - 1] + 1}");
+                    recordIndicesToUse = new List<int>(_currentBatchIndices);
+
+                    Console.WriteLine($"NORMAL MODE: Processing records from indices {_currentBatchStartIndex} to {(_currentBatchStartIndex + BATCH_SIZE - 1) % armData.RECORDSET.Count} (batch start: {_currentBatchStartIndex})");
                 }
             }
 
@@ -109,7 +106,8 @@ namespace DM_process_lib
 
             bool currentScanHasErrors = false;
 
-            for (int cellIndex = 0; cellIndex < recordIndicesToUse.Count; cellIndex++)
+            // Цикл всегда от 0 до 83 (cellIndex), но recordIndex берется из recordIndicesToUse
+            for (int cellIndex = 0; cellIndex < BATCH_SIZE; cellIndex++)
             {
                 int row = cellIndex / cellsPerRow;
                 int col = cellIndex % cellsPerRow;
@@ -151,7 +149,7 @@ namespace DM_process_lib
                 else
                 {
                     // Rescan mode: use clean data (no errors and no duplicates)
-                    Console.WriteLine($"Cell {cellIndex + 1}: Clean rescan of record {recordIndex + 1} (UN_CODE: {currentRecord.UN_CODE})");
+                    Console.WriteLine($"Cell {cellIndex + 1}: Clean rescan of record {recordIndex} (UN_CODE: {currentRecord.UN_CODE})");
                 }
 
                 // Create cell with data
@@ -162,34 +160,31 @@ namespace DM_process_lib
                 lDMD.Add(dataCell);
             }
 
-            // Update error tracking for next scan
+            // Update state for next scan
             lock (_lockObject)
             {
                 if (currentScanHasErrors)
                 {
-                    // При ошибках НЕ обновляем _lastScanRecordIndices и НЕ сдвигаем _usedDataIndex
-                    // Они уже содержат правильные индексы для повторного сканирования
-                    _hasErrorsInLastScan = true;
-
-                    // Откатываем _usedDataIndex обратно, чтобы в следующий раз начать с тех же записей
-                    _usedDataIndex -= recordIndicesToUse.Count;
-                    if (_usedDataIndex < 0)
-                    {
-                        _usedDataIndex = armData.RECORDSET.Count + _usedDataIndex; // Обработка отрицательного значения
-                    }
-
-                    Console.WriteLine($"Errors or duplicates detected - _usedDataIndex rolled back to {_usedDataIndex}. Next scan will be a RESCAN of the same records");
+                    // Если есть ошибки, следующий скан будет пересканированием
+                    _lastScanHadErrors = true;
+                    Console.WriteLine($"Errors or duplicates detected - next scan will be a RESCAN of the same records (indices {_currentBatchIndices[0]} to {_currentBatchIndices[_currentBatchIndices.Count - 1]})");
                 }
                 else
                 {
-                    _hasErrorsInLastScan = false;
-                    if (isRescanMode)
+                    // Если ошибок нет, переходим к следующей партии
+                    _lastScanHadErrors = false;
+
+                    if (!isRescanMode)
                     {
-                        Console.WriteLine("Rescan completed successfully - next scan will be NORMAL mode with new records");
+                        // Это был обычный скан без ошибок - переходим к следующей партии
+                        _currentBatchStartIndex = (_currentBatchStartIndex + BATCH_SIZE) % armData.RECORDSET.Count;
+                        Console.WriteLine($"Normal scan completed successfully - next scan will process records starting from index {_currentBatchStartIndex}");
                     }
                     else
                     {
-                        Console.WriteLine("Normal scan completed successfully - next scan will process new records");
+                        // Это был успешный ресcan - переходим к следующей партии
+                        _currentBatchStartIndex = (_currentBatchStartIndex + BATCH_SIZE) % armData.RECORDSET.Count;
+                        Console.WriteLine($"Rescan completed successfully - next scan will process NEW records starting from index {_currentBatchStartIndex}");
                     }
                 }
             }
@@ -401,7 +396,7 @@ namespace DM_process_lib
             {
                 hasError = true;
                 string corrupted = CorruptData(originalData);
-                Console.WriteLine($"Cell {cellIndex + 1} - {dataType} error: '{originalData}' -> '{corrupted}'");
+                Console.WriteLine($"Cell {cellIndex} - {dataType} error: '{originalData}' -> '{corrupted}'");
                 return corrupted;
             }
 
@@ -467,10 +462,10 @@ namespace DM_process_lib
         {
             lock (_lockObject)
             {
-                if (_usedDataIndex >= armData.RECORDSET.Count)
+                if (_currentBatchStartIndex >= armData.RECORDSET.Count)
                 {
                     // If we've used all records, start over
-                    _usedDataIndex = 0;
+                    _currentBatchStartIndex = 0;
                 }
 
                 if (armData.RECORDSET.Count == 0)
@@ -478,10 +473,10 @@ namespace DM_process_lib
                     return null;
                 }
 
-                ArmRecord record = armData.RECORDSET[_usedDataIndex];
-                _usedDataIndex++;
+                ArmRecord record = armData.RECORDSET[_currentBatchStartIndex];
+                _currentBatchStartIndex++;
 
-                Console.WriteLine($"Using ARM record {_usedDataIndex}/{armData.RECORDSET.Count}: UN_CODE={record.UN_CODE}");
+                Console.WriteLine($"Using ARM record {_currentBatchStartIndex}/{armData.RECORDSET.Count}: UN_CODE={record.UN_CODE}");
                 return record;
             }
         }
