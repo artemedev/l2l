@@ -991,20 +991,20 @@ namespace l2l_aggregator.ViewModels
         {
             CurrentStepIndex = 5;
         }
-        [RelayCommand]
-        public void StopSession()
-        {
-            _dmScanService.StopScan();
+        //[RelayCommand]
+        //public void StopSession()
+        //{
+        //    _dmScanService.StopScan();
 
-            CanScanHardware = false;
-            CanScan = false;
-            CanClearBox = false;
-            CanOpenTemplateSettings = false;
-            CanPrintBoxLabel = false;
+        //    CanScanHardware = false;
+        //    CanScan = false;
+        //    CanClearBox = false;
+        //    CanOpenTemplateSettings = false;
+        //    CanPrintBoxLabel = false;
 
-            _databaseDataService.CloseJob();
+        //    _databaseDataService.CloseJob();
 
-        }
+        //}
         //Завершить агрегацию
         [RelayCommand]
         public async Task CompleteAggregation()
