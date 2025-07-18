@@ -70,7 +70,7 @@ namespace l2l_aggregator.Services
 
                 if (response?.AUTH_OK == "1")
                 {
-                    await _localDatabaseService.UserAuth.SaveUserAuthAsync(response);
+                    //await _localDatabaseService.UserAuth.SaveUserAuthAsync(response);
                     //_notificationService.ShowMessage($"Добро пожаловать, {response.USER_NAME}!", NotificationType.Success);
 
                     return response;

@@ -196,18 +196,18 @@ namespace l2l_aggregator.Services
             DeviceId = await config.GetConfigValueAsync("DeviceId");
             DeviceName = await config.GetConfigValueAsync("DeviceName");
 
-            // Загружаем последнего авторизованного пользователя
-            var users = await db.UserAuth.GetUserAuthAsync();
-            if (users != null && users.Count > 0)
-            {
-                User = users.FirstOrDefault();
+            //// Загружаем последнего авторизованного пользователя
+            //var users = await db.UserAuth.GetUserAuthAsync();
+            //if (users != null && users.Count > 0)
+            //{
+            //    User = users.FirstOrDefault();
 
-                // Если есть пользователь, загружаем его состояние агрегации
-                if (User != null)
-                {
-                    await LoadAggregationStateAsync(db);
-                }
-            }
+            //    // Если есть пользователь, загружаем его состояние агрегации
+            //    if (User != null)
+            //    {
+            //        await LoadAggregationStateAsync(db);
+            //    }
+            //}
         }
 
         /// <summary>

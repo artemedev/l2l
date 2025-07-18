@@ -54,7 +54,6 @@ namespace l2l_aggregator
                 new HistoryRouter<ViewModelBase>(t => (ViewModelBase)s.GetRequiredService(t)));
             
             // Регистрируем работу с бд
-            services.AddSingleton<IUserAuthRepository, UserAuthRepository>();
             services.AddSingleton<IConfigRepository, ConfigRepository>();
             services.AddSingleton<IAggregationStateRepository, AggregationStateRepository>();
 

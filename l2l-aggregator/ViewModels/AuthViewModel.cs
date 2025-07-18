@@ -107,7 +107,7 @@ namespace l2l_aggregator.ViewModels
                             _sessionService.User = response;
 
                             // Сохраняем в локальную базу
-                            await _databaseService.UserAuth.SaveUserAuthAsync(response);
+                            //await _databaseService.UserAuth.SaveUserAuthAsync(response);
 
                             // Проверяем права администратора
                             bool isAdmin = _databaseDataService.CheckAdminRole(response.USERID);

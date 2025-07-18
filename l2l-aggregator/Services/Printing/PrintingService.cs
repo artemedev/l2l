@@ -45,14 +45,15 @@ namespace l2l_aggregator.Services.Printing
         }
         public void PrintReportTEST(byte[] frxBytes, bool typePrint)
         {
-            if (_sessionService.PrinterModel == "Zebra")
-            {
-                PrintToZebraPrinterTEST(frxBytes, typePrint);
-            }
-            else
-            {
-                _notificationService.ShowMessage($"Модель принтера '{_sessionService.PrinterModel}' не поддерживается.");
-            }
+            PrintToZebraPrinterTEST(frxBytes, typePrint);
+            //if (_sessionService.PrinterModel == "Zebra")
+            //{
+            //    PrintToZebraPrinterTEST(frxBytes, typePrint);
+            //}
+            //else
+            //{
+            //    _notificationService.ShowMessage($"Модель принтера '{_sessionService.PrinterModel}' не поддерживается.");
+            //}
         }
         private async void PrintToZebraPrinterTEST(byte[] frxBytes, bool typePrint)
         {
