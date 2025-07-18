@@ -27,7 +27,9 @@
 						Padding="10" Grid.Row="13">
 
 					<Viewbox>
-						<TextBlock Text="{Binding InfoLayerText}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+						<TextBlock Text="{Binding InfoLayerText}" 
+								   VerticalAlignment="Center" 
+								   HorizontalAlignment="Center" />
 					</Viewbox>
 				</Border>
 			</Grid>
@@ -38,7 +40,11 @@
 				  VerticalAlignment="Stretch"
 				  HorizontalAlignment="Stretch"
 				  Background="LightGray">
-				<Image Source="{Binding ScannedImage}" Stretch="Uniform" SizeChanged="OnImageSizeChanged" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+				<Image Source="{Binding ScannedImage}" 
+					   Stretch="Uniform" 
+					   SizeChanged="OnImageSizeChanged" 
+					   HorizontalAlignment="Left" 
+					   VerticalAlignment="Top"/>
 				<Canvas Name="MainCanvas"
 						Background="Transparent"
 						HorizontalAlignment="Stretch"
@@ -55,8 +61,6 @@
 				<RowDefinition Height="*"/>
 				<RowDefinition Height="*"/>
 				<RowDefinition Height="*"/>
-				<!--<RowDefinition Height="*"/>
-				<RowDefinition Height="*"/>-->
 				<RowDefinition Height="*"/>
 				<RowDefinition Height="*"/>
 				<RowDefinition Height="4*"/>
@@ -70,7 +74,10 @@
 					Margin="5"
 					HorizontalContentAlignment="Center"
 					VerticalContentAlignment="Center"
-					FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>
+					FontSize="{Binding Bounds.Width, 
+								RelativeSource={RelativeSource AncestorType=UserControl}, 
+								Converter={StaticResource ResponsiveFontSizeConverter}, 
+								ConverterParameter='0.017;8;36'}"/>
 
 			<!-- Новая кнопка "Сканировать" (hardware trigger) -->
 			<Button Grid.Row="3"
@@ -82,8 +89,12 @@
 					Margin="5"
 					HorizontalContentAlignment="Center"
 					VerticalContentAlignment="Center"
-					FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"
-					IsVisible="{Binding IsDebugMode}"/>
+					FontSize="{Binding Bounds.Width, 
+								RelativeSource={RelativeSource AncestorType=UserControl}, 
+								Converter={StaticResource ResponsiveFontSizeConverter}, 
+								ConverterParameter='0.017;8;36'}"
+								IsVisible="{Binding IsDebugMode}"/>
+			
 			<Button Grid.Row="4"
 					Command="{Binding OpenTemplateSettingsCommand}"
 					IsEnabled="{Binding CanOpenTemplateSettings}"
@@ -93,7 +104,11 @@
 					Margin="5"
 					HorizontalContentAlignment="Center"
 					VerticalContentAlignment="Center"
-					FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>
+					FontSize="{Binding Bounds.Width, 
+								RelativeSource={RelativeSource AncestorType=UserControl}, 
+								Converter={StaticResource ResponsiveFontSizeConverter}, 
+								ConverterParameter='0.017;8;36'}"/>
+			
 			<Button Grid.Row="5"
 					Command="{Binding PrintBoxLabelCommand}"
 					IsEnabled="{Binding CanPrintBoxLabel}"
@@ -103,18 +118,11 @@
 					Margin="5"
 					HorizontalContentAlignment="Center"
 					VerticalContentAlignment="Center"
-					FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>
-			<!--<Button Grid.Row="4"
-					IsVisible="False"
-					Command="{Binding PrintPalletLabelCommand}"
-					IsEnabled="{Binding СanPrintPalletLabel}"
-					Content="Печать этикетки паллеты"
-					HorizontalAlignment="Stretch"
-					VerticalAlignment="Stretch"
-					Margin="5"
-					HorizontalContentAlignment="Center"
-					VerticalContentAlignment="Center"
-					FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>-->
+					FontSize="{Binding Bounds.Width, 
+								RelativeSource={RelativeSource AncestorType=UserControl}, 
+								Converter={StaticResource ResponsiveFontSizeConverter}, 
+								ConverterParameter='0.017;8;36'}"/>
+			
 			<Button Grid.Row="6"
 					Command="{Binding ClearBoxCommand}"
 					IsEnabled="{Binding CanClearBox}"
@@ -124,19 +132,10 @@
 					Margin="5"
 					HorizontalContentAlignment="Center"
 					VerticalContentAlignment="Center"
-					FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>
-
-			<!--<Button Grid.Row="5"
-					IsVisible="False"
-					Command="{Binding ClearPalletCommand}"
-					IsEnabled="{Binding CanClearPallet}"
-					Content="Очистить паллету"
-					HorizontalAlignment="Stretch"
-					VerticalAlignment="Stretch"
-					Margin="5"
-					HorizontalContentAlignment="Center"
-					VerticalContentAlignment="Center"
-					FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>-->
+					FontSize="{Binding Bounds.Width, 
+								RelativeSource={RelativeSource AncestorType=UserControl}, 
+								Converter={StaticResource ResponsiveFontSizeConverter}, 
+								ConverterParameter='0.017;8;36'}"/>
 			<Button Grid.Row="7"
 					Command="{Binding CompleteAggregationCommand}"
 					IsEnabled="{Binding CanCompleteAggregation}"
@@ -146,16 +145,11 @@
 					Margin="5"
 					HorizontalContentAlignment="Center"
 					VerticalContentAlignment="Center"
-					FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>
-			<!--<Button Grid.Row="8"
-					Command="{Binding CancelAggregationCommand}"
-					Content="Выйти из агрегации"
-					HorizontalAlignment="Stretch"
-					VerticalAlignment="Stretch"
-					Margin="5"
-					HorizontalContentAlignment="Center"
-					VerticalContentAlignment="Center"
-					FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>-->
+					FontSize="{Binding Bounds.Width, 
+								RelativeSource={RelativeSource AncestorType=UserControl}, 
+								Converter={StaticResource ResponsiveFontSizeConverter}, 
+								ConverterParameter='0.017;8;36'}"/>
+			
 			<Border Margin="0,5,0,10"
 					BorderBrush="LightGray"
 					BorderThickness="1"
