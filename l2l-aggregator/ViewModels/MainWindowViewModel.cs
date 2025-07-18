@@ -62,15 +62,21 @@ namespace l2l_aggregator.ViewModels
 
         public IRelayCommand ClearNotificationsCommand { get; }
 
+        private readonly DatabaseDataService _databaseDataService;
 
-
-        public MainWindowViewModel(HistoryRouter<ViewModelBase> router, DatabaseService databaseService, INotificationService notificationService, SessionService sessionService, ConfigurationLoaderService configLoader)
+        public MainWindowViewModel(HistoryRouter<ViewModelBase> router, 
+                                    DatabaseService databaseService, 
+                                    INotificationService notificationService, 
+                                    SessionService sessionService, 
+                                    ConfigurationLoaderService configLoader, 
+                                    DatabaseDataService databaseDataService)
         {
             _router = router;
             _databaseService = databaseService;
             _configLoader = configLoader;
             _notificationService = notificationService;
             _sessionService = sessionService;
+            _databaseDataService = databaseDataService;
 
             router.CurrentViewModelChanged += async viewModel =>
             {
@@ -419,10 +425,26 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public void ButtonExit()
         {
-            Notifications.Clear();
-            _sessionService.User = null;
-            User = null;
-            _router.GoTo<AuthViewModel>();
+            try
+            {
+                // Если мы на странице AggregationViewModel, закрываем сессию агрегации
+                if (Content is AggregationViewModel)
+                {
+                    _databaseDataService.CloseAggregationSession();
+                }
+            }
+            catch (Exception ex)
+            {
+                _notificationService.ShowMessage($"Ошибка при закрытии сессии агрегации: {ex.Message}", NotificationType.Error);
+            }
+            finally
+            {
+                // Очищаем уведомления и данные пользователя
+                Notifications.Clear();
+                _sessionService.User = null;
+                User = null;
+                _router.GoTo<AuthViewModel>();
+            }
         }
         [RelayCommand]
         public void ButtonSettings()

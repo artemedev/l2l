@@ -6,6 +6,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DM_wraper_NS;
+using FastReport.Export.Hpgl.Commands;
 using l2l_aggregator.Helpers.AggregationHelpers;
 using l2l_aggregator.Models;
 using l2l_aggregator.Models.AggregationModels;
@@ -126,15 +127,8 @@ namespace l2l_aggregator.ViewModels
         //переменная для колличества слоёв всего
         private int numberOfLayers;
 
-        //переменная для колличества слоёв всего, не используются но нужны!!!!!
-        private int numberOfBoxes;
-        private int numberOfPallets;
-
         //переменная для шаблона коробки, для печати
         private byte[] frxBoxBytes;
-
-        //переменная для шаблона паллеты, для печати
-        private byte[] frxPalletBytes;
 
         //свойство для получения данных SSCC из кэша сессии
         private ArmJobSsccResponse? ResponseSscc => _sessionService.CachedSsccResponse;
@@ -165,16 +159,6 @@ namespace l2l_aggregator.ViewModels
         private int minY;
         private int maxX;
         private int maxY;
-        //модель для сохранения агрегационного состояния
-        public class AggregationProgressModel
-        {
-            public int CurrentLayer { get; set; }
-            public int CurrentBox { get; set; }
-            public int CurrentPallet { get; set; }
-            public List<DmCellViewModel> CurrentDmCells { get; set; } = new();
-        }
-
-        //-----------------------------------------------
 
 
         [ObservableProperty]
@@ -183,7 +167,7 @@ namespace l2l_aggregator.ViewModels
         private Image<Rgba32> _croppedImageRaw;
 
         private PcPlcConnectionService _plcConnection;
-        private Timer _plcPingTimer;
+
         private readonly ILogger<PcPlcConnectionService> _logger;
 
         //состояние кнопок
@@ -195,9 +179,6 @@ namespace l2l_aggregator.ViewModels
 
         //Кнопка сканировать (hardware trigger)
         [ObservableProperty] private bool canScanHardware = false;
-
-        //переменная для отслеживания состояния конфигурации камеры
-        private bool cameraConfigured = false;
 
         private readonly DatabaseDataService _databaseDataService;
         //сервис обработки и работы с библиотекой распознавания, нужно сделать только чтобы была работа с распознавание, перенести обработку!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -258,65 +239,9 @@ namespace l2l_aggregator.ViewModels
 
             //Периодическая проверка контроллера раз в 10 секунд в
             InitializeControllerPing();
+
+            InitializeSession();
         }
-
-        private void InitializeFromSavedState()
-        {
-            if (_sessionService.HasUnfinishedAggregation)
-            {
-                try
-                {
-                    var progress = JsonSerializer.Deserialize<AggregationProgressModel>(_sessionService.AggregationState.ProgressJson!);
-                    if (progress != null)
-                    {
-                        DMCells.Clear();
-                        CurrentLayer = progress.CurrentLayer;
-                        CurrentBox = progress.CurrentBox;
-                        CurrentPallet = progress.CurrentPallet;
-
-
-                        foreach (var c in progress.CurrentDmCells)
-                        {
-                            var cell = new DmCellViewModel(this)
-                            {
-                                X = c.X,
-                                Y = c.Y,
-                                SizeHeight = c.SizeHeight,
-                                SizeWidth = c.SizeWidth,
-                                Angle = c.Angle,
-                                IsValid = c.IsValid,
-                                Dm_data = c.Dm_data
-                            };
-
-                            foreach (var ocr in c.OcrCells)
-                            {
-                                cell.OcrCells.Add(ocr); // или создайте копии если нужно
-                            }
-
-                            DMCells.Add(cell);
-                        }
-                        int validCountDMCells = DMCells.Count(c => c.IsValid);
-
-
-                        AggregationSummaryText = $@"
-Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}
-Количество собранных коробов: {CurrentBox - 1}
-Номер собираемого короба: {CurrentBox}
-Номер слоя: {CurrentLayer}
-Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}
-Количество СИ, распознанное в слое: {validCountDMCells}
-Количество СИ, считанное в слое: {DMCells.Count}
-Количество СИ, ожидаемое в слое: {numberOfLayers}";
-                        //AggregationSummaryText = $"Загружено сохранённое состояние. Короб {CurrentBox}, Слой {CurrentLayer}, Паллет {CurrentPallet}.";
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _notificationService.ShowMessage($"Ошибка восстановления прогресса: {ex.Message}", NotificationType.Warning);
-                }
-            }
-        }
-
 
         private void InitializeBoxTemplate()
         {
@@ -357,8 +282,6 @@ namespace l2l_aggregator.ViewModels
                 return;
             }
         }
-
-
         private void InitializeSscc()
         {
             // Проверяем, что данные уже загружены в TaskDetailsViewModel
@@ -386,7 +309,6 @@ namespace l2l_aggregator.ViewModels
             }
             _sessionService.SelectedTaskSscc = ResponseSscc.RECORDSET.FirstOrDefault();
         }
-
 
         private void InitializeCurrentBoxFromCounters()
         {
@@ -486,7 +408,15 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage($"Ошибка инициализации контроллера: {ex.Message}", NotificationType.Error);
             }
         }
-
+        private void InitializeSession()
+        {
+            if (_sessionService.SelectedTaskInfo == null)
+            {
+                InfoMessage = "Ошибка: отсутствует информация о задании.";
+                _notificationService.ShowMessage(InfoMessage);
+                return;
+            }
+        }
         partial void OnIsControllerAvailableChanged(bool value)
         {
             UpdateScanAvailability();
@@ -500,20 +430,14 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public void StartTask()
         {
-            if (_sessionService.SelectedTaskInfo == null)
-            {
-                InfoMessage = "Ошибка: отсутствует информация о задании.";
-                _notificationService.ShowMessage(InfoMessage);
-                return;
-            }
+           
             if (!_databaseDataService.StartAggregationSession())
             {
-                _notificationService.ShowMessage("Ошибка начала сессии агрегации", NotificationType.Error);
+                _notificationService.ShowMessage("Ошибка начала сессии агрегации, зайдите в задание заново", NotificationType.Error);
                 return; // Остановить, если позиционирование не удалось
             }
 
             // Очищаем коды при начале нового задания
-            //_sessionService.ClearScannedCodes();
             CanStartTask = false; // Отключаем кнопку во время выполнения
 
             try
@@ -804,12 +728,8 @@ namespace l2l_aggregator.ViewModels
                 return;
 
             UpdateInfoAndUI();
-            //// Метод подтверждения обработки фотографий в ПЛК
-            //await ConfirmPhotoToPlcAsync();
-
-            // Сохранение агрегационного состояния
-            // await SaveAggregationProgressAsync();
         }
+
         //выполняет процесс получения данных от распознавания и отображение результата в UI.Hardware
         public async Task StartScanningHardwareAsync()
         {
@@ -829,11 +749,6 @@ namespace l2l_aggregator.ViewModels
                 return;
 
             UpdateInfoAndUI();
-            //// Метод подтверждения обработки фотографий в ПЛК
-            //await ConfirmPhotoToPlcAsync();
-
-            // Сохранение агрегационного состояния
-            // await SaveAggregationProgressAsync();
         }
 
         // Получение данных распознавания. Software
@@ -919,8 +834,6 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage(InfoMessage);
                 return false;
             }
-            //var responseSgtin = await _dataApiService.LoadSgtinAsync(docId);
-            //var responseSgtin = await _databaseDataService.GetSgtinAsync(docId);
             // Используем кэшированные данные SGTIN из сессии
             var responseSgtin = _sessionService.CachedSgtinResponse;
             if (responseSgtin == null)
@@ -949,38 +862,6 @@ namespace l2l_aggregator.ViewModels
 
             return true;
         }
-        //Обновление UI и состояния
-        //        private async void UpdateInfoAndUI()
-        //        {
-        //            int validCountDMCells = DMCells.Count(c => c.IsValid);
-        //            // Обновление информационного текста выше изображения
-        //            InfoLayerText = $"Слой {CurrentLayer} из {_sessionService.SelectedTaskInfo.LAYERS_QTY}. Распознано {validCountDMCells} из {numberOfLayers}";
-        //            // Обновление информационного текста справа изображения
-        //            AggregationSummaryText = $"""
-        //Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}
-        //Количество собранных коробов: {CurrentBox - 1}
-        //Номер собираемого короба: {CurrentBox}
-        //Номер слоя: {CurrentLayer}
-        //Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}
-        //Количество СИ, распознанное в слое: {validCountDMCells}
-        //Количество СИ, считанное в слое: {DMCells.Count}
-        //Количество СИ, ожидаемое в слое: {numberOfLayers}
-        //""";
-
-        //            CanScan = true;
-        //            CanOpenTemplateSettings = true;
-
-        //            if (CurrentLayer == _sessionService.SelectedTaskInfo.LAYERS_QTY &&
-        //                validCountDMCells == numberOfLayers)
-        //            {
-        //                CanScan = false;
-        //                CanOpenTemplateSettings = false;
-        //                СanPrintBoxLabel = true;
-        //                CurrentStepIndex = 2;
-        //                // Метод подтверждения обработки фотографий в ПЛК
-        //                await ConfirmPhotoToPlcAsync();
-        //            }
-        //        }
 
         private async void UpdateInfoAndUI()
         {
@@ -1031,37 +912,6 @@ namespace l2l_aggregator.ViewModels
                 // Метод подтверждения обработки фотографий в ПЛК
                 await ConfirmPhotoToPlcAsync();
             }
-        }
-        //Сохранение состояния агрегации
-        private void SaveAggregationProgress()
-        {
-            var progress = new AggregationProgressModel
-            {
-                CurrentBox = CurrentBox,
-                CurrentLayer = CurrentLayer,
-                CurrentPallet = CurrentPallet,
-                CurrentDmCells = DMCells.Select(c => new DmCellViewModel(this)
-                {
-                    X = c.X,
-                    Y = c.Y,
-                    SizeHeight = c.SizeHeight,
-                    SizeWidth = c.SizeWidth,
-                    Angle = c.Angle,
-                    IsValid = c.IsValid,
-                    Dm_data = c.Dm_data,
-                    OcrCells = c.OcrCells
-                }).ToList()
-            };
-
-            _sessionService.AggregationState = new AggregationState
-            {
-                Username = _sessionService.User?.USER_NAME ?? "unknown",
-                TaskId = _sessionService.SelectedTaskInfo?.DOCID ?? 0,
-                TemplateJson = _lastUsedTemplateJson ?? "",
-                ProgressJson = JsonSerializer.Serialize(progress),
-                LastUpdated = DateTime.Now
-            };
-
         }
 
         //Печать этикетки коробки

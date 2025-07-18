@@ -64,7 +64,7 @@
 			<Button Grid.Row="0"
 				    Command="{Binding StartTaskCommand}"
 				    IsEnabled="{Binding CanStartTask}"
-				    Content="Начать сессию"
+				    Content="Отправить шаблон"
 				    HorizontalAlignment="Stretch"
 				    VerticalAlignment="Stretch"
 				    Margin="5"
