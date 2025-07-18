@@ -1129,7 +1129,6 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task CompleteAggregation()
         {
-            await _databaseService.AggregationState.ClearStateAsync(_sessionService.User.USER_NAME);
             _dmScanService.StopScan();
              _databaseDataService.CloseAggregationSession();
             _databaseDataService.CloseJob();

@@ -238,28 +238,7 @@ namespace l2l_aggregator.Services
             return bool.TryParse(value, out var parsed) && parsed;
         }
 
-        /// <summary>
-        /// Загружает состояние агрегации для текущего пользователя
-        /// </summary>
-        public async Task LoadAggregationStateAsync(DatabaseService db)
-        {
-            if (User == null || string.IsNullOrWhiteSpace(User.USER_NAME))
-                return;
-
-            try
-            {
-                var state = await db.AggregationState.LoadStateAsync(User.USER_NAME);
-                if (state != null)
-                {
-                    SelectedTaskInfo = JsonSerializer.Deserialize<ArmJobInfoRecord>(state.TaskInfoJson);
-                    AggregationState = state;
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Ошибка при загрузке состояния агрегации", ex);
-            }
-        }
+ 
         /// <summary>
         /// Очищает кэшированные данные агрегации
         /// </summary>

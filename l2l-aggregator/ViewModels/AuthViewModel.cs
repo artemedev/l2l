@@ -119,8 +119,7 @@ namespace l2l_aggregator.ViewModels
                                 _router.GoTo<SettingsViewModel>();
                                 return;
                             }
-                            // Загружаем сохранённое состояние (если есть)
-                            await _sessionService.LoadAggregationStateAsync(_databaseService);
+
                             long? currentTask = _databaseDataService.GetCurrentJobId();
                             if (currentTask != 0 && currentTask != null)
                             {

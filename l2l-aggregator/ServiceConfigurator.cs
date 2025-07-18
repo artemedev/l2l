@@ -55,7 +55,6 @@ namespace l2l_aggregator
             
             // Регистрируем работу с бд
             services.AddSingleton<IConfigRepository, ConfigRepository>();
-            services.AddSingleton<IAggregationStateRepository, AggregationStateRepository>();
 
 
 
