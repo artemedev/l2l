@@ -103,7 +103,7 @@ namespace l2l_aggregator.ViewModels
         //Очистить короб
         [ObservableProperty] private bool canClearBox = false;
         //Очистить паллету
-        [ObservableProperty] private bool canClearPallet = false;
+        //[ObservableProperty] private bool canClearPallet = false;
         //Завершить агрегацию
         [ObservableProperty] private bool canCompleteAggregation = false;
         //Остановить сессию
@@ -427,46 +427,50 @@ namespace l2l_aggregator.ViewModels
             CanScanHardware = IsControllerAvailable && TemplateFields.Count > 0;
         }
 
-        //[RelayCommand]
-        //public void StartTask()
-        //{
-
-
-
-        //    // Очищаем коды при начале нового задания
-        //    CanStartTask = false; // Отключаем кнопку во время выполнения
-
-        //    try
-        //    {
-        //        //отправляет шаблон распознавания в библиотеку
-        //        templateOk = SendTemplateToRecognizer();
-
-        //        if (templateOk)
-        //        {
-        //            InfoLayerText = "Шаблон успешно отправлен. Теперь можно начинать сканирование!";
-        //            _notificationService.ShowMessage("Шаблон распознавания успешно настроен");
-        //        }
-        //        else
-        //        {
-        //            InfoLayerText = "Ошибка отправки шаблона. Проверьте настройки и попробуйте снова.";
-        //            _notificationService.ShowMessage("Ошибка настройки шаблона распознавания", NotificationType.Error);
-        //            CanStartTask = true; // Включаем кнопку обратно при ошибке
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        InfoMessage = $"Ошибка инициализации задания: {ex.Message}";
-        //        _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
-        //        CanStartTask = true; // Включаем кнопку обратно при ошибке
-        //        templateOk = false;
-        //    }
-        //    finally
-        //    {
-        //        UpdateScanAvailability();
-        //    }
-        //}
-
         //отправляет шаблон распознавания в библиотеку
+        
+
+        [RelayCommand]
+        public async Task ScanSoftware()
+        {
+            if (_sessionService.SelectedTaskInfo == null)
+            {
+                InfoMessage = "Ошибка: отсутствует информация о задании.";
+                _notificationService.ShowMessage(InfoMessage);
+                return;
+            }
+
+            if (!_databaseDataService.StartAggregationSession())
+            {
+                _notificationService.ShowMessage("Ошибка начала сессии агрегации, зайдите в задание заново", NotificationType.Error);
+                return; // Остановить, если позиционирование не удалось
+            }
+
+            try
+            {
+                //отправляет шаблон распознавания в библиотеку
+                templateOk = SendTemplateToRecognizer();
+            }
+            catch (Exception ex)
+            {
+                InfoMessage = $"Ошибка инициализации задания: {ex.Message}";
+                _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
+                templateOk = false;
+                return;
+            }
+            finally
+            {
+                UpdateScanAvailability();
+            }
+
+            if (!await MoveCameraToCurrentLayerAsync())
+                return; // Остановить, если позиционирование не удалось
+
+            //выполняет процесс получения данных от распознавания и отображение результата в UI
+            await StartScanningSoftwareAsync();
+
+        }
+
         public bool SendTemplateToRecognizer()
         {
             // Генерация шаблона из ui
@@ -508,12 +512,12 @@ namespace l2l_aggregator.ViewModels
                     //отправка шаблона в библиотеку распознавания и даёт старт для распознавания
                     _dmScanService.StartScan(currentTemplate);
                     _lastUsedTemplateJson = currentTemplate;
+                    _notificationService.ShowMessage("Шаблон распознавания успешно настроен");
                     return true;
                 }
                 catch (Exception ex)
                 {
-                    InfoMessage = $"Ошбика отправки шаблона {ex.Message}.";
-                    _notificationService.ShowMessage(InfoMessage);
+                    _notificationService.ShowMessage("Ошибка настройки шаблона распознавания", NotificationType.Error);
                     return false;
                 }
             }
@@ -521,63 +525,6 @@ namespace l2l_aggregator.ViewModels
             return true; // шаблон не изменился, можно использовать старый
         }
 
-        [RelayCommand]
-        public async Task ScanSoftware()
-        {
-            if (_sessionService.SelectedTaskInfo == null)
-            {
-                InfoMessage = "Ошибка: отсутствует информация о задании.";
-                _notificationService.ShowMessage(InfoMessage);
-                return;
-            }
-            //if (!templateOk)
-            //{
-            //    InfoMessage = "Шаблон не инициализирован. Сначала нажмите 'Начать задание'.";
-            //    _notificationService.ShowMessage(InfoMessage);
-            //    return;
-            //}
-            if (!_databaseDataService.StartAggregationSession())
-            {
-                _notificationService.ShowMessage("Ошибка начала сессии агрегации, зайдите в задание заново", NotificationType.Error);
-                return; // Остановить, если позиционирование не удалось
-            }
-
-            try
-            {
-                //отправляет шаблон распознавания в библиотеку
-                templateOk = SendTemplateToRecognizer();
-
-                if (templateOk)
-                {
-                    InfoLayerText = "Шаблон успешно отправлен. Теперь можно начинать сканирование!";
-                    _notificationService.ShowMessage("Шаблон распознавания успешно настроен");
-                }
-                else
-                {
-                    InfoLayerText = "Ошибка отправки шаблона. Проверьте настройки и попробуйте снова.";
-                    _notificationService.ShowMessage("Ошибка настройки шаблона распознавания", NotificationType.Error);
-                    return;
-                }
-            }
-            catch (Exception ex)
-            {
-                InfoMessage = $"Ошибка инициализации задания: {ex.Message}";
-                _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
-                templateOk = false;
-                return;
-            }
-            finally
-            {
-                UpdateScanAvailability();
-            }
-
-            if (!await MoveCameraToCurrentLayerAsync())
-                return; // Остановить, если позиционирование не удалось
-
-            //выполняет процесс получения данных от распознавания и отображение результата в UI
-            await StartScanningSoftwareAsync();
-
-        }
         // Команда для hardware trigger сканирования
         [RelayCommand]
         public async Task ScanHardware()
@@ -991,20 +938,7 @@ namespace l2l_aggregator.ViewModels
         {
             CurrentStepIndex = 5;
         }
-        //[RelayCommand]
-        //public void StopSession()
-        //{
-        //    _dmScanService.StopScan();
 
-        //    CanScanHardware = false;
-        //    CanScan = false;
-        //    CanClearBox = false;
-        //    CanOpenTemplateSettings = false;
-        //    CanPrintBoxLabel = false;
-
-        //    _databaseDataService.CloseJob();
-
-        //}
         //Завершить агрегацию
         [RelayCommand]
         public async Task CompleteAggregation()
@@ -1015,30 +949,14 @@ namespace l2l_aggregator.ViewModels
 
             // Очищаем кэшированные данные
             _sessionService.ClearCachedAggregationData();
+
             // Очищаем коды при конце задания
             _sessionService.ClearScannedCodes();
             _notificationService.ShowMessage("Агрегация завершена.");
             _router.GoTo<TaskListViewModel>();
         }
 
-        //отменить агрегацию
-        [RelayCommand]
-        public void CancelAggregation()
-        {
 
-            // await _databaseService.AggregationState.ClearStateAsync(_sessionService.User.USER_NAME);
-            _dmScanService.StopScan();
-            _databaseDataService.CloseAggregationSession();
-            _databaseDataService.CloseJob();
-
-            // Очищаем кэшированные данные
-            // _sessionService.ClearCachedAggregationData();
-            // Очищаем коды при конце задания
-            _sessionService.ClearScannedCodes();
-            _notificationService.ShowMessage("Агрегация завершена.");
-            _router.GoTo<TaskListViewModel>();
-
-        }
 
         //сканирование кода этикетки
         public void HandleScannedBarcode(string barcode)
@@ -1339,6 +1257,14 @@ OCR:
             }
             base.Dispose(disposing);
         }
+
+        #if DEBUG
+                [ObservableProperty]
+                private bool isDebugMode = true;
+        #else
+            [ObservableProperty] 
+            private bool isDebugMode = false;
+        #endif
 
     }
 
