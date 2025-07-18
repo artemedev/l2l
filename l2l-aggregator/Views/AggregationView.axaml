@@ -55,10 +55,7 @@
 		</Grid>
 		<Grid Grid.Column="1" Margin="15">
 			<Grid.RowDefinitions>
-				<RowDefinition Height="*"/>
-				<RowDefinition Height="*"/>
-				<RowDefinition Height="*"/>
-				<RowDefinition Height="*"/>
+				<RowDefinition Height="Auto"/>
 				<RowDefinition Height="*"/>
 				<RowDefinition Height="*"/>
 				<RowDefinition Height="*"/>
@@ -66,7 +63,23 @@
 				<RowDefinition Height="*"/>
 				<RowDefinition Height="4*"/>
 			</Grid.RowDefinitions>
-			<Button Grid.Row="2"
+			
+			<Button Grid.Row="0"
+				Command="{Binding ScanHardwareCommand}"
+				IsEnabled="{Binding CanScanHardware}"
+				Content="Сканировать (Hardware)"
+				HorizontalAlignment="Stretch"
+				VerticalAlignment="Stretch"
+				Margin="5"
+				HorizontalContentAlignment="Center"
+				VerticalContentAlignment="Center"
+				FontSize="{Binding Bounds.Width, 
+								RelativeSource={RelativeSource AncestorType=UserControl}, 
+								Converter={StaticResource ResponsiveFontSizeConverter}, 
+								ConverterParameter='0.017;8;36'}"
+				IsVisible="{Binding IsDebugMode}"/>
+			
+			<Button Grid.Row="1"
 					Command="{Binding ScanSoftwareCommand}"
 					IsEnabled="{Binding CanScan}"
 					Content="Сканировать (Software)"
@@ -79,24 +92,8 @@
 								RelativeSource={RelativeSource AncestorType=UserControl}, 
 								Converter={StaticResource ResponsiveFontSizeConverter}, 
 								ConverterParameter='0.017;8;36'}"/>
-
-			<!-- Новая кнопка "Сканировать" (hardware trigger) -->
-			<Button Grid.Row="3"
-					Command="{Binding ScanHardwareCommand}"
-					IsEnabled="{Binding CanScanHardware}"
-					Content="Сканировать (Hardware)"
-					HorizontalAlignment="Stretch"
-					VerticalAlignment="Stretch"
-					Margin="5"
-					HorizontalContentAlignment="Center"
-					VerticalContentAlignment="Center"
-					FontSize="{Binding Bounds.Width, 
-								RelativeSource={RelativeSource AncestorType=UserControl}, 
-								Converter={StaticResource ResponsiveFontSizeConverter}, 
-								ConverterParameter='0.017;8;36'}"
-								IsVisible="{Binding IsDebugMode}"/>
 			
-			<Button Grid.Row="4"
+			<Button Grid.Row="2"
 					Command="{Binding OpenTemplateSettingsCommand}"
 					IsEnabled="{Binding CanOpenTemplateSettings}"
 					Content="Настройки распознавания"
@@ -110,7 +107,7 @@
 								Converter={StaticResource ResponsiveFontSizeConverter}, 
 								ConverterParameter='0.017;8;36'}"/>
 			
-			<Button Grid.Row="5"
+			<Button Grid.Row="3"
 					Command="{Binding PrintBoxLabelCommand}"
 					IsEnabled="{Binding CanPrintBoxLabel}"
 					Content="Печать этикетки коробки"
@@ -124,7 +121,7 @@
 								Converter={StaticResource ResponsiveFontSizeConverter}, 
 								ConverterParameter='0.017;8;36'}"/>
 			
-			<Button Grid.Row="6"
+			<Button Grid.Row="4"
 					Command="{Binding ClearBoxCommand}"
 					IsEnabled="{Binding CanClearBox}"
 					Content="Очистить короб"
@@ -137,7 +134,7 @@
 								RelativeSource={RelativeSource AncestorType=UserControl}, 
 								Converter={StaticResource ResponsiveFontSizeConverter}, 
 								ConverterParameter='0.017;8;36'}"/>
-			<Button Grid.Row="7"
+			<Button Grid.Row="5"
 					Command="{Binding CompleteAggregationCommand}"
 					IsEnabled="{Binding CanCompleteAggregation}"
 					Content="Завершить агрегацию"
@@ -155,7 +152,7 @@
 					BorderBrush="LightGray"
 					BorderThickness="1"
 					CornerRadius="4"
-					Padding="10" Grid.Row="9">
+					Padding="10" Grid.Row="6">
 				<Viewbox Stretch="Uniform" VerticalAlignment="Top">
 					<Grid RowDefinitions="Auto,Auto" >
 						<TextBlock Grid.Row="0" Text="Результат "
