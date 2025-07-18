@@ -39,7 +39,8 @@
 				  Name="scanImage"
 				  VerticalAlignment="Stretch"
 				  HorizontalAlignment="Stretch"
-				  Background="LightGray">
+				  Background="LightGray"
+				  ClipToBounds="True">
 				<Image Source="{Binding ScannedImage}" 
 					   Stretch="Uniform" 
 					   SizeChanged="OnImageSizeChanged" 

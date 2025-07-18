@@ -102,10 +102,9 @@ namespace l2l_aggregator.ViewModels
         [ObservableProperty] private bool сanPrintPalletLabel = false;
         //Очистить короб
         [ObservableProperty] private bool canClearBox = false;
-        //Очистить паллету
-        //[ObservableProperty] private bool canClearPallet = false;
+        
         //Завершить агрегацию
-        [ObservableProperty] private bool canCompleteAggregation = false;
+        [ObservableProperty] private bool canCompleteAggregation = true;
         //Остановить сессию
         [ObservableProperty] private bool canStopSession = false;
 
