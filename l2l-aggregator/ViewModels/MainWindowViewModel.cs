@@ -11,6 +11,7 @@ using l2l_aggregator.Services.Notification.Interface;
 using l2l_aggregator.Services.ScannerService;
 using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -460,5 +461,103 @@ namespace l2l_aggregator.ViewModels
         {
             Notifications.Clear();
         }
+
+        [RelayCommand]
+        public async Task ShutdownAsync()
+        {
+            try
+            {
+                // Показываем уведомление о выключении
+                _notificationService.ShowMessage("Выключение системы...", NotificationType.Info);
+
+                // Небольшая задержка для отображения уведомления
+                await Task.Delay(1000);
+
+                // Проверяем, находимся ли мы в режиме отладки
+                bool isDebugMode = IsDebugMode();
+
+                if (isDebugMode)
+                {
+                    // В режиме отладки просто закрываем приложение
+                    Environment.Exit(0);
+                }
+                else
+                {
+                    // В продакшене выключаем компьютер
+                    await ShutdownSystemAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _notificationService.ShowMessage($"Ошибка при выключении: {ex.Message}", NotificationType.Error);
+            }
+        }
+
+        private bool IsDebugMode()
+        {
+#if DEBUG
+            return true;
+#else
+                return false;
+#endif
+        }
+
+        private async Task ShutdownSystemAsync()
+        {
+            try
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    // Выключение Windows
+                    var processInfo = new ProcessStartInfo
+                    {
+                        FileName = "shutdown",
+                        Arguments = "/s /t 0",
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    };
+
+                    using (var process = Process.Start(processInfo))
+                    {
+                        if (process != null)
+                        {
+                            await process.WaitForExitAsync();
+                        }
+                    }
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    // Выключение Linux
+                    var processInfo = new ProcessStartInfo
+                    {
+                        FileName = "sudo",
+                        Arguments = "shutdown -h now",
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    };
+
+                    using (var process = Process.Start(processInfo))
+                    {
+                        if (process != null)
+                        {
+                            await process.WaitForExitAsync();
+                        }
+                    }
+                }
+                else
+                {
+                    // Для других ОС просто закрываем приложение
+                    _notificationService.ShowMessage("Выключение не поддерживается на данной ОС. Закрываем приложение...", NotificationType.Warning);
+                    Environment.Exit(0);
+                }
+            }
+            catch (Exception ex)
+            {
+                _notificationService.ShowMessage($"Не удалось выключить систему: {ex.Message}", NotificationType.Error);
+                // В случае ошибки выключения просто закрываем приложение
+                Environment.Exit(0);
+            }
+        }
+
     }
 }

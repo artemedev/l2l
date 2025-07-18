@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 		xmlns:controls="clr-namespace:Avalonia.Notification.Controls;assembly=Notification.Avalonia"
 		xmlns:keyboard="clr-namespace:l2l_aggregator.Controls.Keyboard"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+		xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        mc:Ignorable="d" d:DesignWidth="1800" d:DesignHeight="1450"
         x:Class="l2l_aggregator.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
 		Icon="/Assets/Images/Logo2.ico"
@@ -112,12 +113,51 @@
 				</Button>
 			</Grid>
 			<ContentControl  Grid.Row="1" Content="{Binding Content}"></ContentControl>
-			<Grid Grid.Row="2" Background="LightBlue" IsVisible="{Binding IsNotLoginPage}" ColumnDefinitions="4*,*,*" >
-				<StackPanel Grid.Column="0" Orientation="Horizontal">
+			<Button Command="{Binding ShutdownCommand}"
+					Grid.Row="2"
+					Content="⏻"
+					IsVisible="{Binding !IsNotLoginPage}"
+					Grid.Column="2"
+					VerticalAlignment="Bottom"
+					HorizontalAlignment="Left"
+					Height="100"
+					Width="{Binding $self.Height}"
+					FontSize="16"
+					FontWeight="Bold"
+					Background="{DynamicResource ResourceKey=PrimaryBackground}"
+					Foreground="White"
+					CornerRadius="0"
+					ToolTip.Tip="Выключить компьютер" >
+				<Button.Styles>
+					<!-- Стиль для иконки в обычном состоянии -->
+					<Style Selector="Button > materialIcons|MaterialIcon">
+						<Setter Property="Width" Value="48"/>
+						<Setter Property="Height" Value="48"/>
+						<Setter Property="Foreground" Value="White"/>
+						<Setter Property="Transitions">
+							<Transitions>
+								<DoubleTransition Property="Width" Duration="0:0:0.1"/>
+								<DoubleTransition Property="Height" Duration="0:0:0.1"/>
+								<BrushTransition Property="Foreground" Duration="0:0:0.1"/>
+							</Transitions>
+						</Setter>
+					</Style>
+
+					<!-- Стиль для иконки при наведении -->
+					<Style Selector="Button:pointerover > materialIcons|MaterialIcon">
+						<Setter Property="Width" Value="54"/>
+						<Setter Property="Height" Value="54"/>
+						<Setter Property="Foreground" Value="#FF0078d7"/>
+					</Style>
+				</Button.Styles>
+				<materialIcons:MaterialIcon Kind="Power"/>
+			</Button>
+			<Grid Grid.Row="2" Background="LightBlue" IsVisible="{Binding IsNotLoginPage}" ColumnDefinitions="Auto,4*,*,*" >
+				<StackPanel Grid.Column="1" Orientation="Horizontal">
 					<TextBlock Text="Пользователь:" FontSize="16" FontWeight="Bold" Padding="5" VerticalAlignment="Center"/>
 					<TextBlock Text="{Binding User.USER_NAME}" FontSize="16" FontWeight="Bold" Padding="5" VerticalAlignment="Center"/>
 				</StackPanel>
-				<Button Grid.Column="1"
+				<Button Grid.Column="2"
 					Command="{Binding ButtonSettingsCommand}"
 					Content="Настройки"
 					HorizontalAlignment="Stretch"
@@ -131,7 +171,7 @@
 					BorderThickness="1,0,0,0"
 					CornerRadius="0"
 					IsVisible="{Binding IsAdmin}"/>
-				<Button Grid.Column="2"
+				<Button Grid.Column="3"
 					Command="{Binding ButtonExitCommand}"
 					Content="Выход"
 					HorizontalAlignment="Stretch"

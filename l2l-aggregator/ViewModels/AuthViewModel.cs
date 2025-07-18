@@ -28,6 +28,9 @@ namespace l2l_aggregator.ViewModels
         [ObservableProperty]
         private string _password;
 
+        [ObservableProperty]
+        private bool _isPasswordVisible;
+
         [ObservableProperty] private string _infoMessage;
 
         [ObservableProperty] private bool _isDeviceCheckInProgress;
@@ -327,5 +330,12 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
             }
         }
+        // Если нужна команда для переключения (альтернативный подход)
+        [RelayCommand]
+        private void TogglePasswordVisibility()
+        {
+            IsPasswordVisible = !IsPasswordVisible;
+        }
+
     }
 }
