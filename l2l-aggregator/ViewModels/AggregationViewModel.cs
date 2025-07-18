@@ -171,8 +171,8 @@ namespace l2l_aggregator.ViewModels
         private readonly ILogger<PcPlcConnectionService> _logger;
 
         //состояние кнопок
-        //Кнопка "Начать задание"
-        [ObservableProperty] private bool canStartTask = true;
+        ////Кнопка "Начать задание"
+        //[ObservableProperty] private bool canStartTask = true;
 
         //переменная для отслеживания состояния шаблона
         private bool templateOk = false;
@@ -423,22 +423,124 @@ namespace l2l_aggregator.ViewModels
         }
         private void UpdateScanAvailability()
         {
-            CanScan = IsControllerAvailable && TemplateFields.Count > 0 && templateOk;
-            CanScanHardware = IsControllerAvailable && TemplateFields.Count > 0 && templateOk;
+            CanScan = IsControllerAvailable && TemplateFields.Count > 0;
+            CanScanHardware = IsControllerAvailable && TemplateFields.Count > 0;
+        }
+
+        //[RelayCommand]
+        //public void StartTask()
+        //{
+
+
+
+        //    // Очищаем коды при начале нового задания
+        //    CanStartTask = false; // Отключаем кнопку во время выполнения
+
+        //    try
+        //    {
+        //        //отправляет шаблон распознавания в библиотеку
+        //        templateOk = SendTemplateToRecognizer();
+
+        //        if (templateOk)
+        //        {
+        //            InfoLayerText = "Шаблон успешно отправлен. Теперь можно начинать сканирование!";
+        //            _notificationService.ShowMessage("Шаблон распознавания успешно настроен");
+        //        }
+        //        else
+        //        {
+        //            InfoLayerText = "Ошибка отправки шаблона. Проверьте настройки и попробуйте снова.";
+        //            _notificationService.ShowMessage("Ошибка настройки шаблона распознавания", NotificationType.Error);
+        //            CanStartTask = true; // Включаем кнопку обратно при ошибке
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        InfoMessage = $"Ошибка инициализации задания: {ex.Message}";
+        //        _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
+        //        CanStartTask = true; // Включаем кнопку обратно при ошибке
+        //        templateOk = false;
+        //    }
+        //    finally
+        //    {
+        //        UpdateScanAvailability();
+        //    }
+        //}
+
+        //отправляет шаблон распознавания в библиотеку
+        public bool SendTemplateToRecognizer()
+        {
+            // Генерация шаблона из ui
+            var currentTemplate = _templateService.GenerateTemplate(TemplateFields.ToList());
+            // Сравнение текущего шаблона с последним использованным
+            if (_lastUsedTemplateJson != currentTemplate)
+            {
+                // Определение, есть ли выбранные OCR или DM элементы
+                bool hasOcr = TemplateFields.Any(f =>
+                    f.IsSelected && (
+                        f.Element.Name.LocalName == "TfrxMemoView" ||
+                        f.Element.Name.LocalName == "TfrxTemplateMemoView"
+                    ));
+
+                bool hasDm = TemplateFields.Any(f =>
+                    f.IsSelected && (
+                        f.Element.Name.LocalName == "TfrxBarcode2DView" ||
+                        f.Element.Name.LocalName == "TfrxTemplateBarcode2DView"
+                    ));
+                // Настройки параметров камеры для библиотеки распознавания
+                var recognParams = new recogn_params
+                {
+                    countOfDM = numberOfLayers,
+                    CamInterfaces = "GigEVision2",
+                    cameraName = _sessionService.CameraIP,
+                    _Preset = new camera_preset(_sessionService.CameraModel),
+                    softwareTrigger = true, //поменять на false
+                    hardwareTrigger = true, //поменять на true
+                    OCRRecogn = hasOcr,
+                    packRecogn = RecognizePack,
+                    DMRecogn = hasDm
+                };
+                _dmScanService.StopScan();
+                //отправка настроек камеры в библиотеку распознавания
+                _dmScanService.ConfigureParams(recognParams);
+
+                try
+                {
+                    //отправка шаблона в библиотеку распознавания и даёт старт для распознавания
+                    _dmScanService.StartScan(currentTemplate);
+                    _lastUsedTemplateJson = currentTemplate;
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    InfoMessage = $"Ошбика отправки шаблона {ex.Message}.";
+                    _notificationService.ShowMessage(InfoMessage);
+                    return false;
+                }
+            }
+
+            return true; // шаблон не изменился, можно использовать старый
         }
 
         [RelayCommand]
-        public void StartTask()
+        public async Task ScanSoftware()
         {
-           
+            if (_sessionService.SelectedTaskInfo == null)
+            {
+                InfoMessage = "Ошибка: отсутствует информация о задании.";
+                _notificationService.ShowMessage(InfoMessage);
+                return;
+            }
+            //if (!templateOk)
+            //{
+            //    InfoMessage = "Шаблон не инициализирован. Сначала нажмите 'Начать задание'.";
+            //    _notificationService.ShowMessage(InfoMessage);
+            //    return;
+            //}
             if (!_databaseDataService.StartAggregationSession())
             {
                 _notificationService.ShowMessage("Ошибка начала сессии агрегации, зайдите в задание заново", NotificationType.Error);
                 return; // Остановить, если позиционирование не удалось
             }
-
-            // Очищаем коды при начале нового задания
-            CanStartTask = false; // Отключаем кнопку во время выполнения
 
             try
             {
@@ -454,40 +556,21 @@ namespace l2l_aggregator.ViewModels
                 {
                     InfoLayerText = "Ошибка отправки шаблона. Проверьте настройки и попробуйте снова.";
                     _notificationService.ShowMessage("Ошибка настройки шаблона распознавания", NotificationType.Error);
-                    CanStartTask = true; // Включаем кнопку обратно при ошибке
+                    return;
                 }
             }
             catch (Exception ex)
             {
                 InfoMessage = $"Ошибка инициализации задания: {ex.Message}";
                 _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
-                CanStartTask = true; // Включаем кнопку обратно при ошибке
                 templateOk = false;
+                return;
             }
             finally
             {
                 UpdateScanAvailability();
             }
-        }
 
-        [RelayCommand]
-        public async Task ScanSoftware()
-        {
-            if (_sessionService.SelectedTaskInfo == null)
-            {
-                InfoMessage = "Ошибка: отсутствует информация о задании.";
-                _notificationService.ShowMessage(InfoMessage);
-                return;
-            }
-            if (!templateOk)
-            {
-                InfoMessage = "Шаблон не инициализирован. Сначала нажмите 'Начать задание'.";
-                _notificationService.ShowMessage(InfoMessage);
-                return;
-            }
-
-
-            ;
             if (!await MoveCameraToCurrentLayerAsync())
                 return; // Остановить, если позиционирование не удалось
 
@@ -640,60 +723,7 @@ namespace l2l_aggregator.ViewModels
         }
 
 
-        //отправляет шаблон распознавания в библиотеку
-        public bool SendTemplateToRecognizer()
-        {
-            // Генерация шаблона из ui
-            var currentTemplate = _templateService.GenerateTemplate(TemplateFields.ToList());
-            // Сравнение текущего шаблона с последним использованным
-            if (_lastUsedTemplateJson != currentTemplate)
-            {
-                // Определение, есть ли выбранные OCR или DM элементы
-                bool hasOcr = TemplateFields.Any(f =>
-                    f.IsSelected && (
-                        f.Element.Name.LocalName == "TfrxMemoView" ||
-                        f.Element.Name.LocalName == "TfrxTemplateMemoView"
-                    ));
 
-                bool hasDm = TemplateFields.Any(f =>
-                    f.IsSelected && (
-                        f.Element.Name.LocalName == "TfrxBarcode2DView" ||
-                        f.Element.Name.LocalName == "TfrxTemplateBarcode2DView"
-                    ));
-                // Настройки параметров камеры для библиотеки распознавания
-                var recognParams = new recogn_params
-                {
-                    countOfDM = numberOfLayers,
-                    CamInterfaces = "GigEVision2",
-                    cameraName = _sessionService.CameraIP,
-                    _Preset = new camera_preset(_sessionService.CameraModel),
-                    softwareTrigger = true, //поменять на false
-                    hardwareTrigger = true, //поменять на true
-                    OCRRecogn = hasOcr,
-                    packRecogn = RecognizePack,
-                    DMRecogn = hasDm
-                };
-                _dmScanService.StopScan();
-                //отправка настроек камеры в библиотеку распознавания
-                _dmScanService.ConfigureParams(recognParams);
-
-                try
-                {
-                    //отправка шаблона в библиотеку распознавания и даёт старт для распознавания
-                    _dmScanService.StartScan(currentTemplate);
-                    _lastUsedTemplateJson = currentTemplate;
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    InfoMessage = $"Ошбика отправки шаблона {ex.Message}.";
-                    _notificationService.ShowMessage(InfoMessage);
-                    return false;
-                }
-            }
-
-            return true; // шаблон не изменился, можно использовать старый
-        }
 
         //выполняет процесс получения данных от распознавания и отображение результата в UI.Software
         public async Task StartScanningSoftwareAsync()
@@ -980,7 +1010,7 @@ namespace l2l_aggregator.ViewModels
         public async Task CompleteAggregation()
         {
             _dmScanService.StopScan();
-             _databaseDataService.CloseAggregationSession();
+            _databaseDataService.CloseAggregationSession();
             _databaseDataService.CloseJob();
 
             // Очищаем кэшированные данные

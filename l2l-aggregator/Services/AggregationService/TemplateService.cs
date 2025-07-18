@@ -52,17 +52,18 @@ namespace l2l_aggregator.Services.AggregationService
                                 Name = dataFieldAttr.Value,
                                 Type = "переменная",
                                 Element = element,
-                                IsSelected = true
+                                IsSelected = dataFieldAttr.Value == "BarCode"
                             });
                         }
                         else if (!string.IsNullOrWhiteSpace(expressionAttr?.Value))
                         {
+                            var extractedName = ExtractFieldName(expressionAttr.Value);
                             fields.Add(new TemplateField
                             {
-                                Name = ExtractFieldName(expressionAttr.Value),
+                                Name = extractedName,
                                 Type = "переменная",
                                 Element = element,
-                                IsSelected = true
+                                IsSelected = extractedName == "BarCode"
                             });
                         }
                         else if (!string.IsNullOrWhiteSpace(textAttr?.Value) && textAttr.Value.StartsWith("["))
@@ -73,7 +74,7 @@ namespace l2l_aggregator.Services.AggregationService
                                 Name = ExtractFieldName(textAttr.Value),
                                 Type = "переменная",
                                 Element = element,
-                                IsSelected = true
+                                IsSelected = false
                             });
                         }
                         else if (!string.IsNullOrWhiteSpace(textAttr?.Value))
@@ -83,7 +84,7 @@ namespace l2l_aggregator.Services.AggregationService
                                 Name = textAttr.Value,
                                 Type = "текст",
                                 Element = element,
-                                IsSelected = true
+                                IsSelected = false
                             });
                         }
                     }

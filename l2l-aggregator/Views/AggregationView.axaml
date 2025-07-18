@@ -61,7 +61,7 @@
 				<RowDefinition Height="*"/>
 				<RowDefinition Height="4*"/>
 			</Grid.RowDefinitions>
-			<Button Grid.Row="0"
+			<!--<Button Grid.Row="0"
 				    Command="{Binding StartTaskCommand}"
 				    IsEnabled="{Binding CanStartTask}"
 				    Content="Отправить шаблон"
@@ -70,7 +70,7 @@
 				    Margin="5"
 				    HorizontalContentAlignment="Center"
 				    VerticalContentAlignment="Center"
-				    FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>
+				    FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>-->
 
 			<Button Grid.Row="1"
 				    Command="{Binding StopSessionCommand}"
