@@ -269,8 +269,10 @@ namespace l2l_aggregator.ViewModels
                 var parts = barcode.Trim().Split(';');
                 if (parts.Length == 2)
                 {
-                    authVM.Login = parts[0];
-                    authVM.Password = parts[1];
+                    authVM.Login = barcode;
+
+                    //authVM.Login = parts[0];
+                    //authVM.Password = parts[1];
                     // Можно автоматически запустить авторизацию
                     // authVM.LoginCommand.Execute(null);
                 }

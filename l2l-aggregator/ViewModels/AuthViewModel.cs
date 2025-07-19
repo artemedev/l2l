@@ -60,9 +60,15 @@ namespace l2l_aggregator.ViewModels
             _deviceInfoService = deviceInfoService;
             _deviceCheckService = deviceCheckService;
             // Тестовые/заготовленные значения
+            EnableVirtualKeyboard = _sessionService.EnableVirtualKeyboard;
+#if DEBUG
+            // Тестовые/заготовленные значения только в DEBUG режиме
             _login = "TESTINNO1";//TESTADMIN
             _password = "123456";
-            EnableVirtualKeyboard = _sessionService.EnableVirtualKeyboard;
+#else
+            _login = "";
+            _password = "";
+#endif
             //InitializeScanner();
         }
         // Обработчик изменения настройки виртуальной клавиатуры
@@ -348,6 +354,5 @@ namespace l2l_aggregator.ViewModels
         {
             IsPasswordVisible = !IsPasswordVisible;
         }
-
     }
 }
