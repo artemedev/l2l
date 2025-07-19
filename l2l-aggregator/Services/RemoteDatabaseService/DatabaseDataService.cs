@@ -4,6 +4,7 @@ using l2l_aggregator.Services.Database;
 using l2l_aggregator.Services.Database.Repositories.Interfaces;
 using l2l_aggregator.Services.Notification.Interface;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -381,6 +382,30 @@ namespace l2l_aggregator.Services
             {
                 //_notificationService.ShowMessage($"Ошибка получения счетчиков ARM: {ex.Message}", NotificationType.Error);
                 return null;
+            }
+        }
+
+        public bool LogAggregationCompletedBatch(List<(string UNID, string SSCCID)> aggregationData)
+        {
+            try
+            {
+                if (!EnsureConnection())
+                {
+                    return false;
+                }
+
+                var result = _remoteDatabaseService.LogAggregationBatch(aggregationData);
+                if (result)
+                {
+                    //_notificationService.ShowMessage($"Batch агрегация успешно зарегистрирована ({aggregationData.Count} записей)", NotificationType.Success);
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                //_notificationService.ShowMessage($"Ошибка batch логирования агрегации: {ex.Message}", NotificationType.Error);
+                return false;
             }
         }
     }

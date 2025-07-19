@@ -6,6 +6,7 @@ using l2l_aggregator.Services.Notification.Interface;
 using MD.Marking.Codes;
 using Microsoft.Extensions.Configuration;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
 using System.Threading;
@@ -710,6 +711,44 @@ namespace l2l_aggregator.Services.Database
                             SSCCID = SSCCID
                         }, transaction: transaction);
 
+                        transaction.Commit();
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
+
+        public bool LogAggregationBatch(List<(string UNID, string SSCCID)> aggregationData)
+        {
+            try
+            {
+                return WithConnection(conn =>
+                {
+                    using var transaction = conn.BeginTransaction();
+                    try
+                    {
+                        var sql = "EXECUTE PROCEDURE ARM_SGTIN_SSCC_ADD(@UNID, @SSCCID)";
+
+                        // Выполняем все операции в рамках одной транзакции
+                        foreach (var (unid, ssccid) in aggregationData)
+                        {
+                            conn.Execute(sql, new
+                            {
+                                UNID = unid,
+                                SSCCID = ssccid
+                            }, transaction: transaction);
+                        }
+
+                        // Commit выполняется только после всех операций
                         transaction.Commit();
                         return true;
                     }

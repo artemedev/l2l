@@ -1012,19 +1012,22 @@ namespace l2l_aggregator.ViewModels
                             _sessionService.AllScannedDmCodes.Add(cell.Dm_data.Data);
                         }
 
-                        SaveAllDmCells();
-                        //DMCells
-                        //_databaseDataService.LogAggregationCompletedAsync(, _sessionService.SelectedTaskSscc.SSCCID);
-                        CanPrintBoxLabel = false;
-                        //сanPrintPalletLabel = true;
-                        //}
-                        CanScan = true;
-                        CurrentBox++;
-                        CurrentLayer = 1;
-                        CurrentStepIndex = 1;
-                        // Совпадение найдено
-                        InfoMessage = $"Короб с ШК {barcode} успешно найден!";
-                        _notificationService.ShowMessage(InfoMessage);
+                        if (SaveAllDmCells())
+                        {
+                            //DMCells
+                            //_databaseDataService.LogAggregationCompletedAsync(, _sessionService.SelectedTaskSscc.SSCCID);
+                            CanPrintBoxLabel = false;
+                            //сanPrintPalletLabel = true;
+                            //}
+                            CanScan = true;
+                            CurrentBox++;
+                            CurrentLayer = 1;
+                            CurrentStepIndex = 1;
+                            // Совпадение найдено
+                            InfoMessage = $"Короб с ШК {barcode} успешно найден!";
+                            _notificationService.ShowMessage(InfoMessage);
+                        }
+                       
                         return;
                     }
                     else
@@ -1063,19 +1066,21 @@ namespace l2l_aggregator.ViewModels
 
         }
         //Сохранение в бд.
-        private void SaveAllDmCells()
+        private bool SaveAllDmCells()
         {
             try
             {
+                var aggregationData = new List<(string UNID, string SSCCID)>();
+                var gS1Parser = new GS1Parser();
+
+                // Подготавливаем все данные для batch операции
                 foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
                 {
-                    // Парсим DM код для получения SerialNumber
-                    var gS1Parser = new GS1Parser();
                     var parsedData = gS1Parser.ParseGTIN(cell.Dm_data.Data);
 
                     if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
                     {
-                        _databaseDataService.LogAggregationCompleted(parsedData.SerialNumber, _sessionService.SelectedTaskSscc.CHECK_BAR_CODE);
+                        aggregationData.Add((parsedData.SerialNumber, _sessionService.SelectedTaskSscc.CHECK_BAR_CODE));
 
                     }
                     else
@@ -1083,17 +1088,62 @@ namespace l2l_aggregator.ViewModels
                         _notificationService.ShowMessage($"Не найден SGTIN для серийного номера: {parsedData.SerialNumber}", NotificationType.Warning);
                     }
                 }
-                //InfoMessage = $"Коды сохранены";
-                // _notificationService.ShowMessage(InfoMessage);
-                //_notificationService.ShowMessage(
-                //    $"Сохранено {countCode} кодов агрегации",
-                //    Notificatio);
+
+                // Выполняем batch операцию - все коды сохраняются в одной транзакции
+                if (aggregationData.Count > 0)
+                {
+                    var success = _databaseDataService.LogAggregationCompletedBatch(aggregationData);
+
+                    if (success)
+                    {
+                        _notificationService.ShowMessage($"Сохранено {aggregationData.Count} кодов агрегации", NotificationType.Success);
+                        return true;
+                    }
+                    else
+                    {
+                        _notificationService.ShowMessage("Ошибка при сохранении кодов агрегации", NotificationType.Error);
+                        return false;
+                    }
+                }
+                return false;
             }
             catch (Exception ex)
             {
                 _notificationService.ShowMessage($"Ошибка сохранения кодов агрегации: {ex.Message}", NotificationType.Error);
+                return false;
             }
         }
+        //private void SaveAllDmCells()
+        //{
+        //    try
+        //    {
+        //        foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
+        //        {
+        //            // Парсим DM код для получения SerialNumber
+        //            var gS1Parser = new GS1Parser();
+        //            var parsedData = gS1Parser.ParseGTIN(cell.Dm_data.Data);
+
+        //            if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
+        //            {
+        //                _databaseDataService.LogAggregationCompleted(parsedData.SerialNumber, _sessionService.SelectedTaskSscc.CHECK_BAR_CODE);
+
+        //            }
+        //            else
+        //            {
+        //                _notificationService.ShowMessage($"Не найден SGTIN для серийного номера: {parsedData.SerialNumber}", NotificationType.Warning);
+        //            }
+        //        }
+        //        //InfoMessage = $"Коды сохранены";
+        //        // _notificationService.ShowMessage(InfoMessage);
+        //        //_notificationService.ShowMessage(
+        //        //    $"Сохранено {countCode} кодов агрегации",
+        //        //    Notificatio);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _notificationService.ShowMessage($"Ошибка сохранения кодов агрегации: {ex.Message}", NotificationType.Error);
+        //    }
+        //}
 
 
         public async void OnCellClicked(DmCellViewModel cell)
