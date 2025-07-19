@@ -82,8 +82,8 @@ namespace l2l_aggregator.Services.Notification
             };
 
             // Добавляем сообщение в список
-            Notifications.Add(item);
-
+            //Notifications.Add(item);
+            Notifications.Insert(0, item);
             // Сохраняем в БД (асинхронно, не блокируя UI)
             _ = _notificationLog.SaveNotificationAsync(item);
 

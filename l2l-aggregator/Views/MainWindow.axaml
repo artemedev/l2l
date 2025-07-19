@@ -81,30 +81,52 @@
 
 									<!-- Список с прокруткой -->
 									<ScrollViewer Grid.Row="1" AllowAutoHide="False" IsScrollChainingEnabled="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-										<ItemsControl ItemsSource="{Binding Notifications}">
-											<ItemsControl.ItemTemplate>
+										<Grid>
+											<!-- Сообщение о пустом списке -->
+											<TextBlock Text="Нет уведомлений"
+													   HorizontalAlignment="Center"
+													   VerticalAlignment="Center"
+													   FontStyle="Italic"
+													   Foreground="Gray"
+													   FontSize="{Binding Bounds.Width, ElementName=NotificationsButton, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.05;16;35'}"
+													   IsVisible="{Binding !Notifications.Count}"/>
+											<ItemsControl ItemsSource="{Binding Notifications}">
+												<ItemsControl.ItemTemplate>
 
-												<DataTemplate>
-													<Border Background="{Binding Type, Converter={StaticResource NotificationTypeToBrushConverter}}"
-															Padding="5"
-															CornerRadius="4">
-														<StackPanel>
-															<TextBlock Text="{Binding Type}"
-																	   FontWeight="Bold"
-																	   Foreground="Gray"
-																	   Margin="0,0,0,2"
-																	   FontSize="{Binding Bounds.Width, ElementName=NotificationsButton, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.05;14;30'}"/>
-															
-															<TextBlock Text="{Binding Message}"
-																	   TextWrapping="Wrap"
-																	   Margin="5"
-																	   FontSize="{Binding Bounds.Width, ElementName=NotificationsButton, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.05;18;40'}"/>
-															<Separator Margin="2"/>
-														</StackPanel>
-													</Border>
-												</DataTemplate>
-											</ItemsControl.ItemTemplate>
-										</ItemsControl>
+													<DataTemplate>
+														<Border Background="{Binding Type, Converter={StaticResource NotificationTypeToBrushConverter}}"
+																Padding="5"
+																CornerRadius="4"
+																Margin="0,0,0,5">
+															<StackPanel>
+																<Grid>
+																	<TextBlock HorizontalAlignment="Left"
+																			   Text="{Binding Type}"
+																			   FontWeight="Bold"
+																			   Foreground="Gray"
+																			   Margin="0,0,0,2"
+																			   FontSize="{Binding Bounds.Width, ElementName=NotificationsButton, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.05;14;30'}"/>
+
+																	<TextBlock HorizontalAlignment="Right"
+																			   Text="{Binding CreatedAt}"
+																			   FontWeight="Bold"
+																			   Foreground="Gray"
+																			   Margin="0,0,0,2"
+																			   FontSize="{Binding Bounds.Width, ElementName=NotificationsButton, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.05;14;30'}"/>
+																</Grid>
+
+
+																<TextBlock Text="{Binding Message}"
+																		   TextWrapping="Wrap"
+																		   Margin="5"
+																		   FontSize="{Binding Bounds.Width, ElementName=NotificationsButton, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.05;18;40'}"/>
+																<Separator Margin="2"/>
+															</StackPanel>
+														</Border>
+													</DataTemplate>
+												</ItemsControl.ItemTemplate>
+											</ItemsControl>
+										</Grid>
 									</ScrollViewer>
 								</Grid>
 							</Border>

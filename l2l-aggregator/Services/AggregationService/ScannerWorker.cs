@@ -136,10 +136,23 @@ namespace l2l_aggregator.Services.AggregationService
                     {
                         if (_scannerPort.IsOpen)
                         {
+                            // Отписываемся от событий перед закрытием
                             _scannerPort.DataReceived -= ScannerPort_DataReceived;
                             _scannerPort.ErrorReceived -= ScannerPort_ErrorReceived;
+
+                            // Очищаем буферы
+                            try
+                            {
+                                _scannerPort.DiscardInBuffer();
+                                _scannerPort.DiscardOutBuffer();
+                            }
+                            catch { /* Игнорируем ошибки очистки буферов */ }
+
                             _scannerPort.Close();
                             Debug.WriteLine("[ScannerWorker] Порт закрыт");
+
+                            // Небольшая задержка после закрытия
+                            Thread.Sleep(100);
                         }
                     }
                     catch (Exception ex)
@@ -148,7 +161,14 @@ namespace l2l_aggregator.Services.AggregationService
                     }
                     finally
                     {
-                        _scannerPort.Dispose();
+                        try
+                        {
+                            _scannerPort.Dispose();
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[ScannerWorker] Ошибка освобождения порта: {ex.Message}");
+                        }
                         _scannerPort = null;
                     }
                 }
@@ -213,8 +233,9 @@ namespace l2l_aggregator.Services.AggregationService
                 testPort.Close();
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                ex.ToString();
                 return false;
             }
         }

@@ -68,11 +68,11 @@ namespace l2l_aggregator.ViewModels
 
         private readonly IDialogService _dialogService;
 
-        public MainWindowViewModel(HistoryRouter<ViewModelBase> router, 
-                                    DatabaseService databaseService, 
-                                    INotificationService notificationService, 
-                                    SessionService sessionService, 
-                                    ConfigurationLoaderService configLoader, 
+        public MainWindowViewModel(HistoryRouter<ViewModelBase> router,
+                                    DatabaseService databaseService,
+                                    INotificationService notificationService,
+                                    SessionService sessionService,
+                                    ConfigurationLoaderService configLoader,
                                     DatabaseDataService databaseDataService,
                                     IDialogService dialogService)
         {
@@ -447,33 +447,30 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task ButtonExitAsync()
         {
-            try
+            // Показываем модальное окно подтверждения выхода
+            bool confirmed = await _dialogService.ShowExitConfirmationAsync();
+            if (confirmed)
             {
-                // Показываем модальное окно подтверждения выхода
-                bool confirmed = await _dialogService.ShowExitConfirmationAsync();
-
-                if (!confirmed)
+                try
                 {
-                    return; // Пользователь отменил выход
+                    // Если мы на странице AggregationViewModel, закрываем сессию агрегации
+                    if (Content is AggregationViewModel)
+                    {
+                        _databaseDataService.CloseAggregationSession();
+                    }
                 }
-
-                // Если мы на странице AggregationViewModel, закрываем сессию агрегации
-                if (Content is AggregationViewModel)
+                catch (Exception ex)
                 {
-                    _databaseDataService.CloseAggregationSession();
+                    _notificationService.ShowMessage($"Ошибка при закрытии сессии агрегации: {ex.Message}", NotificationType.Error);
                 }
-            }
-            catch (Exception ex)
-            {
-                _notificationService.ShowMessage($"Ошибка при закрытии сессии агрегации: {ex.Message}", NotificationType.Error);
-            }
-            finally
-            {
-                // Очищаем уведомления и данные пользователя
-                Notifications.Clear();
-                _sessionService.User = null;
-                User = null;
-                _router.GoTo<AuthViewModel>();
+                finally
+                {
+                    // Очищаем уведомления и данные пользователя
+                    Notifications.Clear();
+                    _sessionService.User = null;
+                    User = null;
+                    _router.GoTo<AuthViewModel>();
+                }
             }
         }
 
@@ -497,6 +494,8 @@ namespace l2l_aggregator.ViewModels
         {
             try
             {
+
+
                 // Показываем модальное окно подтверждения выключения
                 bool confirmed = await _dialogService.ShowCustomConfirmationAsync(
                     "Подтверждение выключения",
@@ -508,30 +507,34 @@ namespace l2l_aggregator.ViewModels
                     "Отмена"
                 );
 
-                if (!confirmed)
+                if (confirmed)
                 {
-                    return; // Пользователь отменил выключение
+                    StopScannerMonitoring();
+                    DisposeScannerWorker();
+
+                    // Дополнительная задержка для освобождения ресурсов
+                    await Task.Delay(500);
+                    // Показываем уведомление о выключении
+                    _notificationService.ShowMessage("Выключение системы...", NotificationType.Info);
+
+                    // Небольшая задержка для отображения уведомления
+                    await Task.Delay(1000);
+
+                    // Проверяем, находимся ли мы в режиме отладки
+                    bool isDebugMode = IsDebugMode();
+
+                    if (isDebugMode)
+                    {
+                        // В режиме отладки просто закрываем приложение
+                        Environment.Exit(0);
+                    }
+                    else
+                    {
+                        // В продакшене выключаем компьютер
+                        await ShutdownSystemAsync();
+                    }
                 }
 
-                // Показываем уведомление о выключении
-                _notificationService.ShowMessage("Выключение системы...", NotificationType.Info);
-
-                // Небольшая задержка для отображения уведомления
-                await Task.Delay(1000);
-
-                // Проверяем, находимся ли мы в режиме отладки
-                bool isDebugMode = IsDebugMode();
-
-                if (isDebugMode)
-                {
-                    // В режиме отладки просто закрываем приложение
-                    Environment.Exit(0);
-                }
-                else
-                {
-                    // В продакшене выключаем компьютер
-                    await ShutdownSystemAsync();
-                }
             }
             catch (Exception ex)
             {
