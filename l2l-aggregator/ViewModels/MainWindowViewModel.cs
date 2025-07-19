@@ -502,7 +502,7 @@ namespace l2l_aggregator.ViewModels
                     "Вы действительно хотите выключить компьютер?",
                     Material.Icons.MaterialIconKind.Power,
                     Avalonia.Media.Brushes.Red,
-                    Avalonia.Media.Brushes.Red,
+                    Avalonia.Media.Brushes.IndianRed,
                     "Выключить",
                     "Отмена"
                 );

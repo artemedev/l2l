@@ -12,90 +12,111 @@
             IsVisible="{Binding IsVisible, ElementName=ConfirmationDialogControl}">
 
 		<!-- Центрирование модального окна -->
-		<Grid HorizontalAlignment="Center"
-              VerticalAlignment="Center">
+		<Grid ColumnDefinitions="*,*,*,*">
+			<Grid.RowDefinitions>
+				<RowDefinition Height="*"/>
+				<RowDefinition Height="*"/>
+				<RowDefinition Height="*"/>
+			</Grid.RowDefinitions>
 
 			<!-- Само модальное окно -->
-			<Border Background="White"
+			<Border Grid.Row="1"
+					Grid.Column="1"
+					Grid.ColumnSpan="2"
+					Background="White"
                     BorderBrush="Gray"
                     BorderThickness="2"
                     CornerRadius="8"
-                    MinWidth="400"
-                    MaxWidth="600"
                     Padding="20"
-                    BoxShadow="0 8 32 0 #4C000000">
+                    BoxShadow="0 8 32 0 #4C000000"
+					HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch">
 
-				<Grid RowDefinitions="Auto,*,Auto">
+				<Grid RowDefinitions="*,3*,*">
 
 					<!-- Заголовок с иконкой -->
 					<Grid Grid.Row="0"
-                          ColumnDefinitions="Auto,*,Auto"
-                          Margin="0,0,0,20">
-
-						<!-- Иконка -->
-						<materialIcons:MaterialIcon Grid.Column="0"
-                                                   Kind="{Binding IconKind, ElementName=ConfirmationDialogControl}"
-                                                   Width="32"
-                                                   Height="32"
-                                                   Foreground="{Binding IconColor, ElementName=ConfirmationDialogControl}"
-                                                   VerticalAlignment="Center"
-                                                   Margin="0,0,15,0"/>
-
+                          ColumnDefinitions="*,10*,*"
+                          Margin="0,0,0,5">
+						<Viewbox Grid.Column="0"
+								 Margin="0,0,15,0"
+								 VerticalAlignment="Center"
+								 HorizontalAlignment="Center">
+							<!-- Иконка -->
+							<materialIcons:MaterialIcon Kind="{Binding IconKind, ElementName=ConfirmationDialogControl}"
+														Foreground="{Binding IconColor, ElementName=ConfirmationDialogControl}"/>
+						</Viewbox>
 						<!-- Заголовок -->
 						<TextBlock Grid.Column="1"
                                    Text="{Binding Title, ElementName=ConfirmationDialogControl}"
-                                   FontSize="18"
+								   FontSize="{Binding Bounds.Width, 
+												RelativeSource={RelativeSource AncestorType=UserControl}, 
+												Converter={StaticResource ResponsiveFontSizeConverter}, 
+												ConverterParameter='0.017;16;48'}"
                                    FontWeight="Bold"
                                    VerticalAlignment="Center"/>
 
-						<!-- Кнопка закрытия -->
-						<Button Grid.Column="2"
-                                Name="CloseButton"
-                                Content="✕"
-                                Width="30"
-                                Height="30"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                FontSize="16"
-                                FontWeight="Bold"
-                                Foreground="Gray"
-                                VerticalAlignment="Top"
-                                HorizontalAlignment="Right"
-                                VerticalContentAlignment="Center"
-                                HorizontalContentAlignment="Center"
-                                ToolTip.Tip="Закрыть"
-                                Click="CloseButton_Click">
-							<Button.Styles>
-								<Style Selector="Button:pointerover">
-									<Setter Property="Foreground" Value="Red"/>
-									<Setter Property="Background" Value="#20FF0000"/>
-								</Style>
-							</Button.Styles>
-						</Button>
+						<Viewbox Grid.Column="2"
+								 VerticalAlignment="Center"
+								 HorizontalAlignment="Center">
+							<!-- Кнопка закрытия -->
+							<Button
+									Name="CloseButton"
+									Content="✕"
+									Padding="0"
+									Background="Transparent"
+									BorderThickness="0"
+									FontSize="{Binding Bounds.Width, 
+											RelativeSource={RelativeSource AncestorType=UserControl}, 
+											Converter={StaticResource ResponsiveFontSizeConverter}, 
+											ConverterParameter='0.017;36;64'}"
+									FontWeight="Bold"
+									Foreground="Gray"
+									VerticalAlignment="Stretch"
+									HorizontalAlignment="Stretch"
+									VerticalContentAlignment="Center"
+									HorizontalContentAlignment="Center"
+									ToolTip.Tip="Закрыть"
+									Click="CloseButton_Click">
+								<Button.Styles>
+									<Style Selector="Button:pointerover">
+										<Setter Property="Foreground" Value="Red"/>
+										<Setter Property="Background" Value="#20FF0000"/>
+									</Style>
+								</Button.Styles>
+							</Button>
+						</Viewbox>
 					</Grid>
 
 					<!-- Содержимое -->
 					<TextBlock Grid.Row="1"
                                Text="{Binding Message, ElementName=ConfirmationDialogControl}"
-                               FontSize="14"
+							   FontSize="{Binding Bounds.Width, 
+											RelativeSource={RelativeSource AncestorType=UserControl}, 
+											Converter={StaticResource ResponsiveFontSizeConverter}, 
+											ConverterParameter='0.017;16;48'}"
                                TextWrapping="Wrap"
-                               Margin="0,0,0,25"
-                               LineHeight="20"/>
+                               Margin="15,0,0,25"
+                               LineHeight="{Binding Bounds.Width, 
+											RelativeSource={RelativeSource AncestorType=UserControl}, 
+											Converter={StaticResource ResponsiveFontSizeConverter}, 
+											ConverterParameter='0.017;16;48'}"/>
 
 					<!-- Кнопки действий -->
-					<StackPanel Grid.Row="2"
-                                Orientation="Horizontal"
-                                HorizontalAlignment="Right"
-                                Spacing="10">
+					<Grid Grid.Row="2" ColumnDefinitions="*,*,*">
 
 						<Button Name="CancelButton"
+								Grid.Column="0"
+								HorizontalAlignment="Stretch"
+								VerticalAlignment="Stretch"
+								HorizontalContentAlignment="Center"
+								VerticalContentAlignment="Center"
                                 Content="{Binding CancelText, ElementName=ConfirmationDialogControl}"
-                                MinWidth="100"
-                                Height="35"
                                 Background="LightGray"
-                                BorderBrush="Gray"
-                                BorderThickness="1"
-                                FontSize="14"
+								FontSize="{Binding Bounds.Width, 
+											RelativeSource={RelativeSource AncestorType=UserControl}, 
+											Converter={StaticResource ResponsiveFontSizeConverter}, 
+											ConverterParameter='0.017;16;48'}"
                                 Click="CancelButton_Click">
 							<Button.Styles>
 								<Style Selector="Button:pointerover">
@@ -106,13 +127,19 @@
 						</Button>
 
 						<Button Name="ConfirmButton"
+								Grid.Column="2"
+								HorizontalAlignment="Stretch"
+								VerticalAlignment="Stretch"
+								HorizontalContentAlignment="Center"
+								VerticalContentAlignment="Center"
                                 Content="{Binding ConfirmText, ElementName=ConfirmationDialogControl}"
-                                MinWidth="100"
-                                Height="35"
                                 Background="{Binding ConfirmButtonColor, ElementName=ConfirmationDialogControl}"
                                 Foreground="White"
                                 BorderThickness="0"
-                                FontSize="14"
+								FontSize="{Binding Bounds.Width, 
+											RelativeSource={RelativeSource AncestorType=UserControl}, 
+											Converter={StaticResource ResponsiveFontSizeConverter}, 
+											ConverterParameter='0.017;16;48'}"
                                 FontWeight="Bold"
                                 Click="ConfirmButton_Click">
 							<Button.Styles>
@@ -121,7 +148,7 @@
 								</Style>
 							</Button.Styles>
 						</Button>
-					</StackPanel>
+					</Grid>
 				</Grid>
 			</Border>
 		</Grid>

@@ -30,7 +30,7 @@ public partial class ConfirmationDialog : UserControl
         AvaloniaProperty.Register<ConfirmationDialog, IBrush>(nameof(IconColor), Brushes.Orange);
 
     public static readonly StyledProperty<IBrush> ConfirmButtonColorProperty =
-        AvaloniaProperty.Register<ConfirmationDialog, IBrush>(nameof(ConfirmButtonColor), Brushes.Red);
+        AvaloniaProperty.Register<ConfirmationDialog, IBrush>(nameof(ConfirmButtonColor), Brushes.OrangeRed);
 
     public string Title
     {
@@ -112,7 +112,7 @@ public partial class ConfirmationDialog : UserControl
             CancelText = "Отмена",
             IconKind = MaterialIconKind.ExitToApp,
             IconColor = Brushes.Orange,
-            ConfirmButtonColor = Brushes.OrangeRed
+            ConfirmButtonColor = Brushes.Red
         };
     }
 

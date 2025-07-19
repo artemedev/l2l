@@ -53,7 +53,7 @@ namespace l2l_aggregator.Services
             _dialogContainer.CancelText = "Отмена";
             _dialogContainer.IconKind = MaterialIconKind.ExitToApp;
             _dialogContainer.IconColor = Brushes.Orange;
-            _dialogContainer.ConfirmButtonColor = Brushes.OrangeRed;
+            _dialogContainer.ConfirmButtonColor = Brushes.IndianRed;
 
             return await _dialogContainer.ShowAndWaitAsync();
         }
