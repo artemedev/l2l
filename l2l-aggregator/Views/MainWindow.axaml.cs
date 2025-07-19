@@ -64,7 +64,7 @@ namespace l2l_aggregator.Views
         }
         private void openVirtualKeyboard(object? sender, GotFocusEventArgs e)
         {
-            if (_viewModel?.DisableVirtualKeyboard ?? false)
+            if (_viewModel?.DisableVirtualKeyboard ?? true)
                 return;
 
             if (iskeyboardCooldown && !iskeyboardCooldownStarted)

@@ -4,14 +4,23 @@ using l2l_aggregator.Services.Database;
 using l2l_aggregator.Services.Database.Repositories.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace l2l_aggregator.Services
 {
-    public class SessionService
+    public class SessionService : INotifyPropertyChanged
     {
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged([CallerMemberName] string propertyName = "")
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
         private static SessionService? _instance;
         public static SessionService Instance => _instance ??= new SessionService();
 
@@ -42,7 +51,15 @@ namespace l2l_aggregator.Services
         public bool DisableVirtualKeyboard
         {
             get => _disableVirtualKeyboard;
-            set => SetAndSave(ref _disableVirtualKeyboard, value, "DisableVirtualKeyboard");
+            set
+            {
+                if (_disableVirtualKeyboard != value)
+                {
+                    _disableVirtualKeyboard = value;
+                    OnPropertyChanged();
+                    SaveSettingToDb("DisableVirtualKeyboard", value.ToString());
+                }
+            }
         }
 
         private string? _scannerPort;

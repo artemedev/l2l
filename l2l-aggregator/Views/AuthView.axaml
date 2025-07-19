@@ -86,6 +86,40 @@
 						</Grid>
 					</ToggleButton>
 
+					<CheckBox Content="Отключить экранную клавиатуру"
+							  IsChecked="{Binding DisableVirtualKeyboard, Mode=TwoWay}"
+							  HorizontalAlignment="Center"
+							  Grid.Row="4"
+							  Margin="0,10,0,10"
+							  FontSize="14">
+						<CheckBox.Styles>
+							<Style>
+								<Setter Property="Template">
+									<ControlTemplate TargetType="CheckBox">
+										<StackPanel Orientation="Horizontal" Spacing="8">
+											<Border Width="20"
+													Height="20"
+													BorderBrush="Black"
+													BorderThickness="2"
+													Background="White"
+													HorizontalAlignment="Center"
+													VerticalAlignment="Center">
+												<Canvas Width="20" Height="20">
+													<Path Stroke="Black"
+														  StrokeThickness="2"
+														  Data="M 4 10 L 8 14 L 16 6"
+														  IsVisible="{TemplateBinding IsChecked}" />
+												</Canvas>
+											</Border>
+											<ContentPresenter Content="{TemplateBinding Content}"
+															  VerticalAlignment="Center"/>
+										</StackPanel>
+									</ControlTemplate>
+								</Setter>
+							</Style>
+						</CheckBox.Styles>
+					</CheckBox>
+
 					<Button Content="Войти"
 							Command="{Binding LoginCommand}"
 							HorizontalAlignment="Stretch"
@@ -93,7 +127,7 @@
 							VerticalContentAlignment="Center"
 							Margin="0,20,0,20"
 							Height="50"
-							Grid.Row="4"
+							Grid.Row="5"
 							Grid.Column="1"/>
 
 				</Grid>

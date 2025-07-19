@@ -11,6 +11,7 @@ using l2l_aggregator.Services.Notification.Interface;
 using l2l_aggregator.Services.ScannerService;
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
@@ -78,6 +79,7 @@ namespace l2l_aggregator.ViewModels
             _notificationService = notificationService;
             _sessionService = sessionService;
             _databaseDataService = databaseDataService;
+            _sessionService.PropertyChanged += OnSessionPropertyChanged;
 
             router.CurrentViewModelChanged += async viewModel =>
             {
@@ -102,7 +104,13 @@ namespace l2l_aggregator.ViewModels
             Notifications = _notificationService.Notifications;
             ClearNotificationsCommand = new RelayCommand(ClearNotifications);
         }
-
+        private void OnSessionPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(SessionService.DisableVirtualKeyboard))
+            {
+                DisableVirtualKeyboard = _sessionService.DisableVirtualKeyboard;
+            }
+        }
         private async void InitializeAsync()
         {
             await _sessionService.InitializeAsync(_databaseService);
