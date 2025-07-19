@@ -66,12 +66,15 @@ namespace l2l_aggregator.ViewModels
 
         private readonly DatabaseDataService _databaseDataService;
 
+        private readonly IDialogService _dialogService;
+
         public MainWindowViewModel(HistoryRouter<ViewModelBase> router, 
                                     DatabaseService databaseService, 
                                     INotificationService notificationService, 
                                     SessionService sessionService, 
                                     ConfigurationLoaderService configLoader, 
-                                    DatabaseDataService databaseDataService)
+                                    DatabaseDataService databaseDataService,
+                                    IDialogService dialogService)
         {
             _router = router;
             _databaseService = databaseService;
@@ -79,6 +82,7 @@ namespace l2l_aggregator.ViewModels
             _notificationService = notificationService;
             _sessionService = sessionService;
             _databaseDataService = databaseDataService;
+            _dialogService = dialogService;
             _sessionService.PropertyChanged += OnSessionPropertyChanged;
 
             router.CurrentViewModelChanged += async viewModel =>
@@ -104,6 +108,13 @@ namespace l2l_aggregator.ViewModels
             Notifications = _notificationService.Notifications;
             ClearNotificationsCommand = new RelayCommand(ClearNotifications);
         }
+
+        // Метод для инициализации DialogService с ConfirmationDialog
+        public void InitializeDialogService(Views.Popup.ConfirmationDialog confirmationDialog)
+        {
+            _dialogService.SetDialogContainer(confirmationDialog);
+        }
+
         private void OnSessionPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(SessionService.EnableVirtualKeyboard))
@@ -432,10 +443,18 @@ namespace l2l_aggregator.ViewModels
         }
 
         [RelayCommand]
-        public void ButtonExit()
+        public async Task ButtonExitAsync()
         {
             try
             {
+                // Показываем модальное окно подтверждения выхода
+                bool confirmed = await _dialogService.ShowExitConfirmationAsync();
+
+                if (!confirmed)
+                {
+                    return; // Пользователь отменил выход
+                }
+
                 // Если мы на странице AggregationViewModel, закрываем сессию агрегации
                 if (Content is AggregationViewModel)
                 {
@@ -455,6 +474,7 @@ namespace l2l_aggregator.ViewModels
                 _router.GoTo<AuthViewModel>();
             }
         }
+
         [RelayCommand]
         public void ButtonSettings()
         {
@@ -475,6 +495,22 @@ namespace l2l_aggregator.ViewModels
         {
             try
             {
+                // Показываем модальное окно подтверждения выключения
+                bool confirmed = await _dialogService.ShowCustomConfirmationAsync(
+                    "Подтверждение выключения",
+                    "Вы действительно хотите выключить компьютер?",
+                    Material.Icons.MaterialIconKind.Power,
+                    Avalonia.Media.Brushes.Red,
+                    Avalonia.Media.Brushes.Red,
+                    "Выключить",
+                    "Отмена"
+                );
+
+                if (!confirmed)
+                {
+                    return; // Пользователь отменил выключение
+                }
+
                 // Показываем уведомление о выключении
                 _notificationService.ShowMessage("Выключение системы...", NotificationType.Info);
 

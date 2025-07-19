@@ -6,6 +6,7 @@
 		xmlns:controls="clr-namespace:Avalonia.Notification.Controls;assembly=Notification.Avalonia"
 		xmlns:keyboard="clr-namespace:l2l_aggregator.Controls.Keyboard"
 		xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+		xmlns:customControls="clr-namespace:l2l_aggregator.Views.Popup;assembly=l2l_aggregator"
         mc:Ignorable="d" d:DesignWidth="1800" d:DesignHeight="1450"
         x:Class="l2l_aggregator.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -193,5 +194,8 @@
 		<Panel Background="Transparent" Name="dialogpanel"  IsVisible="False">
 			<keyboard:VirtualKeyboard Name="VirtualKeyboardControl" IsVisible="False" ></keyboard:VirtualKeyboard>
 		</Panel>
+
+		<!-- Модальное окно подтверждения -->
+		<customControls:ConfirmationDialog x:Name="ConfirmationDialog" ZIndex="2000"/>
 	</Grid>
 </Window>

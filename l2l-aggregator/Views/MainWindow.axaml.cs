@@ -7,6 +7,7 @@ using l2l_aggregator.ViewModels;
 using l2l_aggregator.Services;
 using Avalonia.Controls.Primitives;
 using Avalonia.Threading;
+using System;
 
 namespace l2l_aggregator.Views
 {
@@ -89,6 +90,20 @@ namespace l2l_aggregator.Views
                         break;
                 }
                 iskeyboardCooldown = true;
+            }
+        }
+        protected override void OnDataContextChanged(EventArgs e)
+        {
+            base.OnDataContextChanged(e);
+
+            // Инициализируем DialogService с ConfirmationDialog когда DataContext установлен
+            if (DataContext is MainWindowViewModel viewModel)
+            {
+                var confirmationDialog = this.FindControl<Views.Popup.ConfirmationDialog>("ConfirmationDialog");
+                if (confirmationDialog != null)
+                {
+                    viewModel.InitializeDialogService(confirmationDialog);
+                }
             }
         }
     }

@@ -1,0 +1,129 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="l2l_aggregator.Views.Popup.ConfirmationDialog"
+             Name="ConfirmationDialogControl">
+
+	<!-- Затемняющий фон -->
+	<Border Background="#80000000"
+            IsVisible="{Binding IsVisible, ElementName=ConfirmationDialogControl}">
+
+		<!-- Центрирование модального окна -->
+		<Grid HorizontalAlignment="Center"
+              VerticalAlignment="Center">
+
+			<!-- Само модальное окно -->
+			<Border Background="White"
+                    BorderBrush="Gray"
+                    BorderThickness="2"
+                    CornerRadius="8"
+                    MinWidth="400"
+                    MaxWidth="600"
+                    Padding="20"
+                    BoxShadow="0 8 32 0 #4C000000">
+
+				<Grid RowDefinitions="Auto,*,Auto">
+
+					<!-- Заголовок с иконкой -->
+					<Grid Grid.Row="0"
+                          ColumnDefinitions="Auto,*,Auto"
+                          Margin="0,0,0,20">
+
+						<!-- Иконка -->
+						<materialIcons:MaterialIcon Grid.Column="0"
+                                                   Kind="{Binding IconKind, ElementName=ConfirmationDialogControl}"
+                                                   Width="32"
+                                                   Height="32"
+                                                   Foreground="{Binding IconColor, ElementName=ConfirmationDialogControl}"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,15,0"/>
+
+						<!-- Заголовок -->
+						<TextBlock Grid.Column="1"
+                                   Text="{Binding Title, ElementName=ConfirmationDialogControl}"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center"/>
+
+						<!-- Кнопка закрытия -->
+						<Button Grid.Column="2"
+                                Name="CloseButton"
+                                Content="✕"
+                                Width="30"
+                                Height="30"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                FontSize="16"
+                                FontWeight="Bold"
+                                Foreground="Gray"
+                                VerticalAlignment="Top"
+                                HorizontalAlignment="Right"
+                                VerticalContentAlignment="Center"
+                                HorizontalContentAlignment="Center"
+                                ToolTip.Tip="Закрыть"
+                                Click="CloseButton_Click">
+							<Button.Styles>
+								<Style Selector="Button:pointerover">
+									<Setter Property="Foreground" Value="Red"/>
+									<Setter Property="Background" Value="#20FF0000"/>
+								</Style>
+							</Button.Styles>
+						</Button>
+					</Grid>
+
+					<!-- Содержимое -->
+					<TextBlock Grid.Row="1"
+                               Text="{Binding Message, ElementName=ConfirmationDialogControl}"
+                               FontSize="14"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,25"
+                               LineHeight="20"/>
+
+					<!-- Кнопки действий -->
+					<StackPanel Grid.Row="2"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                Spacing="10">
+
+						<Button Name="CancelButton"
+                                Content="{Binding CancelText, ElementName=ConfirmationDialogControl}"
+                                MinWidth="100"
+                                Height="35"
+                                Background="LightGray"
+                                BorderBrush="Gray"
+                                BorderThickness="1"
+                                FontSize="14"
+                                Click="CancelButton_Click">
+							<Button.Styles>
+								<Style Selector="Button:pointerover">
+									<Setter Property="Background" Value="Gray"/>
+									<Setter Property="Foreground" Value="White"/>
+								</Style>
+							</Button.Styles>
+						</Button>
+
+						<Button Name="ConfirmButton"
+                                Content="{Binding ConfirmText, ElementName=ConfirmationDialogControl}"
+                                MinWidth="100"
+                                Height="35"
+                                Background="{Binding ConfirmButtonColor, ElementName=ConfirmationDialogControl}"
+                                Foreground="White"
+                                BorderThickness="0"
+                                FontSize="14"
+                                FontWeight="Bold"
+                                Click="ConfirmButton_Click">
+							<Button.Styles>
+								<Style Selector="Button:pointerover">
+									<Setter Property="Opacity" Value="0.8"/>
+								</Style>
+							</Button.Styles>
+						</Button>
+					</StackPanel>
+				</Grid>
+			</Border>
+		</Grid>
+	</Border>
+</UserControl>

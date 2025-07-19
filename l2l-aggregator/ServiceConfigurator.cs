@@ -86,6 +86,8 @@ namespace l2l_aggregator
             services.AddSingleton<DatabaseDataService>();
             services.AddSingleton<RemoteDatabaseService>();
             services.AddSingleton<DeviceInfoService>();
+
+            services.AddSingleton<IDialogService, DialogService>();
         }
     }
 }
