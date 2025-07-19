@@ -35,7 +35,7 @@ namespace l2l_aggregator.ViewModels
 
         [ObservableProperty] private bool _isDeviceCheckInProgress;
 
-        [ObservableProperty] private bool _disableVirtualKeyboard;
+        [ObservableProperty] private bool _enableVirtualKeyboard;
 
         private readonly HistoryRouter<ViewModelBase> _router;
         private readonly DatabaseService _databaseService;
@@ -62,13 +62,13 @@ namespace l2l_aggregator.ViewModels
             // Тестовые/заготовленные значения
             _login = "TESTINNO1";//TESTADMIN
             _password = "123456";
-            DisableVirtualKeyboard = _sessionService.DisableVirtualKeyboard;
+            EnableVirtualKeyboard = _sessionService.EnableVirtualKeyboard;
             //InitializeScanner();
         }
         // Обработчик изменения настройки виртуальной клавиатуры
-        partial void OnDisableVirtualKeyboardChanged(bool value)
+        partial void OnEnableVirtualKeyboardChanged(bool value)
         {
-            _sessionService.DisableVirtualKeyboard = DisableVirtualKeyboard;
+            _sessionService.EnableVirtualKeyboard = EnableVirtualKeyboard;
             _notificationService.ShowMessage(
                 value ? "Виртуальная клавиатура отключена" : "Виртуальная клавиатура включена",
                 NotificationType.Info

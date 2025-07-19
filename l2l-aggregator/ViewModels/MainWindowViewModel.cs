@@ -35,7 +35,7 @@ namespace l2l_aggregator.ViewModels
         private UserAuthResponse? _user;
 
         [ObservableProperty]
-        private bool _disableVirtualKeyboard;
+        private bool _enableVirtualKeyboard;
 
         [ObservableProperty]
         private bool _isAdmin;
@@ -88,7 +88,7 @@ namespace l2l_aggregator.ViewModels
                 IsNotLoginPage = !(viewModel is AuthViewModel || viewModel is InitializationViewModel);
                 User = sessionService.User;
                 IsAdmin = sessionService.IsAdmin;
-                _disableVirtualKeyboard = _sessionService.DisableVirtualKeyboard;
+                _enableVirtualKeyboard = _sessionService.EnableVirtualKeyboard;
                 //if (IsNotLoginPage)
                 //{
                 //    await LoadUserData(Content); // Загружаем данные пользователя при входе
@@ -106,9 +106,9 @@ namespace l2l_aggregator.ViewModels
         }
         private void OnSessionPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(SessionService.DisableVirtualKeyboard))
+            if (e.PropertyName == nameof(SessionService.EnableVirtualKeyboard))
             {
-                DisableVirtualKeyboard = _sessionService.DisableVirtualKeyboard;
+                EnableVirtualKeyboard = _sessionService.EnableVirtualKeyboard;
             }
         }
         private async void InitializeAsync()

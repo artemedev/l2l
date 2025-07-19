@@ -31,7 +31,7 @@ namespace l2l_aggregator.Services
             session.ScannerPort = await _databaseService.Config.GetConfigValueAsync("ScannerCOMPort");
             session.ScannerModel = await _databaseService.Config.GetConfigValueAsync("ScannerModel");
 
-            session.DisableVirtualKeyboard = bool.TryParse(
+            session.EnableVirtualKeyboard = bool.TryParse(
                 await _databaseService.Config.GetConfigValueAsync("DisableVirtualKeyboard"),
                 out var parsedKeyboard) && parsedKeyboard;
 
@@ -42,7 +42,7 @@ namespace l2l_aggregator.Services
                 SelectedCameraModel = session.CameraModel
             };
 
-            return (camera, session.DisableVirtualKeyboard);
+            return (camera, session.EnableVirtualKeyboard);
         }
     }
 }

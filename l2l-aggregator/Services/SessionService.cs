@@ -47,17 +47,17 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- Device Settings ----------------
-        private bool _disableVirtualKeyboard;
-        public bool DisableVirtualKeyboard
+        private bool _enableVirtualKeyboard;
+        public bool EnableVirtualKeyboard
         {
-            get => _disableVirtualKeyboard;
+            get => _enableVirtualKeyboard;
             set
             {
-                if (_disableVirtualKeyboard != value)
+                if (_enableVirtualKeyboard != value)
                 {
-                    _disableVirtualKeyboard = value;
+                    _enableVirtualKeyboard = value;
                     OnPropertyChanged();
-                    SaveSettingToDb("DisableVirtualKeyboard", value.ToString());
+                    SaveSettingToDb("EnableVirtualKeyboard", value.ToString());
                 }
             }
         }
@@ -207,7 +207,7 @@ namespace l2l_aggregator.Services
             CameraModel = await config.GetConfigValueAsync("CameraModel");
             ScannerPort = await config.GetConfigValueAsync("ScannerCOMPort");
             ScannerModel = await config.GetConfigValueAsync("ScannerModel");
-            DisableVirtualKeyboard = bool.TryParse(await config.GetConfigValueAsync("DisableVirtualKeyboard"), out var vkParsed) && vkParsed;
+            EnableVirtualKeyboard = bool.TryParse(await config.GetConfigValueAsync("EnableVirtualKeyboard"), out var vkParsed) && vkParsed;
 
             // Загружаем информацию об устройстве
             DeviceId = await config.GetConfigValueAsync("DeviceId");

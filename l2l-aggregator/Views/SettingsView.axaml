@@ -405,9 +405,9 @@
 						Padding="10" 
 						Grid.Row="6">
 					<StackPanel Spacing="5">
-						<CheckBox Content="Отключить экранную клавиатуру"
-								  IsChecked="{Binding DisableVirtualKeyboard, Mode=TwoWay}"
-								  Command="{Binding ToggleDisableVirtualKeyboardCommand}"
+						<CheckBox Content="Включить клавиатуру"
+								  IsChecked="{Binding EnableVirtualKeyboard, Mode=TwoWay}"
+								  Command="{Binding ToggleEnableVirtualKeyboardCommand}"
 								  HorizontalAlignment="Left"
 								  Margin="0,10,0,0"
 								  FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}">

@@ -33,7 +33,7 @@ namespace l2l_aggregator.ViewModels
         [ObservableProperty] private string _licenseNumber = "XXXX-XXXX-XXXX-XXXX";
         [ObservableProperty] private bool _checkForUpdates;
         [ObservableProperty] private string _infoMessage;
-        [ObservableProperty] private bool _disableVirtualKeyboard;
+        [ObservableProperty] private bool _enableVirtualKeyboard;
         [ObservableProperty] private string _selectedCameraModel;
         [ObservableProperty] private ObservableCollection<string> _printerModels = new() { "Zebra" };
         [ObservableProperty] private string _selectedPrinterModel;
@@ -169,7 +169,7 @@ namespace l2l_aggregator.ViewModels
                 CameraIP = _sessionService.CameraIP,
                 SelectedCameraModel = _sessionService.CameraModel
             };
-            DisableVirtualKeyboard = _sessionService.DisableVirtualKeyboard;
+            EnableVirtualKeyboard = _sessionService.EnableVirtualKeyboard;
             //DatabaseUri = _sessionService.DatabaseUri;
             PrinterIP = _sessionService.PrinterIP;
             SelectedPrinterModel = _sessionService.PrinterModel;
@@ -186,10 +186,10 @@ namespace l2l_aggregator.ViewModels
         }
 
         [RelayCommand]
-        private async Task ToggleDisableVirtualKeyboardAsync()
+        private async Task ToggleEnableVirtualKeyboardAsync()
         {
             // await _databaseService.Config.SetConfigValueAsync("DisableVirtualKeyboard", DisableVirtualKeyboard.ToString());
-            _sessionService.DisableVirtualKeyboard = DisableVirtualKeyboard;
+            _sessionService.EnableVirtualKeyboard = EnableVirtualKeyboard;
             InfoMessage = "Настройка клавиатуры сохранена.";
             _notificationService.ShowMessage(InfoMessage);
         }
@@ -291,7 +291,7 @@ namespace l2l_aggregator.ViewModels
         private async void SaveSettings()
         {
             //await _databaseService.Config.SetConfigValueAsync("DisableVirtualKeyboard", DisableVirtualKeyboard.ToString());
-            _sessionService.DisableVirtualKeyboard = DisableVirtualKeyboard;
+            _sessionService.EnableVirtualKeyboard = EnableVirtualKeyboard;
             InfoMessage = "Настройки успешно сохранены!";
             _notificationService.ShowMessage(InfoMessage);
 
