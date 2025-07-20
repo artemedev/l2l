@@ -182,6 +182,9 @@ namespace l2l_aggregator.ViewModels
         private readonly DatabaseDataService _databaseDataService;
         //сервис обработки и работы с библиотекой распознавания, нужно сделать только чтобы была работа с распознавание, перенести обработку!!!!!!!!!!!!!!!!!!!!!!!!!
         private readonly DmScanService _dmScanService;
+
+        //Автоматическая печать этикетки коробки
+        [ObservableProperty] private bool isAutoPrintEnabled = true;
         public AggregationViewModel(
             ImageHelper imageProcessingService,
             SessionService sessionService,
@@ -884,6 +887,10 @@ namespace l2l_aggregator.ViewModels
                 CanPrintBoxLabel = true;
                 CurrentStepIndex = 2;
                 _printingService.PrintReportTEST(frxBoxBytes, true);
+                if (IsAutoPrintEnabled)
+                {
+                    PrintBoxLabel();
+                }
 
                 // Метод подтверждения обработки фотографий в ПЛК
                 await ConfirmPhotoToPlcAsync();
