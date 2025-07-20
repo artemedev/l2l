@@ -53,7 +53,7 @@
 				</Canvas>
 			</Grid>
 		</Grid>
-		<Grid Grid.Column="1" Margin="15">
+		<Grid Grid.Column="1">
 			<Grid.RowDefinitions>
 				<RowDefinition Height="Auto"/>
 				<RowDefinition Height="*"/>
@@ -212,20 +212,29 @@
 								Converter={StaticResource ResponsiveFontSizeConverter}, 
 								ConverterParameter='0.017;8;36'}"/>
 			
-			<Border Margin="0,5,0,10"
+			<Border Margin="5"
 					BorderBrush="LightGray"
 					BorderThickness="1"
 					CornerRadius="4"
 					Padding="10" Grid.Row="8">
-				<Viewbox Stretch="Uniform" VerticalAlignment="Top">
+				<Viewbox Stretch="Uniform" VerticalAlignment="Top" HorizontalAlignment="Left" StretchDirection="DownOnly">
 					<Grid RowDefinitions="Auto,Auto" >
-						<TextBlock Grid.Row="0" Text="Результат "
+						<TextBlock Grid.Row="0" 
+								   Text="Результат "
+								   HorizontalAlignment="Left"
 								   FontWeight="Bold"
 								   FontSize="{Binding Bounds.Width, 
 												RelativeSource={RelativeSource AncestorType=UserControl}, 
 												Converter={StaticResource ResponsiveFontSizeConverter}, 
 												ConverterParameter='0.017;8;36'}"/>
-						<TextBlock Grid.Row="1" Text="{Binding AggregationSummaryText}"/>
+						<TextBlock Grid.Row="1" 
+								   Text="{Binding AggregationSummaryText}"
+								   HorizontalAlignment="Left"
+
+								   FontSize="{Binding Bounds.Width, 
+												RelativeSource={RelativeSource AncestorType=UserControl}, 
+												Converter={StaticResource ResponsiveFontSizeConverter}, 
+												ConverterParameter='0.017;8;36'}"/>
 					</Grid>
 				</Viewbox>
 			</Border>

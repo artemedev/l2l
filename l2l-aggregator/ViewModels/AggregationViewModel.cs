@@ -426,6 +426,7 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage($"Ошибка инициализации контроллера: {ex.Message}", NotificationType.Error);
             }
         }
+        
         private void InitializeSession()
         {
             if (_sessionService.SelectedTaskInfo == null)
@@ -435,10 +436,12 @@ namespace l2l_aggregator.ViewModels
                 return;
             }
         }
+        
         partial void OnIsControllerAvailableChanged(bool value)
         {
             UpdateScanAvailability();
         }
+        
         private void UpdateScanAvailability()
         {
             if (IsInfoMode)
@@ -460,8 +463,6 @@ namespace l2l_aggregator.ViewModels
         }
 
         //отправляет шаблон распознавания в библиотеку
-        
-
         [RelayCommand]
         public async Task ScanSoftware()
         {
@@ -472,11 +473,11 @@ namespace l2l_aggregator.ViewModels
                 return;
             }
 
-            if (!_databaseDataService.StartAggregationSession())
-            {
-                _notificationService.ShowMessage("Ошибка начала сессии агрегации, зайдите в задание заново", NotificationType.Error);
-                return; // Остановить, если позиционирование не удалось
-            }
+            //if (!_databaseDataService.StartAggregationSession())
+            //{
+            //    _notificationService.ShowMessage("Ошибка начала сессии агрегации, зайдите в задание заново", NotificationType.Error);
+            //    return; // Остановить, если позиционирование не удалось
+            //}
 
             try
             {
@@ -577,12 +578,6 @@ namespace l2l_aggregator.ViewModels
 
             if (!await MoveCameraToCurrentLayerAsync())
                 return; // Остановить, если позиционирование не удалось
-
-
-
-            //// Отправляем шаблон для hardware trigger режима
-            //if (!await SendTemplateToRecognizerAsync())
-            //    return;
 
             // Запуск захвата фото через контроллер
             try
@@ -685,7 +680,6 @@ namespace l2l_aggregator.ViewModels
         }
 
         // Метод для подтверждения обработки фото в ПЛК
-        //!!!!УЗНАТЬ ЧТО ОН ДЕЛАЕТ, ЕГО НУЖНО ОТПРАВЛЯТЬ ПОСЛЕ ПОЛКУЧЕНИЯ ИЗОБРАЖЕНИЯ, ИЛИ КОГДА ДАННЫЕ С КАДРА ХОРОШО СЧИТАЛИСЬ!!!!
         private async Task ConfirmPhotoToPlcAsync()
         {
             if (_plcConnection?.IsConnected == true)
@@ -700,9 +694,6 @@ namespace l2l_aggregator.ViewModels
                 }
             }
         }
-
-
-
 
         //выполняет процесс получения данных от распознавания и отображение результата в UI.Software
         public async Task StartScanningSoftwareAsync()
@@ -992,8 +983,6 @@ namespace l2l_aggregator.ViewModels
             _router.GoTo<TaskListViewModel>();
         }
 
-
-
         //сканирование кода этикетки
         public void HandleScannedBarcode(string barcode)
         {
@@ -1099,6 +1088,7 @@ namespace l2l_aggregator.ViewModels
             }
 
         }
+        
         //Сохранение в бд.
         private bool SaveAllDmCells()
         {
@@ -1260,7 +1250,6 @@ OCR:
 """;
         }
 
-
         partial void OnIsPopupOpenChanged(bool value)
         {
             if (!value)
@@ -1268,6 +1257,7 @@ OCR:
                 AggregationSummaryText = _previousAggregationSummaryText;
             }
         }
+        
         [RelayCommand]
         public void OpenTemplateSettings()
         {
@@ -1281,6 +1271,7 @@ OCR:
                 window.ShowDialog(desktop.MainWindow);
             }
         }
+        
         private void OnImageSizeChanged(SizeChangedEventArgs e)
         {
             imageWidth = e.NewSize.Width;
@@ -1308,6 +1299,7 @@ OCR:
             }
             base.Dispose(disposing);
         }
+        
         // Обработчик изменения режима информации
         partial void OnIsInfoModeChanged(bool value)
         {
@@ -1351,6 +1343,7 @@ OCR:
 
             _notificationService.ShowMessage("Активирован режим информации", NotificationType.Info);
         }
+        
         private void ExitInfoMode()
         {
             CurrentStepIndex = PreviousStepIndex; // Возвращаемся к обычному режиму
@@ -1370,6 +1363,7 @@ OCR:
 
             _notificationService.ShowMessage("Режим информации деактивирован", NotificationType.Info);
         }
+        
         // Обработка сканированного кода в режиме информации
         private void HandleInfoModeBarcode(string barcode)
         {
@@ -1420,6 +1414,7 @@ OCR:
                 _notificationService.ShowMessage($"Ошибка поиска кода: {ex.Message}", NotificationType.Error);
             }
         }
+        
         // Отображение информации о SSCC коде
         private void DisplaySsccInfo(ArmJobSsccRecord ssccRecord)
         {
@@ -1486,6 +1481,7 @@ GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
 
             _notificationService.ShowMessage($"Найден UN код: {typeDescription}", NotificationType.Success);
         }
+
 #if DEBUG
         [ObservableProperty]
                 private bool isDebugMode = true;
@@ -1495,5 +1491,4 @@ GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
         #endif
 
     }
-
 }
