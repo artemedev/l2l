@@ -62,6 +62,7 @@
 				<RowDefinition Height="*"/>
 				<RowDefinition Height="*"/>
 				<RowDefinition Height="*"/>
+				<RowDefinition Height="*"/>
 				<RowDefinition Height="4*"/>
 			</Grid.RowDefinitions>
 			
@@ -121,7 +122,27 @@
 								RelativeSource={RelativeSource AncestorType=UserControl}, 
 								Converter={StaticResource ResponsiveFontSizeConverter}, 
 								ConverterParameter='0.017;8;36'}"/>
-			<CheckBox Grid.Row="4"
+			<!-- Новая кнопка режима информации -->
+			<ToggleButton Grid.Row="4"
+						  IsChecked="{Binding IsInfoMode, Mode=TwoWay}"
+						  Content="{Binding InfoModeButtonText}"
+						  HorizontalAlignment="Stretch"
+						  VerticalAlignment="Stretch"
+						  Margin="5"
+						  HorizontalContentAlignment="Center"
+						  VerticalContentAlignment="Center"
+						  FontSize="{Binding Bounds.Width, 
+									  RelativeSource={RelativeSource AncestorType=UserControl}, 
+									  Converter={StaticResource ResponsiveFontSizeConverter}, 
+									  ConverterParameter='0.017;8;36'}">
+				<ToggleButton.Styles>
+					<Style Selector="ToggleButton:checked">
+						<Setter Property="Background" Value="LightBlue"/>
+					</Style>
+				</ToggleButton.Styles>
+			</ToggleButton>
+			
+			<CheckBox Grid.Row="5"
 					  Content="Автоматическая печать"
 					  IsChecked="{Binding IsAutoPrintEnabled, Mode=TwoWay}"
 					  Margin="5"
@@ -164,7 +185,7 @@
 					</Style>
 				</CheckBox.Styles>
 			</CheckBox>
-			<Button Grid.Row="5"
+			<Button Grid.Row="6"
 					Command="{Binding ClearBoxCommand}"
 					IsEnabled="{Binding CanClearBox}"
 					Content="Очистить короб"
@@ -177,7 +198,7 @@
 								RelativeSource={RelativeSource AncestorType=UserControl}, 
 								Converter={StaticResource ResponsiveFontSizeConverter}, 
 								ConverterParameter='0.017;8;36'}"/>
-			<Button Grid.Row="6"
+			<Button Grid.Row="7"
 					Command="{Binding CompleteAggregationCommand}"
 					IsEnabled="{Binding CanCompleteAggregation}"
 					Content="Завершить агрегацию"
@@ -195,11 +216,15 @@
 					BorderBrush="LightGray"
 					BorderThickness="1"
 					CornerRadius="4"
-					Padding="10" Grid.Row="7">
+					Padding="10" Grid.Row="8">
 				<Viewbox Stretch="Uniform" VerticalAlignment="Top">
 					<Grid RowDefinitions="Auto,Auto" >
 						<TextBlock Grid.Row="0" Text="Результат "
-								   FontWeight="Bold"/>
+								   FontWeight="Bold"
+								   FontSize="{Binding Bounds.Width, 
+												RelativeSource={RelativeSource AncestorType=UserControl}, 
+												Converter={StaticResource ResponsiveFontSizeConverter}, 
+												ConverterParameter='0.017;8;36'}"/>
 						<TextBlock Grid.Row="1" Text="{Binding AggregationSummaryText}"/>
 					</Grid>
 				</Viewbox>

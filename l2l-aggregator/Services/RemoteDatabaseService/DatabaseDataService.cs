@@ -385,7 +385,7 @@ namespace l2l_aggregator.Services
             }
         }
 
-        public bool LogAggregationCompletedBatch(List<(string UNID, string SSCCID)> aggregationData)
+        public bool LogAggregationCompletedBatch(List<(string UNID, string CHECK_BAR_CODE)> aggregationData)
         {
             try
             {
@@ -406,6 +406,44 @@ namespace l2l_aggregator.Services
             {
                 //_notificationService.ShowMessage($"Ошибка batch логирования агрегации: {ex.Message}", NotificationType.Error);
                 return false;
+            }
+        }
+
+        // ---------------- Поиск кода SSCC ----------------
+        public ArmJobSsccRecord? FindSsccCode(string code)
+        {
+            try
+            {
+                if (!EnsureConnection())
+                {
+                    return null;
+                }
+
+                return _remoteDatabaseService.FindSsccCode(code);
+            }
+            catch (Exception ex)
+            {
+                //_notificationService.ShowMessage($"Ошибка поиска SSCC кода: {ex.Message}", NotificationType.Error);
+                return null;
+            }
+        }
+
+        // ---------------- Поиск кода UN (SGTIN) ----------------
+        public ArmJobSgtinRecord? FindUnCode(string code)
+        {
+            try
+            {
+                if (!EnsureConnection())
+                {
+                    return null;
+                }
+
+                return _remoteDatabaseService.FindUnCode(code);
+            }
+            catch (Exception ex)
+            {
+                //_notificationService.ShowMessage($"Ошибка поиска UN кода: {ex.Message}", NotificationType.Error);
+                return null;
             }
         }
     }

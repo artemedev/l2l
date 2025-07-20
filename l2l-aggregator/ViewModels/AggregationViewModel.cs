@@ -108,8 +108,10 @@ namespace l2l_aggregator.ViewModels
         //Остановить сессию
         [ObservableProperty] private bool canStopSession = false;
 
-        //переменная на каком мы шаге находимся, 1-агрегация пачек, 2 агрегация короба, 3 агрегация паллеты, 4 сканирование короба, 5 сканирование паллеты
+        //переменная на каком мы шаге находимся, 1-агрегация пачек, 2 агрегация короба, 3 агрегация паллеты, 4 сканирование короба, 5 сканирование паллеты, 6-режим информации
         private int CurrentStepIndex = 1;
+
+        private int PreviousStepIndex = 1;
 
         //переменная для сообщений нотификации
         private string InfoMessage;
@@ -185,6 +187,20 @@ namespace l2l_aggregator.ViewModels
 
         //Автоматическая печать этикетки коробки
         [ObservableProperty] private bool isAutoPrintEnabled = true;
+
+        // Режим информации
+        [ObservableProperty] private bool isInfoMode = false;
+        // Текст кнопки режима информации
+        [ObservableProperty] private string infoModeButtonText = "Режим информации";
+
+        // Предыдущие значения состояния кнопок для восстановления
+        private bool _previousCanScan;
+        private bool _previousCanScanHardware;
+        private bool _previousCanOpenTemplateSettings;
+        private bool _previousCanPrintBoxLabel;
+        private bool _previousCanClearBox;
+        private bool _previousCanCompleteAggregation;
+        private string _previousInfoLayerText;
         public AggregationViewModel(
             ImageHelper imageProcessingService,
             SessionService sessionService,
@@ -425,8 +441,22 @@ namespace l2l_aggregator.ViewModels
         }
         private void UpdateScanAvailability()
         {
-            CanScan = IsControllerAvailable && TemplateFields.Count > 0;
-            CanScanHardware = IsControllerAvailable && TemplateFields.Count > 0;
+            if (IsInfoMode)
+            {
+                // В режиме информации все кнопки кроме режима информации отключены
+                CanScan = false;
+                CanScanHardware = false;
+                CanOpenTemplateSettings = false;
+                CanPrintBoxLabel = false;
+                CanClearBox = false;
+                CanCompleteAggregation = false;
+            }
+            else
+            {
+                // Обычная логика
+                CanScan = IsControllerAvailable && TemplateFields.Count > 0;
+                CanScanHardware = IsControllerAvailable && TemplateFields.Count > 0;
+            }
         }
 
         //отправляет шаблон распознавания в библиотеку
@@ -967,7 +997,12 @@ namespace l2l_aggregator.ViewModels
         //сканирование кода этикетки
         public void HandleScannedBarcode(string barcode)
         {
-
+            // Если активен режим информации, обрабатываем код в этом режиме
+            if (IsInfoMode)
+            {
+                HandleInfoModeBarcode(barcode);
+                return;
+            }
             // Проверка, что мы находимся на шаге 2
             if (CurrentStepIndex != 2 && CurrentStepIndex != 3)
                 return;
@@ -1010,9 +1045,6 @@ namespace l2l_aggregator.ViewModels
                             InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
                             _notificationService.ShowMessage(InfoMessage);
                         }
-                        //изменение состояния после сканирования
-                        //if (CurrentBox == _sessionService.SelectedTaskInfo.IN_PALLET_BOX_QTY)
-                        //{
                         //// Добавляем валидные коды в глобальную коллекцию
                         foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
                         {
@@ -1021,11 +1053,7 @@ namespace l2l_aggregator.ViewModels
 
                         if (SaveAllDmCells())
                         {
-                            //DMCells
-                            //_databaseDataService.LogAggregationCompletedAsync(, _sessionService.SelectedTaskSscc.SSCCID);
                             CanPrintBoxLabel = false;
-                            //сanPrintPalletLabel = true;
-                            //}
                             CanScan = true;
                             CurrentBox++;
                             CurrentLayer = 1;
@@ -1046,7 +1074,6 @@ namespace l2l_aggregator.ViewModels
             }
             if (CurrentStepIndex == 3)
             {
-                //foreach (ArmJobSsccRecord resp in responseSscc.RECORDSET)
                 foreach (ArmJobSsccRecord resp in ResponseSscc.RECORDSET)
                 {
                     //resp.TYPEID == 1 это тип паллеты
@@ -1120,38 +1147,6 @@ namespace l2l_aggregator.ViewModels
                 return false;
             }
         }
-        //private void SaveAllDmCells()
-        //{
-        //    try
-        //    {
-        //        foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
-        //        {
-        //            // Парсим DM код для получения SerialNumber
-        //            var gS1Parser = new GS1Parser();
-        //            var parsedData = gS1Parser.ParseGTIN(cell.Dm_data.Data);
-
-        //            if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
-        //            {
-        //                _databaseDataService.LogAggregationCompleted(parsedData.SerialNumber, _sessionService.SelectedTaskSscc.CHECK_BAR_CODE);
-
-        //            }
-        //            else
-        //            {
-        //                _notificationService.ShowMessage($"Не найден SGTIN для серийного номера: {parsedData.SerialNumber}", NotificationType.Warning);
-        //            }
-        //        }
-        //        //InfoMessage = $"Коды сохранены";
-        //        // _notificationService.ShowMessage(InfoMessage);
-        //        //_notificationService.ShowMessage(
-        //        //    $"Сохранено {countCode} кодов агрегации",
-        //        //    Notificatio);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _notificationService.ShowMessage($"Ошибка сохранения кодов агрегации: {ex.Message}", NotificationType.Error);
-        //    }
-        //}
-
 
         public async void OnCellClicked(DmCellViewModel cell)
         {
@@ -1313,9 +1308,186 @@ OCR:
             }
             base.Dispose(disposing);
         }
+        // Обработчик изменения режима информации
+        partial void OnIsInfoModeChanged(bool value)
+        {
+            if (value)
+            {
+                EnterInfoMode();
+            }
+            else
+            {
+                ExitInfoMode();
+            }
+        }
 
-        #if DEBUG
-                [ObservableProperty]
+        // Вход в режим информации
+        private void EnterInfoMode()
+        {
+            PreviousStepIndex = CurrentStepIndex;
+            CurrentStepIndex = 6;
+            InfoModeButtonText = "Выйти из режима";
+
+            // Сохраняем текущие состояния кнопок
+            _previousCanScan = CanScan;
+            _previousCanScanHardware = CanScanHardware;
+            _previousCanOpenTemplateSettings = CanOpenTemplateSettings;
+            _previousCanPrintBoxLabel = CanPrintBoxLabel;
+            _previousCanClearBox = CanClearBox;
+            _previousCanCompleteAggregation = CanCompleteAggregation;
+            _previousInfoLayerText = InfoLayerText;
+
+            // Отключаем все кнопки
+            CanScan = false;
+            CanScanHardware = false;
+            CanOpenTemplateSettings = false;
+            CanPrintBoxLabel = false;
+            CanClearBox = false;
+            CanCompleteAggregation = false;
+
+            // Изменяем информационное сообщение
+            InfoLayerText = "Режим информации: отсканируйте код для получения информации";
+            AggregationSummaryText = "Режим информации активен. Отсканируйте код для получения подробной информации о нем.";
+
+            _notificationService.ShowMessage("Активирован режим информации", NotificationType.Info);
+        }
+        private void ExitInfoMode()
+        {
+            CurrentStepIndex = PreviousStepIndex; // Возвращаемся к обычному режиму
+            InfoModeButtonText = "Режим информации";
+
+            // Восстанавливаем состояния кнопок
+            CanScan = _previousCanScan;
+            CanScanHardware = _previousCanScanHardware;
+            CanOpenTemplateSettings = _previousCanOpenTemplateSettings;
+            CanPrintBoxLabel = _previousCanPrintBoxLabel;
+            CanClearBox = _previousCanClearBox;
+            CanCompleteAggregation = _previousCanCompleteAggregation;
+            InfoLayerText = _previousInfoLayerText;
+
+            // Восстанавливаем информационный текст
+            AggregationSummaryText = _previousAggregationSummaryText;
+
+            _notificationService.ShowMessage("Режим информации деактивирован", NotificationType.Info);
+        }
+        // Обработка сканированного кода в режиме информации
+        private void HandleInfoModeBarcode(string barcode)
+        {
+            if (!IsInfoMode)
+                return;
+
+            try
+            {
+                // Сначала ищем в SSCC кодах
+                var ssccRecord = _databaseDataService.FindSsccCode(barcode);
+                if (ssccRecord != null)
+                {
+                    DisplaySsccInfo(ssccRecord);
+                    return;
+                }
+                var gS1Parser = new GS1Parser();
+                GS1_data newGS = gS1Parser.ParseGTIN(barcode);
+                var parsedData = newGS.SerialNumber;
+                // Если не найден в SSCC, ищем в UN кодах
+                var unRecord = _databaseDataService.FindUnCode(parsedData);
+                if (unRecord != null)
+                {
+                    DisplayUnInfo(unRecord);
+                    return;
+                }
+
+                // Если код не найден ни в одной таблице
+                AggregationSummaryText = $"""
+Код не найден в базе данных!
+
+Отсканированный код: {barcode}
+Статус: Код не найден в системе
+
+Проверьте правильность кода или обратитесь к администратору.
+""";
+
+                _notificationService.ShowMessage($"Код {barcode} не найден в базе данных", NotificationType.Warning);
+            }
+            catch (Exception ex)
+            {
+                AggregationSummaryText = $"""
+Ошибка поиска кода!
+
+Отсканированный код: {barcode}
+Ошибка: {ex.Message}
+""";
+
+                _notificationService.ShowMessage($"Ошибка поиска кода: {ex.Message}", NotificationType.Error);
+            }
+        }
+        // Отображение информации о SSCC коде
+        private void DisplaySsccInfo(ArmJobSsccRecord ssccRecord)
+        {
+            string typeDescription = ssccRecord.TYPEID switch
+            {
+                0 => "Коробка",
+                1 => "Паллета",
+                _ => $"Неизвестный тип ({ssccRecord.TYPEID})"
+            };
+
+            string stateDescription = ssccRecord.CODE_STATE switch
+            {
+                "0" => "Не используется",
+                "1" => "Активен",
+                "2" => "Заблокирован",
+                _ => $"Неизвестное состояние ({ssccRecord.CODE_STATE})"
+            };
+
+            AggregationSummaryText = $"""
+ИНФОРМАЦИЯ О SSCC КОДЕ
+
+SSCC ID: {ssccRecord.SSCCID}
+SSCC код: {ssccRecord.SSCC_CODE ?? "нет данных"}
+SSCC: {ssccRecord.SSCC ?? "нет данных"}
+Тип: {typeDescription}
+Состояние ID: {ssccRecord.STATEID}
+Состояние: {stateDescription}
+Штрих-код (отображение): {ssccRecord.DISPLAY_BAR_CODE ?? "нет данных"}
+Штрих-код (проверка): {ssccRecord.CHECK_BAR_CODE ?? "нет данных"}
+Порядковый номер: {ssccRecord.ORDER_NUM}
+Количество: {ssccRecord.QTY}
+Родительский SSCC ID: {ssccRecord.PARENT_SSCCID ?? null}
+Время сканирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}
+""";
+
+            _notificationService.ShowMessage($"Найден SSCC код: {typeDescription}", NotificationType.Success);
+        }
+
+        // Отображение информации о UN коде
+        private void DisplayUnInfo(ArmJobSgtinRecord unRecord)
+        {
+            string typeDescription = unRecord.UN_TYPE switch
+            {
+                0 => "Потребительская упаковка",
+                1 => "Групповая упаковка",
+                _ => $"Неизвестный тип ({unRecord.UN_TYPE})"
+            };
+
+            AggregationSummaryText = $"""
+ИНФОРМАЦИЯ О UN КОДЕ (SGTIN)
+
+UN ID: {unRecord.UNID}
+UN код: {unRecord.UN_CODE ?? "нет данных"}
+Тип: {typeDescription}
+Состояние ID: {unRecord.STATEID}
+GS1 поле 91: {unRecord.GS1FIELD91 ?? "нет данных"}
+GS1 поле 92: {unRecord.GS1FIELD92 ?? "нет данных"}
+GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
+Родительский SSCC ID: {unRecord.PARENT_SSCCID ?? null}
+Родительский UN ID: {unRecord.PARENT_UNID ?? null}
+Количество: {unRecord.QTY}
+Время сканирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}
+""";
+
+            _notificationService.ShowMessage($"Найден UN код: {typeDescription}", NotificationType.Success);
+        }
+#if DEBUG
+        [ObservableProperty]
                 private bool isDebugMode = true;
         #else
             [ObservableProperty] 

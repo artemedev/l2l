@@ -727,7 +727,7 @@ namespace l2l_aggregator.Services.Database
             }
         }
 
-        public bool LogAggregationBatch(List<(string UNID, string SSCCID)> aggregationData)
+        public bool LogAggregationBatch(List<(string UNID, string CHECK_BAR_CODE)> aggregationData)
         {
             try
             {
@@ -736,7 +736,7 @@ namespace l2l_aggregator.Services.Database
                     using var transaction = conn.BeginTransaction();
                     try
                     {
-                        var sql = "EXECUTE PROCEDURE ARM_SGTIN_SSCC_ADD(@UNID, @SSCCID)";
+                        var sql = "EXECUTE PROCEDURE ARM_SGTIN_SSCC_ADD(@UNID, @CHECK_BAR_CODE)";
 
                         // Выполняем все операции в рамках одной транзакции
                         foreach (var (unid, ssccid) in aggregationData)
@@ -744,7 +744,7 @@ namespace l2l_aggregator.Services.Database
                             conn.Execute(sql, new
                             {
                                 UNID = unid,
-                                SSCCID = ssccid
+                                CHECK_BAR_CODE = ssccid
                             }, transaction: transaction);
                         }
 
@@ -811,6 +811,108 @@ namespace l2l_aggregator.Services.Database
                     catch (Exception ex)
                     {
                         ex.ToString();
+                        transaction.Rollback();
+                        throw;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
+
+        // ---------------- Поиск кода SSCC ----------------
+        public ArmJobSsccRecord? FindSsccCode(string code)
+        {
+            try
+            {
+                return WithConnection(conn =>
+                {
+                    using var transaction = conn.BeginTransaction();
+                    try
+                    {
+                        var sql = @"SELECT * FROM MARK_SSCC_CODE WHERE DISPLAY_BAR_CODE = @CODE";
+
+                        var record = conn.QueryFirstOrDefault(sql, new { CODE = code }, transaction: transaction);
+
+                        if (record != null)
+                        {
+                            var response = new ArmJobSsccRecord
+                            {
+                                SSCCID = record.SSCCID,
+                                SSCC_CODE = record.SSCC_CODE?.ToString(),
+                                STATEID = record.STATEID,
+                                TYPEID = record.TYPEID,
+                                DISPLAY_BAR_CODE = record.DISPLAY_BAR_CODE?.ToString(),
+                                SSCC = record.SSCC?.ToString(),
+                                CHECK_BAR_CODE = record.CHECK_BAR_CODE,
+                                ORDER_NUM = record.ORDER_NUM,
+                                CODE_STATE = record.CODE_STATE?.ToString(),
+                                QTY = record.QTY,
+                                PARENT_SSCCID = record.PARENT_SSCCID
+                            };
+
+                            transaction.Commit();
+                            return response;
+                        }
+
+                        transaction.Rollback();
+                        return null;
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
+
+        // ---------------- Поиск кода UN (SGTIN) ----------------
+        public ArmJobSgtinRecord? FindUnCode(string code)
+        {
+            try
+            {
+                return WithConnection(conn =>
+                {
+                    using var transaction = conn.BeginTransaction();
+                    try
+                    {
+                        var sql = @"SELECT * FROM MARK_UN_CODE 
+                           WHERE UN_CODE = @CODE";
+
+                        var record = conn.QueryFirstOrDefault(sql, new { CODE = code }, transaction: transaction);
+
+                        if (record != null)
+                        {
+                            var response = new ArmJobSgtinRecord
+                            {
+                                UNID = record.UNID,
+                                STATEID = record.STATEID,
+                                UN_CODE = record.UN_CODE?.ToString(),
+                                GS1FIELD91 = record.GS1FIELD91?.ToString(),
+                                GS1FIELD92 = record.GS1FIELD92?.ToString(),
+                                GS1FIELD93 = record.GS1FIELD93?.ToString(),
+                                PARENT_SSCCID = record.PARENT_SSCCID,
+                                UN_TYPE = record.UN_TYPE,
+                                PARENT_UNID = record.PARENT_UNID,
+                                QTY = record.QTY
+                            };
+
+                            transaction.Commit();
+                            return response;
+                        }
+
+                        transaction.Rollback();
+                        return null;
+                    }
+                    catch (Exception ex)
+                    {
                         transaction.Rollback();
                         throw;
                     }
