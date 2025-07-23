@@ -25,6 +25,10 @@ namespace l2l_aggregator.Services.ControllerService
         private const ushort PC_PLC_CONNECT_REGISTER = 0;          // 4x0
         private const ushort PC_TIMEOUT_REGISTER = 17;             // 4x17
         private const ushort CYCLE_STEP_NUMBER_REGISTER = 16;      // 4x16
+
+
+        // Регистры чтения (Input Registers 3x)
+        private const ushort PLC_STATUS_INPUT_REGISTER = 0;        // 3x0
         private const ushort NON_FATAL_ERRORS_REGISTER = 4;        // 3x4
         private const ushort FATAL_ERRORS_REGISTER = 5;            // 3x5
         private const ushort FATAL_ERRORS_FINAL_REGISTER = 6;      // 3x6
@@ -40,6 +44,10 @@ namespace l2l_aggregator.Services.ControllerService
         private const int START_PEDAL_BIT = 7;                    // 4x0.7
         private const int APPLY_CAM_BOX_DIST_BIT = 8;             // 4x0.8
         private const int CONTINUOUS_LIGHT_MODE_BIT = 9;          // 4x0.9
+
+        // Биты в регистре 3x0 (статус от ПЛК)
+        private const int PLC_POSITIONING_REQUEST_BIT = 0;        // 3x0.0 - запрос на позиционирование от ПЛК
+        private const int PLC_SYSTEM_POSITIONED_BIT = 2;          // 3x0.2 - система спозиционирована
 
         // Номер регистра настроек
         private const ushort RETREAT_ZERO_HOME_POSITION_REGISTER = 1;   // 4x1
@@ -59,7 +67,7 @@ namespace l2l_aggregator.Services.ControllerService
 
         public event Action<bool> ConnectionStatusChanged;
         public event Action<PlcErrors> ErrorsReceived;
-
+        public event Action<PositioningStatus> PositioningStatusChanged;
         public bool IsConnected => _isConnected;
 
         public PcPlcConnectionService(ILogger<PcPlcConnectionService> logger)
@@ -193,19 +201,6 @@ namespace l2l_aggregator.Services.ControllerService
         {
             _pingPongTimer?.Dispose();
             _pingPongTimer = null;
-
-            //_ = Task.Run(async () =>
-            //{
-            //    try
-            //    {
-            //        await EnableConnectionControlAsync(false);
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        _logger.LogError(ex, "Error disabling connection control");
-            //    }
-            //});
-
             _logger.LogInformation("Stopped ping-pong");
         }
 
@@ -473,8 +468,171 @@ namespace l2l_aggregator.Services.ControllerService
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
+
+        /// <summary>
+        /// Выполняет полную последовательность позиционирования согласно протоколу
+        /// </summary>
+        public async Task<PositioningResult> ExecuteFullPositioningSequenceAsync(PositioningSettings settings, CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected || _master == null)
+            {
+                return new PositioningResult { Success = false, ErrorMessage = "Not connected to PLC" };
+            }
+
+            try
+            {
+                _logger.LogInformation("Starting full positioning sequence");
+                PositioningStatusChanged?.Invoke(PositioningStatus.Started);
+
+                // Шаг 1: Установить все уставки 4х1, 4х2, 4х3, 4х4, 4х5
+                _logger.LogInformation("Step 1: Setting positioning parameters");
+                await SetPositioningSettingsAsync(settings);
+                PositioningStatusChanged?.Invoke(PositioningStatus.ParametersSet);
+
+                // Шаг 2: Установить бит "Принудительное позиционирование от ПК" 4х0.0
+                _logger.LogInformation("Step 2: Setting force positioning bit");
+                await SetBitAsync(PC_PLC_CONNECT_REGISTER, FORCE_POSITIONING_BIT, true);
+                PositioningStatusChanged?.Invoke(PositioningStatus.ForcePositioningSet);
+
+                // Шаг 3: Получить запрос от ПЛК на позиционирование (бит = True) 3х0.0
+                _logger.LogInformation("Step 3: Waiting for PLC positioning request");
+                bool requestReceived = await WaitForBitAsync(PLC_STATUS_INPUT_REGISTER, PLC_POSITIONING_REQUEST_BIT, true, TimeSpan.FromSeconds(30), cancellationToken);
+
+                if (!requestReceived)
+                {
+                    await SetBitAsync(PC_PLC_CONNECT_REGISTER, FORCE_POSITIONING_BIT, false);
+                    return new PositioningResult { Success = false, ErrorMessage = "Timeout waiting for PLC positioning request" };
+                }
+
+                PositioningStatusChanged?.Invoke(PositioningStatus.PlcRequestReceived);
+
+                // Шаг 4: Сбросить бит 4х0.0
+                _logger.LogInformation("Step 4: Resetting force positioning bit");
+                await SetBitAsync(PC_PLC_CONNECT_REGISTER, FORCE_POSITIONING_BIT, false);
+                PositioningStatusChanged?.Invoke(PositioningStatus.ForcePositioningReset);
+
+                // Шаг 5: Установить бит разрешения позиционирования 4х0.1
+                _logger.LogInformation("Step 5: Setting positioning permission bit");
+                await SetBitAsync(PC_PLC_CONNECT_REGISTER, POSITIONING_PERMIT_BIT, true);
+                PositioningStatusChanged?.Invoke(PositioningStatus.PermissionGranted);
+
+                // Шаг 6: Получить (бит = True) "Система спозиционирована" 3х0.2
+                _logger.LogInformation("Step 6: Waiting for system positioned confirmation");
+                bool positioningComplete = await WaitForBitAsync(PLC_STATUS_INPUT_REGISTER, PLC_SYSTEM_POSITIONED_BIT, true, TimeSpan.FromMinutes(5), cancellationToken);
+
+                if (!positioningComplete)
+                {
+                    await SetBitAsync(PC_PLC_CONNECT_REGISTER, POSITIONING_PERMIT_BIT, false);
+                    return new PositioningResult { Success = false, ErrorMessage = "Timeout waiting for positioning completion" };
+                }
+
+                PositioningStatusChanged?.Invoke(PositioningStatus.SystemPositioned);
+
+                // Шаг 7: Сбросить бит разрешения позиционирования 4х0.1
+                _logger.LogInformation("Step 7: Resetting positioning permission bit");
+                await SetBitAsync(PC_PLC_CONNECT_REGISTER, POSITIONING_PERMIT_BIT, false);
+                PositioningStatusChanged?.Invoke(PositioningStatus.Completed);
+
+                _logger.LogInformation("Full positioning sequence completed successfully");
+                return new PositioningResult { Success = true, ErrorMessage = null };
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("Positioning sequence was cancelled");
+                await CleanupPositioningAsync();
+                return new PositioningResult { Success = false, ErrorMessage = "Operation was cancelled" };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during positioning sequence");
+                await CleanupPositioningAsync();
+                PositioningStatusChanged?.Invoke(PositioningStatus.Error);
+                return new PositioningResult { Success = false, ErrorMessage = ex.Message };
+            }
+        }
+
+        // <summary>
+        /// Очистка состояния при ошибке или отмене позиционирования
+        /// </summary>
+        private async Task CleanupPositioningAsync()
+        {
+            try
+            {
+                await SetBitAsync(PC_PLC_CONNECT_REGISTER, FORCE_POSITIONING_BIT, false);
+                await SetBitAsync(PC_PLC_CONNECT_REGISTER, POSITIONING_PERMIT_BIT, false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during positioning cleanup");
+            }
+        }
+
+        /// <summary>
+        /// Ожидает установки определенного бита в определенное состояние
+        /// </summary>
+        private async Task<bool> WaitForBitAsync(ushort register, int bitPosition, bool expectedValue, TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            var startTime = DateTime.UtcNow;
+            var pollingInterval = TimeSpan.FromMilliseconds(500);
+
+            while (DateTime.UtcNow - startTime < timeout)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    ushort[] registerValues;
+
+                    // Определяем тип регистра для чтения
+                    if (register == PLC_STATUS_INPUT_REGISTER)
+                    {
+                        registerValues = await _master.ReadInputRegistersAsync(SlaveId, register, 1);
+                    }
+                    else
+                    {
+                        registerValues = await _master.ReadHoldingRegistersAsync(SlaveId, register, 1);
+                    }
+
+                    if (registerValues != null && registerValues.Length > 0)
+                    {
+                        bool currentValue = GetBit(registerValues[0], bitPosition);
+                        if (currentValue == expectedValue)
+                        {
+                            return true;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, $"Error reading register {register} while waiting for bit {bitPosition}");
+                }
+
+                await Task.Delay(pollingInterval, cancellationToken);
+            }
+
+            return false;
+        }
+
+    }
+    // Классы для полного позиционирования
+    public class PositioningResult
+    {
+        public bool Success { get; set; }
+        public string ErrorMessage { get; set; }
     }
 
+    public enum PositioningStatus
+    {
+        Started,
+        ParametersSet,
+        ForcePositioningSet,
+        PlcRequestReceived,
+        ForcePositioningReset,
+        PermissionGranted,
+        SystemPositioned,
+        Completed,
+        Error
+    }
     // Интерфейсы
     public class PositioningSettings
     {

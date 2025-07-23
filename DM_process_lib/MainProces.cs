@@ -46,6 +46,162 @@ namespace DM_process_lib
             }
         }
 
+        //private void _shot_proces()
+        //{
+        //    Console.WriteLine("MainProces : Take a shot");
+
+        //    Dictionary<string, bool> dataModel = ExtractDataModelFromFRX();
+        //    List<BOX_data> lDMD = new List<BOX_data>();
+
+        //    // Load ARM_JOB_SGTIN data
+        //    string baseDir = Path.GetDirectoryName(typeof(MainProces).Assembly.Location)!;
+        //    string armJobPath = Path.Combine(baseDir, "ARM_JOB_SGTIN.json");
+
+        //    if (!File.Exists(armJobPath))
+        //    {
+        //        Console.WriteLine("ARM_JOB_SGTIN.json file not found!");
+        //        return;
+        //    }
+
+        //    string armJobData = File.ReadAllText(armJobPath);
+        //    ArmJobData armData = JsonConvert.DeserializeObject<ArmJobData>(armJobData);
+
+        //    // Determine scan mode and record indices to use
+        //    List<int> recordIndicesToUse = new List<int>();
+        //    bool isRescanMode = false;
+
+        //    lock (_lockObject)
+        //    {
+        //        if (_lastScanHadErrors)
+        //        {
+        //            // Режим пересканирования: используем те же записи, что и в предыдущем скане
+        //            recordIndicesToUse = new List<int>(_currentBatchIndices);
+        //            isRescanMode = true;
+        //            _lastScanHadErrors = false; // Сбрасываем флаг ошибок для следующей итерации
+        //            Console.WriteLine($"RESCAN MODE: Re-processing {recordIndicesToUse.Count} records from indices {recordIndicesToUse[0]} to {recordIndicesToUse[recordIndicesToUse.Count - 1]} WITHOUT errors/duplicates");
+        //        }
+        //        else
+        //        {
+        //            // Обычный режим: берем следующие 84 записи
+        //            _currentBatchIndices.Clear();
+        //            for (int i = 0; i < BATCH_SIZE; i++)
+        //            {
+        //                int recordIndex = (_currentBatchStartIndex + i) % armData.RECORDSET.Count;
+        //                _currentBatchIndices.Add(recordIndex);
+        //            }
+        //            recordIndicesToUse = new List<int>(_currentBatchIndices);
+
+        //            Console.WriteLine($"NORMAL MODE: Processing records from indices {_currentBatchStartIndex} to {(_currentBatchStartIndex + BATCH_SIZE - 1) % armData.RECORDSET.Count} (batch start: {_currentBatchStartIndex})");
+        //        }
+        //    }
+
+        //    // Generate cells with the specified positioning pattern
+        //    int basePoseX = 518;
+        //    int basePoseY = 649;
+        //    int cellWidth = 326;
+        //    int cellHeight = 326;
+        //    int xOffset = 380;
+        //    int yOffset = 385;
+        //    int cellsPerRow = 12;
+
+        //    bool currentScanHasErrors = false;
+
+        //    // Цикл всегда от 0 до 83 (cellIndex), но recordIndex берется из recordIndicesToUse
+        //    for (int cellIndex = 0; cellIndex < BATCH_SIZE; cellIndex++)
+        //    {
+        //        int row = cellIndex / cellsPerRow;
+        //        int col = cellIndex % cellsPerRow;
+
+        //        int currentPoseX = basePoseX + (col * xOffset);
+        //        int currentPoseY = basePoseY + (row * yOffset);
+
+        //        // Get ARM record for this cell
+        //        int recordIndex = recordIndicesToUse[cellIndex];
+        //        ArmRecord currentRecord = armData.RECORDSET[recordIndex];
+
+        //        // Generate DataMatrix data (with possible duplicate)
+        //        bool cellHasDuplicate = false;
+        //        string dataMatrixData = GenerateDataMatrixData(currentRecord, cellIndex + 1, isRescanMode, ref cellHasDuplicate);
+
+        //        // Apply or skip errors based on mode
+        //        string gtinData = "04603905002474";
+        //        string serialNumberData = currentRecord.UN_CODE;
+        //        string seriesNameData = "TEST30Х30";
+        //        string expireDateData = "06 28";
+
+        //        if (!isRescanMode)
+        //        {
+        //            // Normal mode: apply random errors with 5% chance
+        //            bool cellHasError = false;
+
+        //            dataMatrixData = ApplyRandomError(dataMatrixData, cellIndex + 1, "DataMatrix", ref cellHasError);
+        //            gtinData = ApplyRandomError(gtinData, cellIndex + 1, "GTIN", ref cellHasError);
+        //            serialNumberData = ApplyRandomError(serialNumberData, cellIndex + 1, "SerialNumber", ref cellHasError);
+        //            seriesNameData = ApplyRandomError(seriesNameData, cellIndex + 1, "SeriesName", ref cellHasError);
+        //            expireDateData = ApplyRandomError(expireDateData, cellIndex + 1, "ExpireDate", ref cellHasError);
+
+        //            // Дубликат тоже считается ошибкой
+        //            if (cellHasError || cellHasDuplicate)
+        //            {
+        //                currentScanHasErrors = true;
+        //            }
+        //        }
+        //        else
+        //        {
+        //            // Rescan mode: use clean data (no errors and no duplicates)
+        //            Console.WriteLine($"Cell {cellIndex + 1}: Clean rescan of record {recordIndex} (UN_CODE: {currentRecord.UN_CODE})");
+        //        }
+
+        //        // Create cell with data
+        //        Cell templateCell = CreateCellWithData(cellIndex + 1, currentPoseX, currentPoseY, cellWidth, cellHeight,
+        //            dataMatrixData, gtinData, serialNumberData, seriesNameData, expireDateData);
+
+        //        BOX_data dataCell = CreateDataCellFromModel(dataModel, templateCell);
+        //        lDMD.Add(dataCell);
+        //    }
+
+        //    // Update state for next scan
+        //    lock (_lockObject)
+        //    {
+        //        if (currentScanHasErrors)
+        //        {
+        //            // Если есть ошибки, следующий скан будет пересканированием
+        //            _lastScanHadErrors = true;
+        //            Console.WriteLine($"Errors or duplicates detected - next scan will be a RESCAN of the same records (indices {_currentBatchIndices[0]} to {_currentBatchIndices[_currentBatchIndices.Count - 1]})");
+        //        }
+        //        else
+        //        {
+        //            // Если ошибок нет, переходим к следующей партии
+        //            _lastScanHadErrors = false;
+
+        //            if (!isRescanMode)
+        //            {
+        //                // Это был обычный скан без ошибок - переходим к следующей партии
+        //                _currentBatchStartIndex = (_currentBatchStartIndex + BATCH_SIZE) % armData.RECORDSET.Count;
+        //                Console.WriteLine($"Normal scan completed successfully - next scan will process records starting from index {_currentBatchStartIndex}");
+        //            }
+        //            else
+        //            {
+        //                // Это был успешный ресcan - переходим к следующей партии
+        //                _currentBatchStartIndex = (_currentBatchStartIndex + BATCH_SIZE) % armData.RECORDSET.Count;
+        //                Console.WriteLine($"Rescan completed successfully - next scan will process NEW records starting from index {_currentBatchStartIndex}");
+        //            }
+        //        }
+        //    }
+
+        //    result_data dmrd = new result_data();
+        //    dmrd.BOXs = lDMD;
+        //    string imagePath = Path.Combine(baseDir, "image_raw.jpg");
+        //    byte[] imageBytes = File.ReadAllBytes(imagePath);
+        //    using (MemoryStream ms = new MemoryStream(imageBytes))
+        //    {
+        //        dmrd.rawImage = Image.Load<Rgba32>(ms);
+        //    }
+
+        //    string modeText = isRescanMode ? "RESCAN" : "NORMAL";
+        //    Console.WriteLine($"Add new DM codes - {modeText} mode, processed cells: {lDMD.Count}");
+        //    _DMP._dM_recogn_wraper.Update_result_data(dmrd);
+        //}
         private void _shot_proces()
         {
             Console.WriteLine("MainProces : Take a shot");
@@ -69,6 +225,7 @@ namespace DM_process_lib
             // Determine scan mode and record indices to use
             List<int> recordIndicesToUse = new List<int>();
             bool isRescanMode = false;
+            bool shouldStop = false; // Флаг для остановки процесса
 
             lock (_lockObject)
             {
@@ -82,17 +239,41 @@ namespace DM_process_lib
                 }
                 else
                 {
-                    // Обычный режим: берем следующие 84 записи
-                    _currentBatchIndices.Clear();
-                    for (int i = 0; i < BATCH_SIZE; i++)
+                    // Проверяем, не достигли ли мы конца массива
+                    if (_currentBatchStartIndex >= armData.RECORDSET.Count)
                     {
-                        int recordIndex = (_currentBatchStartIndex + i) % armData.RECORDSET.Count;
-                        _currentBatchIndices.Add(recordIndex);
+                        Console.WriteLine($"Reached end of ARM_JOB_SGTIN records. Total records processed: {armData.RECORDSET.Count}. Stopping...");
+                        shouldStop = true;
                     }
-                    recordIndicesToUse = new List<int>(_currentBatchIndices);
+                    else
+                    {
+                        // Обычный режим: берем следующие записи, но не больше чем осталось
+                        _currentBatchIndices.Clear();
+                        int remainingRecords = armData.RECORDSET.Count - _currentBatchStartIndex;
+                        int recordsToProcess = Math.Min(BATCH_SIZE, remainingRecords);
 
-                    Console.WriteLine($"NORMAL MODE: Processing records from indices {_currentBatchStartIndex} to {(_currentBatchStartIndex + BATCH_SIZE - 1) % armData.RECORDSET.Count} (batch start: {_currentBatchStartIndex})");
+                        for (int i = 0; i < recordsToProcess; i++)
+                        {
+                            int recordIndex = _currentBatchStartIndex + i;
+                            _currentBatchIndices.Add(recordIndex);
+                        }
+                        recordIndicesToUse = new List<int>(_currentBatchIndices);
+
+                        Console.WriteLine($"NORMAL MODE: Processing records from indices {_currentBatchStartIndex} to {_currentBatchStartIndex + recordsToProcess - 1} (batch start: {_currentBatchStartIndex}, records to process: {recordsToProcess})");
+
+                        // Если это последняя партия записей, помечаем что нужно остановиться после обработки
+                        if (_currentBatchStartIndex + recordsToProcess >= armData.RECORDSET.Count)
+                        {
+                            Console.WriteLine("This is the last batch - process will stop after completion.");
+                        }
+                    }
                 }
+            }
+
+            // Если нужно остановиться, выходим из метода
+            if (shouldStop)
+            {
+                return;
             }
 
             // Generate cells with the specified positioning pattern
@@ -106,8 +287,9 @@ namespace DM_process_lib
 
             bool currentScanHasErrors = false;
 
-            // Цикл всегда от 0 до 83 (cellIndex), но recordIndex берется из recordIndicesToUse
-            for (int cellIndex = 0; cellIndex < BATCH_SIZE; cellIndex++)
+            // Цикл теперь ограничен количеством доступных записей
+            int cellsToProcess = recordIndicesToUse.Count;
+            for (int cellIndex = 0; cellIndex < cellsToProcess; cellIndex++)
             {
                 int row = cellIndex / cellsPerRow;
                 int col = cellIndex % cellsPerRow;
@@ -171,20 +353,36 @@ namespace DM_process_lib
                 }
                 else
                 {
-                    // Если ошибок нет, переходим к следующей партии
+                    // Если ошибок нет, переходим к следующей партии (или останавливаемся)
                     _lastScanHadErrors = false;
 
                     if (!isRescanMode)
                     {
                         // Это был обычный скан без ошибок - переходим к следующей партии
-                        _currentBatchStartIndex = (_currentBatchStartIndex + BATCH_SIZE) % armData.RECORDSET.Count;
-                        Console.WriteLine($"Normal scan completed successfully - next scan will process records starting from index {_currentBatchStartIndex}");
+                        _currentBatchStartIndex += cellsToProcess;
+
+                        if (_currentBatchStartIndex >= armData.RECORDSET.Count)
+                        {
+                            Console.WriteLine($"All records processed successfully. Total records: {armData.RECORDSET.Count}. Process completed.");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Normal scan completed successfully - next scan will process records starting from index {_currentBatchStartIndex}");
+                        }
                     }
                     else
                     {
                         // Это был успешный ресcan - переходим к следующей партии
-                        _currentBatchStartIndex = (_currentBatchStartIndex + BATCH_SIZE) % armData.RECORDSET.Count;
-                        Console.WriteLine($"Rescan completed successfully - next scan will process NEW records starting from index {_currentBatchStartIndex}");
+                        _currentBatchStartIndex += cellsToProcess;
+
+                        if (_currentBatchStartIndex >= armData.RECORDSET.Count)
+                        {
+                            Console.WriteLine($"Rescan completed successfully - all records processed. Total records: {armData.RECORDSET.Count}. Process completed.");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Rescan completed successfully - next scan will process NEW records starting from index {_currentBatchStartIndex}");
+                        }
                     }
                 }
             }
@@ -202,7 +400,6 @@ namespace DM_process_lib
             Console.WriteLine($"Add new DM codes - {modeText} mode, processed cells: {lDMD.Count}");
             _DMP._dM_recogn_wraper.Update_result_data(dmrd);
         }
-
         /// <summary>
         /// Генерирует DataMatrix код с возможностью создания дубликата
         /// </summary>

@@ -389,7 +389,12 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage(InfoMessage);
                 return;
             }
-
+            if (string.IsNullOrWhiteSpace(camera.SelectedCameraModel))
+            {
+                InfoMessage = "Введите модель камеры!";
+                _notificationService.ShowMessage(InfoMessage);
+                return;
+            }
             try
             {
                 // Настроить параметры камеры для библиотеки

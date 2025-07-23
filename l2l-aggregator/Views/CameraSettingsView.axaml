@@ -62,7 +62,56 @@
 									Padding="10,8"/>
 						</StackPanel>
 					</Border>
+					
+					<!-- Full Positioning Control -->
+					<Border Background="#E3F2FD" CornerRadius="5" Padding="15">
+						<StackPanel Spacing="15">
+							<TextBlock Text="Автоматическое позиционирование" FontWeight="Bold" FontSize="16"/>
 
+							<!-- Status Display -->
+							<Border Background="White" CornerRadius="3" Padding="10">
+								<StackPanel Spacing="5">
+									<TextBlock Text="Статус:" FontWeight="SemiBold" FontSize="12"/>
+									<TextBlock Text="{Binding PositioningStatusText}"
+											   FontSize="14"
+											   Foreground="#1976D2"/>
+									<TextBlock Text="{Binding PositioningProgress}"
+											   FontSize="12"
+											   Foreground="#666"/>
+								</StackPanel>
+							</Border>
+
+							<!-- Progress Indicator -->
+							<ProgressBar IsVisible="{Binding IsPositioningInProgress}"
+										 IsIndeterminate="True"
+										 Height="6"
+										 Background="#E0E0E0"
+										 Foreground="#1976D2"/>
+
+							<!-- Control Buttons -->
+							<StackPanel Orientation="Horizontal" Spacing="10">
+								<Button Content="Выполнить полное позиционирование"
+										Command="{Binding ExecuteFullPositioningCommand}"
+										IsEnabled="{Binding CanStartPositioning}"
+										Background="#1976D2"
+										Foreground="White"
+										Padding="15,10"
+										FontWeight="SemiBold"/>
+
+								<Button Content="Отменить"
+										Command="{Binding CancelPositioningCommand}"
+										IsEnabled="{Binding IsPositioningInProgress}"
+										Background="#F44336"
+										Foreground="White"
+										Padding="15,10"/>
+							</StackPanel>
+
+							<TextBlock Text="Этот процесс выполнит полную последовательность позиционирования согласно протоколу обмена с ПЛК"
+									   FontSize="12"
+									   Foreground="#666"
+									   TextWrapping="Wrap"/>
+						</StackPanel>
+					</Border>
 					<!-- Positioning Settings -->
 					<Border Background="#F5F5F5" CornerRadius="5" Padding="15">
 						<StackPanel Spacing="10">

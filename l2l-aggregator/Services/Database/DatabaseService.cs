@@ -6,13 +6,15 @@ namespace l2l_aggregator.Services.Database
     {
         public IConfigRepository Config { get; }
         public INotificationLogRepository NotificationLog { get; }
-
+        public IAggregationStateRepository AggregationState { get; }
         public DatabaseService(
             IConfigRepository config,
-            INotificationLogRepository notificationLog)
+            INotificationLogRepository notificationLog,
+            IAggregationStateRepository aggregationState)
         {
             Config = config;
             NotificationLog = notificationLog;
+            AggregationState = aggregationState;
         }
     }
 }

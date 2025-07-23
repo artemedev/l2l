@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace l2l_aggregator.ViewModels
@@ -45,6 +46,11 @@ namespace l2l_aggregator.ViewModels
         [ObservableProperty] private ushort camExposure = 30;
         [ObservableProperty] private bool continuousLightMode = false;
 
+        [ObservableProperty] private string positioningStatusText = "Готов к позиционированию";
+        [ObservableProperty] private bool isPositioningInProgress = false;
+        [ObservableProperty] private bool canStartPositioning = true;
+        [ObservableProperty] private string positioningProgress = "";
+
         static result_data dmrData;
 
         //сервис работы с сессией
@@ -60,7 +66,8 @@ namespace l2l_aggregator.ViewModels
 
         //для отслеживания состояния загрузки камеры
         [ObservableProperty] private bool canScan = true;
-
+        // Токен отмены для позиционирования
+        private CancellationTokenSource _positioningCancellationTokenSource;
         public CameraSettingsViewModel(HistoryRouter<ViewModelBase> router, 
                                         DmScanService dmScanService, 
                                         SessionService sessionService, 
@@ -77,6 +84,56 @@ namespace l2l_aggregator.ViewModels
             ImageSizeChangedCommand = new RelayCommand<SizeChangedEventArgs>(OnImageSizeChanged);
             InitializeAsync();
             _logger = logger;
+        }
+
+        private void OnPositioningStatusChanged(PositioningStatus status)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                switch (status)
+                {
+                    case PositioningStatus.Started:
+                        PositioningStatusText = "Запуск позиционирования...";
+                        PositioningProgress = "1/7";
+                        break;
+                    case PositioningStatus.ParametersSet:
+                        PositioningStatusText = "Параметры установлены";
+                        PositioningProgress = "2/7";
+                        break;
+                    case PositioningStatus.ForcePositioningSet:
+                        PositioningStatusText = "Бит принудительного позиционирования установлен";
+                        PositioningProgress = "3/7";
+                        break;
+                    case PositioningStatus.PlcRequestReceived:
+                        PositioningStatusText = "Получен запрос от ПЛК";
+                        PositioningProgress = "4/7";
+                        break;
+                    case PositioningStatus.ForcePositioningReset:
+                        PositioningStatusText = "Бит принудительного позиционирования сброшен";
+                        PositioningProgress = "5/7";
+                        break;
+                    case PositioningStatus.PermissionGranted:
+                        PositioningStatusText = "Разрешение на позиционирование выдано";
+                        PositioningProgress = "6/7";
+                        break;
+                    case PositioningStatus.SystemPositioned:
+                        PositioningStatusText = "Система спозиционирована";
+                        PositioningProgress = "7/7";
+                        break;
+                    case PositioningStatus.Completed:
+                        PositioningStatusText = "Позиционирование завершено успешно";
+                        PositioningProgress = "Завершено";
+                        IsPositioningInProgress = false;
+                        CanStartPositioning = true;
+                        break;
+                    case PositioningStatus.Error:
+                        PositioningStatusText = "Ошибка позиционирования";
+                        PositioningProgress = "Ошибка";
+                        IsPositioningInProgress = false;
+                        CanStartPositioning = true;
+                        break;
+                }
+            });
         }
         private async Task InitializeAsync()
         {
@@ -304,6 +361,95 @@ namespace l2l_aggregator.ViewModels
                 _plcConnectionService?.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+
+        /// <summary>
+        /// Выполняет полную последовательность позиционирования согласно протоколу
+        /// </summary>
+        [RelayCommand]
+        public async Task ExecuteFullPositioning()
+        {
+            if (_plcConnectionService?.IsConnected != true)
+            {
+                _notificationService.ShowMessage("Нет подключения к контроллеру!");
+                return;
+            }
+
+            if (IsPositioningInProgress)
+            {
+                _notificationService.ShowMessage("Позиционирование уже выполняется!");
+                return;
+            }
+
+            try
+            {
+                IsPositioningInProgress = true;
+                CanStartPositioning = false;
+                PositioningStatusText = "Подготовка к позиционированию...";
+                PositioningProgress = "0/7";
+
+                // Создаем токен отмены
+                _positioningCancellationTokenSource = new CancellationTokenSource();
+
+                // Создаем настройки позиционирования из текущих значений
+                var settings = new PositioningSettings
+                {
+                    RetreatZeroHomePosition = RetreatZeroHomePosition,
+                    ZeroPositioning = ZeroPositioningTime,
+                    EstimatedZeroHomeDistance = EstimatedZeroHomeDistance,
+                    TimeBetweenDirectionsChange = DirectionChangeTime,
+                    CamMovementVelocity = CamMovementVelocity
+                };
+
+                // Выполняем полную последовательность
+                var result = await _plcConnectionService.ExecuteFullPositioningSequenceAsync(
+                    settings,
+                    _positioningCancellationTokenSource.Token);
+
+                if (result.Success)
+                {
+                    _notificationService.ShowMessage("Позиционирование выполнено успешно!");
+                }
+                else
+                {
+                    _notificationService.ShowMessage($"Ошибка позиционирования: {result.ErrorMessage}");
+                    PositioningStatusText = $"Ошибка: {result.ErrorMessage}";
+                    PositioningProgress = "Ошибка";
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                _notificationService.ShowMessage("Позиционирование отменено пользователем");
+                PositioningStatusText = "Позиционирование отменено";
+                PositioningProgress = "Отменено";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error during positioning");
+                _notificationService.ShowMessage($"Неожиданная ошибка: {ex.Message}");
+                PositioningStatusText = $"Неожиданная ошибка: {ex.Message}";
+                PositioningProgress = "Ошибка";
+            }
+            finally
+            {
+                IsPositioningInProgress = false;
+                CanStartPositioning = true;
+                _positioningCancellationTokenSource?.Dispose();
+                _positioningCancellationTokenSource = null;
+            }
+        }
+        /// <summary>
+        /// Отменяет выполняющееся позиционирование
+        /// </summary>
+        [RelayCommand]
+        public void CancelPositioning()
+        {
+            if (_positioningCancellationTokenSource != null && !_positioningCancellationTokenSource.Token.IsCancellationRequested)
+            {
+                _positioningCancellationTokenSource.Cancel();
+                _notificationService.ShowMessage("Запрос на отмену позиционирования отправлен");
+            }
         }
     }
 }
