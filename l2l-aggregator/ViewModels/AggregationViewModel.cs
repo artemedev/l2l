@@ -102,7 +102,7 @@ namespace l2l_aggregator.ViewModels
         [ObservableProperty] private bool сanPrintPalletLabel = false;
         //Очистить короб
         [ObservableProperty] private bool canClearBox = false;
-        
+
         //Завершить агрегацию
         [ObservableProperty] private bool canCompleteAggregation = true;
         //Остановить сессию
@@ -330,49 +330,6 @@ namespace l2l_aggregator.ViewModels
             _sessionService.SelectedTaskSscc = ResponseSscc.RECORDSET.FirstOrDefault();
         }
 
-        //private void InitializeCurrentBoxFromCounters()
-        //{
-        //    try
-        //    {
-        //        var countersResponse = _databaseDataService.GetArmCounters();
-
-        //        if (countersResponse?.RECORDSET != null)
-        //        {
-        //            // Ищем запись с CODE = "UN_STATE_AGREGATE"
-        //            var aggregateCounter = countersResponse.RECORDSET
-        //                .FirstOrDefault(c => c.CODE == "UN_STATE_AGREGATE");
-
-        //            if (aggregateCounter?.QTY != null)
-        //            {
-        //                // Устанавливаем CurrentBox на основе QTY + 1 (так как это следующий короб)
-        //                CurrentBox = aggregateCounter.QTY.Value + 1;
-
-        //                InfoMessage = $"Продолжение агрегации с короба №{CurrentBox}";
-        //                _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
-        //            }
-        //            else
-        //            {
-        //                // Если запись не найдена, начинаем с 1
-        //                CurrentBox = 1;
-        //                InfoMessage = "Начало новой агрегации";
-        //                _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
-        //            }
-        //        }
-        //        else
-        //        {
-        //            // Если данные не получены, начинаем с 1
-        //            CurrentBox = 1;
-        //            InfoMessage = "Не удалось получить данные счетчиков, начинаем с короба №1";
-        //            _notificationService.ShowMessage(InfoMessage, NotificationType.Warning);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        CurrentBox = 1;
-        //        InfoMessage = $"Ошибка инициализации CurrentBox: {ex.Message}";
-        //        _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
-        //    }
-        //}
         private void InitializeCurrentBoxFromCounters()
         {
             try
@@ -474,7 +431,7 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage($"Ошибка инициализации контроллера: {ex.Message}", NotificationType.Error);
             }
         }
-        
+
         private void InitializeSession()
         {
             if (_sessionService.SelectedTaskInfo == null)
@@ -484,12 +441,12 @@ namespace l2l_aggregator.ViewModels
                 return;
             }
         }
-        
+
         partial void OnIsControllerAvailableChanged(bool value)
         {
             UpdateScanAvailability();
         }
-        
+
         private void UpdateScanAvailability()
         {
             if (IsInfoMode)
@@ -943,27 +900,79 @@ namespace l2l_aggregator.ViewModels
 Количество СИ, распознанное в слое: {validCountDMCells}
 Количество СИ, считанное в слое: {DMCells.Count}
 Количество СИ, ожидаемое в слое: {numberOfLayers}{duplicateInfo}
+Всего СИ в коробе: {_sessionService.CurrentBoxDmCodes.Count}
 """;
 
             CanScan = true;
             CanOpenTemplateSettings = true;
 
+            var validCodes = DMCells
+                                 .Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data))
+                                 .Select(c => c.Dm_data.Data)
+                                 .ToList();
             if (CurrentLayer == _sessionService.SelectedTaskInfo.LAYERS_QTY &&
-                validCountDMCells == numberOfLayers)
+            validCountDMCells == DMCells.Count && DMCells.Count > 0)
             {
-
+               
+                _sessionService.AddLayerCodes(validCodes);
                 //CanScan = false;
                 CanOpenTemplateSettings = false;
                 CanPrintBoxLabel = true;
                 CurrentStepIndex = 2;
                 _printingService.PrintReportTEST(frxBoxBytes, true);
-                if (IsAutoPrintEnabled)
+                if (IsAutoPrintEnabled && validCountDMCells == numberOfLayers)
                 {
                     PrintBoxLabel();
                 }
-
+                AggregationSummaryText = $"""
+Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}
+Количество собранных коробов: {CurrentBox - 1}
+Номер собираемого короба: {CurrentBox}
+Номер слоя: {CurrentLayer}
+Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}
+Количество СИ, распознанное в слое: {validCountDMCells}
+Количество СИ, считанное в слое: {DMCells.Count}
+Количество СИ, ожидаемое в слое: {numberOfLayers}{duplicateInfo}
+Всего СИ в коробе: {_sessionService.CurrentBoxDmCodes.Count}
+""";
                 // Метод подтверждения обработки фотографий в ПЛК
                 await ConfirmPhotoToPlcAsync();
+            }
+            if (CurrentLayer < _sessionService.SelectedTaskInfo.LAYERS_QTY &&
+                validCountDMCells == numberOfLayers && DMCells.Count > 0)
+            {
+                
+                _sessionService.AddLayerCodes(validCodes);
+                AggregationSummaryText = $"""
+Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}
+Количество собранных коробов: {CurrentBox - 1}
+Номер собираемого короба: {CurrentBox}
+Номер слоя: {CurrentLayer}
+Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}
+Количество СИ, распознанное в слое: {validCountDMCells}
+Количество СИ, считанное в слое: {DMCells.Count}
+Количество СИ, ожидаемое в слое: {numberOfLayers}{duplicateInfo}
+Всего СИ в коробе: {_sessionService.CurrentBoxDmCodes.Count}
+""";
+                CurrentLayer++;
+                await ConfirmPhotoToPlcAsync();
+            }else
+            if (CurrentLayer < _sessionService.SelectedTaskInfo.LAYERS_QTY &&
+                validCountDMCells == DMCells.Count && DMCells.Count > 0)
+            {
+                _sessionService.AddLayerCodes(validCodes);
+
+                AggregationSummaryText = $"""
+Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}
+Количество собранных коробов: {CurrentBox - 1}
+Номер собираемого короба: {CurrentBox}
+Номер слоя: {CurrentLayer}
+Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}
+Количество СИ, распознанное в слое: {validCountDMCells}
+Количество СИ, считанное в слое: {DMCells.Count}
+Количество СИ, ожидаемое в слое: {numberOfLayers}{duplicateInfo}
+Всего СИ в коробе: {_sessionService.CurrentBoxDmCodes.Count}
+""";
             }
         }
 
@@ -1028,6 +1037,8 @@ namespace l2l_aggregator.ViewModels
 
             // Очищаем коды при конце задания
             _sessionService.ClearScannedCodes();
+            _sessionService.ClearCurrentBoxCodes();
+
             _notificationService.ShowMessage("Агрегация завершена.");
             _router.GoTo<TaskListViewModel>();
         }
@@ -1083,14 +1094,18 @@ namespace l2l_aggregator.ViewModels
                             InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
                             _notificationService.ShowMessage(InfoMessage);
                         }
-                        //// Добавляем валидные коды в глобальную коллекцию
-                        foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
-                        {
-                            _sessionService.AllScannedDmCodes.Add(cell.Dm_data.Data);
-                        }
+
 
                         if (SaveAllDmCells())
                         {
+                            // Добавляем накопленные коды коробки в глобальную коллекцию
+                            foreach (var code in _sessionService.CurrentBoxDmCodes)
+                            {
+                                _sessionService.AllScannedDmCodes.Add(code);
+                            }
+
+                            // Очищаем коды текущей коробки после успешного сохранения
+                            _sessionService.ClearCurrentBoxCodes();
                             CanPrintBoxLabel = false;
                             CanScan = true;
                             CurrentBox++;
@@ -1100,7 +1115,7 @@ namespace l2l_aggregator.ViewModels
                             InfoMessage = $"Короб с ШК {barcode} успешно найден!";
                             _notificationService.ShowMessage(InfoMessage);
                         }
-                       
+
                         return;
                     }
                     else
@@ -1110,35 +1125,82 @@ namespace l2l_aggregator.ViewModels
                     }
                 }
             }
-            if (CurrentStepIndex == 3)
-            {
-                foreach (ArmJobSsccRecord resp in ResponseSscc.RECORDSET)
-                {
-                    //resp.TYPEID == 1 это тип паллеты
-                    if (resp.TYPEID == 1 && resp.DISPLAY_BAR_CODE == barcode)
-                    {
+            //if (CurrentStepIndex == 3)
+            //{
+            //    foreach (ArmJobSsccRecord resp in ResponseSscc.RECORDSET)
+            //    {
+            //        //resp.TYPEID == 1 это тип паллеты
+            //        if (resp.TYPEID == 1 && resp.DISPLAY_BAR_CODE == barcode)
+            //        {
 
-                        //изменение состояния после сканирования
-                        CurrentPallet++;
-                        CurrentBox = 1;
-                        CurrentLayer = 1;
+            //            //изменение состояния после сканирования
+            //            CurrentPallet++;
+            //            CurrentBox = 1;
+            //            CurrentLayer = 1;
 
-                        CurrentStepIndex = 1;
-                        // Совпадение найдено
-                        InfoMessage = $"Короб с ШК {barcode} успешно найден!";
-                        _notificationService.ShowMessage(InfoMessage);
-                    }
-                    else
-                    {
-                        InfoMessage = $"ШК {barcode} не найден в списке!";
-                        _notificationService.ShowMessage(InfoMessage);
-                    }
-                }
-            }
+            //            CurrentStepIndex = 1;
+            //            // Совпадение найдено
+            //            InfoMessage = $"Короб с ШК {barcode} успешно найден!";
+            //            _notificationService.ShowMessage(InfoMessage);
+            //        }
+            //        else
+            //        {
+            //            InfoMessage = $"ШК {barcode} не найден в списке!";
+            //            _notificationService.ShowMessage(InfoMessage);
+            //        }
+            //    }
+            //}
 
         }
-        
+
         //Сохранение в бд.
+        //private bool SaveAllDmCells()
+        //{
+        //    try
+        //    {
+        //        var aggregationData = new List<(string UNID, string SSCCID)>();
+        //        var gS1Parser = new GS1Parser();
+
+        //        // Подготавливаем все данные для batch операции
+        //        foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
+        //        {
+        //            var parsedData = gS1Parser.ParseGTIN(cell.Dm_data.Data);
+
+        //            if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
+        //            {
+        //                aggregationData.Add((parsedData.SerialNumber, _sessionService.SelectedTaskSscc.CHECK_BAR_CODE));
+
+        //            }
+        //            else
+        //            {
+        //                _notificationService.ShowMessage($"Не найден SGTIN для серийного номера: {parsedData.SerialNumber}", NotificationType.Warning);
+        //            }
+        //        }
+
+        //        // Выполняем batch операцию - все коды сохраняются в одной транзакции
+        //        if (aggregationData.Count > 0)
+        //        {
+        //            var success = _databaseDataService.LogAggregationCompletedBatch(aggregationData);
+
+        //            if (success)
+        //            {
+        //                _notificationService.ShowMessage($"Сохранено {aggregationData.Count} кодов агрегации", NotificationType.Success);
+        //                return true;
+        //            }
+        //            else
+        //            {
+        //                _notificationService.ShowMessage("Ошибка при сохранении кодов агрегации", NotificationType.Error);
+        //                return false;
+        //            }
+        //        }
+        //        return false;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _notificationService.ShowMessage($"Ошибка сохранения кодов агрегации: {ex.Message}", NotificationType.Error);
+        //        return false;
+        //    }
+        //}
         private bool SaveAllDmCells()
         {
             try
@@ -1146,15 +1208,16 @@ namespace l2l_aggregator.ViewModels
                 var aggregationData = new List<(string UNID, string SSCCID)>();
                 var gS1Parser = new GS1Parser();
 
-                // Подготавливаем все данные для batch операции
-                foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
+                // Используем накопленные коды из всех слоев коробки
+                foreach (var dmCode in _sessionService.CurrentBoxDmCodes)
                 {
-                    var parsedData = gS1Parser.ParseGTIN(cell.Dm_data.Data);
+                    if (string.IsNullOrWhiteSpace(dmCode)) continue;
+
+                    var parsedData = gS1Parser.ParseGTIN(dmCode);
 
                     if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
                     {
                         aggregationData.Add((parsedData.SerialNumber, _sessionService.SelectedTaskSscc.CHECK_BAR_CODE));
-
                     }
                     else
                     {
@@ -1186,7 +1249,6 @@ namespace l2l_aggregator.ViewModels
                 return false;
             }
         }
-
         public async void OnCellClicked(DmCellViewModel cell)
         {
             _previousAggregationSummaryText = AggregationSummaryText; // Сохраняем старый текст
@@ -1306,7 +1368,7 @@ OCR:
                 AggregationSummaryText = _previousAggregationSummaryText;
             }
         }
-        
+
         [RelayCommand]
         public void OpenTemplateSettings()
         {
@@ -1320,7 +1382,7 @@ OCR:
                 window.ShowDialog(desktop.MainWindow);
             }
         }
-        
+
         private void OnImageSizeChanged(SizeChangedEventArgs e)
         {
             imageWidth = e.NewSize.Width;
@@ -1348,7 +1410,7 @@ OCR:
             }
             base.Dispose(disposing);
         }
-        
+
         // Обработчик изменения режима информации
         partial void OnIsInfoModeChanged(bool value)
         {
@@ -1396,7 +1458,7 @@ OCR:
 
             _notificationService.ShowMessage("Активирован режим информации", NotificationType.Info);
         }
-        
+
         private void ExitInfoMode()
         {
             CurrentStepIndex = PreviousStepIndex; // Возвращаемся к обычному режиму
@@ -1416,7 +1478,7 @@ OCR:
 
             _notificationService.ShowMessage("Режим информации деактивирован", NotificationType.Info);
         }
-        
+
         // Обработка сканированного кода в режиме информации
         private void HandleInfoModeBarcode(string barcode)
         {
@@ -1467,7 +1529,7 @@ OCR:
                 _notificationService.ShowMessage($"Ошибка поиска кода: {ex.Message}", NotificationType.Error);
             }
         }
-        
+
         // Отображение информации о SSCC коде
         private void DisplaySsccInfo(ArmJobSsccRecord ssccRecord)
         {
@@ -1537,11 +1599,11 @@ GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
 
 #if DEBUG
         [ObservableProperty]
-                private bool isDebugMode = true;
-        #else
+        private bool isDebugMode = true;
+#else
             [ObservableProperty] 
             private bool isDebugMode = false;
-        #endif
+#endif
 
     }
 }

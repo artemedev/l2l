@@ -359,5 +359,20 @@ namespace l2l_aggregator.Services
         {
             AllScannedDmCodes.Clear();
         }
+
+        // Хранение кодов текущей коробки (по слоям)
+        public List<string> CurrentBoxDmCodes { get; } = new List<string>();
+
+        // Метод для очистки кодов текущей коробки
+        public void ClearCurrentBoxCodes()
+        {
+            CurrentBoxDmCodes.Clear();
+        }
+
+        // Метод для добавления кодов слоя
+        public void AddLayerCodes(IEnumerable<string> codes)
+        {
+            CurrentBoxDmCodes.AddRange(codes);
+        }
     }
 }
