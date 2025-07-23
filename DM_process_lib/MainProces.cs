@@ -308,7 +308,7 @@ namespace DM_process_lib
                 // Apply or skip errors based on mode
                 string gtinData = "04603905002474";
                 string serialNumberData = currentRecord.UN_CODE;
-                string seriesNameData = "TEST30Х30";
+                string seriesNameData = "TEST30X30";
                 string expireDateData = "06 28";
 
                 if (!isRescanMode)

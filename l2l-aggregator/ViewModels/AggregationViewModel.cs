@@ -259,6 +259,8 @@ namespace l2l_aggregator.ViewModels
             InitializeControllerPing();
 
             InitializeSession();
+
+            UpdateInfoAndUI();
         }
 
         private void InitializeBoxTemplate()
@@ -328,6 +330,49 @@ namespace l2l_aggregator.ViewModels
             _sessionService.SelectedTaskSscc = ResponseSscc.RECORDSET.FirstOrDefault();
         }
 
+        //private void InitializeCurrentBoxFromCounters()
+        //{
+        //    try
+        //    {
+        //        var countersResponse = _databaseDataService.GetArmCounters();
+
+        //        if (countersResponse?.RECORDSET != null)
+        //        {
+        //            // Ищем запись с CODE = "UN_STATE_AGREGATE"
+        //            var aggregateCounter = countersResponse.RECORDSET
+        //                .FirstOrDefault(c => c.CODE == "UN_STATE_AGREGATE");
+
+        //            if (aggregateCounter?.QTY != null)
+        //            {
+        //                // Устанавливаем CurrentBox на основе QTY + 1 (так как это следующий короб)
+        //                CurrentBox = aggregateCounter.QTY.Value + 1;
+
+        //                InfoMessage = $"Продолжение агрегации с короба №{CurrentBox}";
+        //                _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
+        //            }
+        //            else
+        //            {
+        //                // Если запись не найдена, начинаем с 1
+        //                CurrentBox = 1;
+        //                InfoMessage = "Начало новой агрегации";
+        //                _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
+        //            }
+        //        }
+        //        else
+        //        {
+        //            // Если данные не получены, начинаем с 1
+        //            CurrentBox = 1;
+        //            InfoMessage = "Не удалось получить данные счетчиков, начинаем с короба №1";
+        //            _notificationService.ShowMessage(InfoMessage, NotificationType.Warning);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        CurrentBox = 1;
+        //        InfoMessage = $"Ошибка инициализации CurrentBox: {ex.Message}";
+        //        _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
+        //    }
+        //}
         private void InitializeCurrentBoxFromCounters()
         {
             try
@@ -336,23 +381,27 @@ namespace l2l_aggregator.ViewModels
 
                 if (countersResponse?.RECORDSET != null)
                 {
-                    // Ищем запись с CODE = "UN_STATE_AGREGATE"
-                    var aggregateCounter = countersResponse.RECORDSET
-                        .FirstOrDefault(c => c.CODE == "UN_STATE_AGREGATE");
+                    // Ищем первую запись с QTY == 0 (незавершенная коробка)
+                    var firstEmptyBox = ResponseSscc.RECORDSET
+                        .Where(r => r.TYPEID == 0) // Только коробки
+                        .Select((record, index) => new { Record = record, Index = index })
+                        .FirstOrDefault(x => x.Record.QTY == 0);
 
-                    if (aggregateCounter?.QTY != null)
+                    if (firstEmptyBox != null)
                     {
-                        // Устанавливаем CurrentBox на основе QTY + 1 (так как это следующий короб)
-                        CurrentBox = aggregateCounter.QTY.Value + 1;
+                        // Устанавливаем CurrentBox на основе индекса найденной записи + 1
+                        // (индекс начинается с 0, а номер коробки с 1)
+                        CurrentBox = firstEmptyBox.Index + 1;
 
                         InfoMessage = $"Продолжение агрегации с короба №{CurrentBox}";
                         _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
                     }
                     else
                     {
-                        // Если запись не найдена, начинаем с 1
+                        // Если все коробки заполнены (нет записей с QTY == 0),
+                        // начинаем с первой коробки
                         CurrentBox = 1;
-                        InfoMessage = "Начало новой агрегации";
+                        InfoMessage = "Все коробки заполнены, начинаем новую агрегацию";
                         _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
                     }
                 }
@@ -371,7 +420,6 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
             }
         }
-
         private void InitializeTemplate()
         {
             TemplateFields.Clear();
@@ -703,6 +751,7 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage("Шаблон не отправлен. Сначала выполните отправку шаблона.");
                 return;
             }
+
             var boxRecord = ResponseSscc.RECORDSET
                            .Where(r => r.TYPEID == 0)
                            .ElementAtOrDefault(CurrentBox - 1);
@@ -1339,7 +1388,11 @@ OCR:
 
             // Изменяем информационное сообщение
             InfoLayerText = "Режим информации: отсканируйте код для получения информации";
-            AggregationSummaryText = "Режим информации активен. Отсканируйте код для получения подробной информации о нем.";
+
+            AggregationSummaryText = $"""
+Режим информации активен. 
+Отсканируйте код для получения подробной информации о нем.
+""";
 
             _notificationService.ShowMessage("Активирован режим информации", NotificationType.Info);
         }
