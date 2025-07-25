@@ -269,9 +269,19 @@ namespace l2l_aggregator.ViewModels
             //Инициализация ранее отсканированных кодов
             InitializeScannedCodes();
 
-            UpdateInfoAndUI();
+            InitializeUpdateInfoAndUI();
         }
-
+        private async void InitializeUpdateInfoAndUI()
+        {
+            InfoLayerText = $"Продолжаем агрегацию!";
+            AggregationSummaryText = $"""
+Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}
+Количество собранных коробов: {CurrentBox - 1}
+Номер собираемого короба: {CurrentBox}
+Номер слоя: {CurrentLayer}
+Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}
+""";
+        }
         private void InitializeBoxTemplate()
         {
             // Проверяем, что BOX_TEMPLATE не null и не пустой
