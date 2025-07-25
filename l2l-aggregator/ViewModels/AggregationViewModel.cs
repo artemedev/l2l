@@ -260,6 +260,9 @@ namespace l2l_aggregator.ViewModels
 
             InitializeSession();
 
+            //Инициализация ранее отсканированных кодов
+            InitializeScannedCodes();
+
             UpdateInfoAndUI();
         }
 
@@ -442,6 +445,53 @@ namespace l2l_aggregator.ViewModels
             }
         }
 
+        private void InitializeScannedCodes()
+        {
+            try
+            {
+                if (_sessionService.SelectedTaskInfo?.DOCID == null)
+                {
+                    InfoMessage = "Ошибка: отсутствует информация о задании для загрузки отсканированных кодов.";
+                    _notificationService.ShowMessage(InfoMessage, NotificationType.Warning);
+                    return;
+                }
+
+                // Получаем все коды UN_CODE где PARENT_SSCCID не null (уже агрегированные)
+                var aggregatedCodes = _databaseDataService.GetAggregatedUnCodes();
+
+                if (aggregatedCodes?.Any() == true)
+                {
+                    // Очищаем текущие коды и добавляем загруженные из БД
+                    _sessionService.ClearScannedCodes();
+
+                    foreach (var code in aggregatedCodes)
+                    {
+                        if (!string.IsNullOrWhiteSpace(code))
+                        {
+                            _sessionService.AllScannedDmCodes.Add(code);
+                        }
+                    }
+
+                    InfoMessage = $"Загружено {aggregatedCodes.Count} ранее отсканированных кодов";
+                    _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
+                }
+                else
+                {
+                    // Если нет агрегированных кодов, просто очищаем коллекцию
+                    _sessionService.ClearScannedCodes();
+                    InfoMessage = "Начинаем новую агрегацию - ранее отсканированных кодов не найдено";
+                    _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
+                }
+            }
+            catch (Exception ex)
+            {
+                InfoMessage = $"Ошибка загрузки отсканированных кодов: {ex.Message}";
+                _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
+
+                // В случае ошибки очищаем коллекцию для безопасности
+                _sessionService.ClearScannedCodes();
+            }
+        }
         partial void OnIsControllerAvailableChanged(bool value)
         {
             UpdateScanAvailability();
@@ -1098,10 +1148,19 @@ namespace l2l_aggregator.ViewModels
 
                         if (SaveAllDmCells())
                         {
+                            var gS1Parser = new GS1Parser();
                             // Добавляем накопленные коды коробки в глобальную коллекцию
                             foreach (var code in _sessionService.CurrentBoxDmCodes)
                             {
-                                _sessionService.AllScannedDmCodes.Add(code);
+                                if (string.IsNullOrWhiteSpace(code)) continue;
+
+                                var parsedData = gS1Parser.ParseGTIN(code);
+
+                                if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
+                                {
+                                    _sessionService.AllScannedDmCodes.Add(parsedData.SerialNumber);
+
+                                }
                             }
 
                             // Очищаем коды текущей коробки после успешного сохранения

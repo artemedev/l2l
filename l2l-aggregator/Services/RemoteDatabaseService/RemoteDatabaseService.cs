@@ -1061,6 +1061,40 @@ namespace l2l_aggregator.Services.Database
                 throw;
             }
         }
+        // ---------------- Получение агрегированных UN кодов ----------------
+        public List<string>? GetAggregatedUnCodes()
+        {
+            try
+            {
+                return WithConnection(conn =>
+                {
+                    using var transaction = conn.BeginTransaction();
+                    try
+                    {
+                        var sql = @"SELECT UN_CODE FROM MARK_UN_CODE 
+                           WHERE PARENT_SSCCID IS NOT NULL 
+                           AND PARENT_SSCCID <> 0
+                           AND UN_CODE IS NOT NULL";
+
+                        var codes = conn.Query<string>(sql, transaction: transaction)
+                                       .Where(code => !string.IsNullOrWhiteSpace(code))
+                                       .ToList();
+
+                        transaction.Commit();
+                        return codes;
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
 
         // Освобождение ресурсов
         public void Dispose()

@@ -131,7 +131,7 @@ namespace l2l_aggregator.Helpers.AggregationHelpers
             foreach (var dmd in dmrData.BOXs)
             {
                 string? dmValue = dmd.DM.data;
-
+                var dmValueParsed = gs1Parser.ParseGTIN(dmValue);
                 var dm_data = new DmSquareViewModel
                 {
                     X = dmd.DM.poseX - (dmd.DM.width / 2),
@@ -177,7 +177,7 @@ namespace l2l_aggregator.Helpers.AggregationHelpers
                         // Проверка на дубликат во всех предыдущих сканах
                         if (isGS1Valid && !isDuplicateInCurrentScan)
                         {
-                            isDuplicateInAllScans = sessionService.AllScannedDmCodes.Contains(dmValue);
+                            isDuplicateInAllScans = sessionService.AllScannedDmCodes.Contains(dmValueParsed.SerialNumber);
                         }
 
                         // Код считается невалидным, если это дубликат

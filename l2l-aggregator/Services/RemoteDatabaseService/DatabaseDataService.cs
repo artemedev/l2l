@@ -446,5 +446,24 @@ namespace l2l_aggregator.Services
                 return null;
             }
         }
+        // ---------------- Получение агрегированных UN кодов ----------------
+        public List<string> GetAggregatedUnCodes()
+        {
+            try
+            {
+                if (!EnsureConnection())
+                {
+                    return new List<string>();
+                }
+
+                var response = _remoteDatabaseService.GetAggregatedUnCodes();
+                return response ?? new List<string>();
+            }
+            catch (Exception ex)
+            {
+                //_notificationService.ShowMessage($"Ошибка получения агрегированных кодов: {ex.Message}", NotificationType.Error);
+                return new List<string>();
+            }
+        }
     }
 }
