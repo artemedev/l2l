@@ -1123,19 +1123,32 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task CompleteAggregation()
         {
-            _dmScanService.StopScan();
-            _databaseDataService.CloseAggregationSession();
-            _databaseDataService.CloseJob();
+            bool confirmed = await _dialogService.ShowCustomConfirmationAsync(
+                "Завершение агрегации",
+                "Завершить агрегацию и закрыть задание?",
+                Material.Icons.MaterialIconKind.ContentSaveAlert,
+                Avalonia.Media.Brushes.MediumSeaGreen,
+                Avalonia.Media.Brushes.MediumSeaGreen,
+                "Да",
+                "Нет"
+            );
 
-            // Очищаем кэшированные данные
-            _sessionService.ClearCachedAggregationData();
+            if (confirmed)
+            {
+                _dmScanService.StopScan();
+                _databaseDataService.CloseAggregationSession();
+                _databaseDataService.CloseJob();
 
-            // Очищаем коды при конце задания
-            _sessionService.ClearScannedCodes();
-            _sessionService.ClearCurrentBoxCodes();
+                // Очищаем кэшированные данные
+                _sessionService.ClearCachedAggregationData();
 
-            _notificationService.ShowMessage("Агрегация завершена.");
-            _router.GoTo<TaskListViewModel>();
+                // Очищаем коды при конце задания
+                _sessionService.ClearScannedCodes();
+                _sessionService.ClearCurrentBoxCodes();
+
+                _notificationService.ShowMessage("Агрегация завершена.");
+                _router.GoTo<TaskListViewModel>();
+            }
         }
 
         //сканирование кода этикетки
