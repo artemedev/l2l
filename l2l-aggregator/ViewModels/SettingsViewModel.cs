@@ -646,5 +646,7 @@ namespace l2l_aggregator.ViewModels
         {
             IsPrinterConnected = !string.IsNullOrWhiteSpace(PrinterIP) && !string.IsNullOrWhiteSpace(SelectedPrinterModel);
         }
+
+
     }
 }

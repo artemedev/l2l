@@ -1332,7 +1332,7 @@ namespace l2l_aggregator.ViewModels
         {
             try
             {
-                var aggregationData = new List<(string UNID, string SSCCID)>();
+                var aggregationData = new List<(string UNID, string CHECK_BAR_CODE)>();
                 var gS1Parser = new GS1Parser();
 
                 // Используем накопленные коды из всех слоев коробки

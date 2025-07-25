@@ -39,6 +39,7 @@
 					<RowDefinition Height="*"/>
 					<RowDefinition Height="*"/>
 					<RowDefinition Height="*"/>
+					<RowDefinition Height="*"/>
 				</Grid.RowDefinitions>
 				<!--<Border Margin="0,5,0,10"
 						BorderBrush="LightGray"
@@ -72,7 +73,7 @@
 								FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>
 					</Grid>
 				</Border>-->
-				
+
 				<!-- Контроллер -->
 				<Border Margin="0,15,0,15"
 						BorderBrush="LightGray"
@@ -111,7 +112,7 @@
 								HorizontalContentAlignment="Center"
 								VerticalAlignment="Center"
 								FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>-->
-						
+
 						<CheckBox Content="Проверять перед агрегацией"
 								  IsChecked="{Binding CheckControllerBeforeAggregation, Mode=TwoWay}"
 								  Margin="0,5,0,0"
@@ -145,7 +146,7 @@
 						</CheckBox>
 					</StackPanel>
 				</Border>
-				
+
 				<!-- Камеры -->
 				<Border Margin="0,5,0,10"
 						BorderBrush="LightGray"
@@ -219,7 +220,7 @@
 						</CheckBox>
 					</StackPanel>
 				</Border>
-				
+
 				<!-- Настройки камеры и контроллера -->
 				<Border Margin="0,5,0,10"
 						BorderBrush="LightGray"
@@ -253,7 +254,7 @@
 								  SelectedItem="{Binding SelectedPrinterModel}"
 								  HorizontalAlignment="Stretch"
 								  FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>
-						
+
 						<Button Command="{Binding TestPrinterConnectionCommand}"
 								HorizontalAlignment="Stretch"
 								HorizontalContentAlignment="Center"
@@ -305,7 +306,7 @@
 									BorderBrush="LightGray"
 									BorderThickness="1"
 									CornerRadius="4"
-									Padding="10" 
+									Padding="10"
 									Grid.Row="5">
 					<StackPanel Spacing="5">
 						<Label Classes="h2"
@@ -362,7 +363,7 @@
 								   FontWeight="SemiBold"
 								   HorizontalAlignment="Center"
 								   Margin="0,5,0,0"/>
-						
+
 						<CheckBox Content="Проверять перед агрегацией"
 								  IsChecked="{Binding CheckScannerBeforeAggregation, Mode=TwoWay}"
 								  Margin="0,5,0,0"
@@ -398,11 +399,12 @@
 					</StackPanel>
 				</Border>
 
+				
 				<Border Margin="0,5,0,10"
 						BorderBrush="LightGray"
 						BorderThickness="1"
 						CornerRadius="4"
-						Padding="10" 
+						Padding="10"
 						Grid.Row="6">
 					<StackPanel Spacing="5">
 						<CheckBox Content="Включить клавиатуру"
@@ -440,6 +442,8 @@
 						</CheckBox>
 					</StackPanel>
 				</Border>
+
+				
 			</Grid>
 		</Grid>
 	</ScrollViewer>

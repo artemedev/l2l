@@ -1,5 +1,4 @@
-﻿// DatabaseDataService.cs - обновленный для работы с процедурами и статичным адресом БД
-using l2l_aggregator.Models;
+﻿using l2l_aggregator.Models;
 using l2l_aggregator.Services.Database;
 using l2l_aggregator.Services.Database.Repositories.Interfaces;
 using l2l_aggregator.Services.Notification.Interface;
@@ -395,6 +394,21 @@ namespace l2l_aggregator.Services
                 }
 
                 var result = _remoteDatabaseService.LogAggregationBatch(aggregationData);
+                // Затем сохраняем в локальную БД (асинхронно, не блокируем основной процесс)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _localDatabaseService.Aggregation.LogAggregationBatchAsync(aggregationData);
+                        // Логируем успешное сохранение в локальную БД, но не показываем пользователю
+                        System.Diagnostics.Debug.WriteLine($"Данные агрегации успешно сохранены в локальную БД ({aggregationData.Count} записей)");
+                    }
+                    catch (Exception ex)
+                    {
+                        // Логируем ошибку сохранения в локальную БД, но не ломаем основной процесс
+                        System.Diagnostics.Debug.WriteLine($"Ошибка сохранения в локальную БД: {ex.Message}");
+                    }
+                });
                 if (result)
                 {
                     //_notificationService.ShowMessage($"Batch агрегация успешно зарегистрирована ({aggregationData.Count} записей)", NotificationType.Success);
