@@ -395,20 +395,7 @@ namespace l2l_aggregator.Services
 
                 var result = _remoteDatabaseService.LogAggregationBatch(aggregationData);
                 // Затем сохраняем в локальную БД (асинхронно, не блокируем основной процесс)
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await _localDatabaseService.Aggregation.LogAggregationBatchAsync(aggregationData);
-                        // Логируем успешное сохранение в локальную БД, но не показываем пользователю
-                        System.Diagnostics.Debug.WriteLine($"Данные агрегации успешно сохранены в локальную БД ({aggregationData.Count} записей)");
-                    }
-                    catch (Exception ex)
-                    {
-                        // Логируем ошибку сохранения в локальную БД, но не ломаем основной процесс
-                        System.Diagnostics.Debug.WriteLine($"Ошибка сохранения в локальную БД: {ex.Message}");
-                    }
-                });
+                
                 if (result)
                 {
                     //_notificationService.ShowMessage($"Batch агрегация успешно зарегистрирована ({aggregationData.Count} записей)", NotificationType.Success);
@@ -477,6 +464,31 @@ namespace l2l_aggregator.Services
             {
                 //_notificationService.ShowMessage($"Ошибка получения агрегированных кодов: {ex.Message}", NotificationType.Error);
                 return new List<string>();
+            }
+        }
+
+        // ---------------- Разагрегация коробки ----------------
+        public bool ClearBoxAggregation(string checkBarCode)
+        {
+            try
+            {
+                if (!EnsureConnection())
+                {
+                    return false;
+                }
+
+                var result = _remoteDatabaseService.ClearBoxAggregation(checkBarCode);
+                if (result)
+                {
+                    //_notificationService.ShowMessage("Разагрегация коробки выполнена успешно", NotificationType.Success);
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                //_notificationService.ShowMessage($"Ошибка разагрегации коробки: {ex.Message}", NotificationType.Error);
+                return false;
             }
         }
     }

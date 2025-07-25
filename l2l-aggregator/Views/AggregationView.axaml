@@ -185,7 +185,7 @@
 					</Style>
 				</CheckBox.Styles>
 			</CheckBox>
-			<Button Grid.Row="6"
+			<!--<Button Grid.Row="6"
 					Command="{Binding ClearBoxCommand}"
 					IsEnabled="{Binding CanClearBox}"
 					Content="Очистить короб"
@@ -197,7 +197,25 @@
 					FontSize="{Binding Bounds.Width, 
 								RelativeSource={RelativeSource AncestorType=UserControl}, 
 								Converter={StaticResource ResponsiveFontSizeConverter}, 
-								ConverterParameter='0.017;8;36'}"/>
+								ConverterParameter='0.017;8;36'}"/>-->
+			<ToggleButton Grid.Row="6"
+						  IsChecked="{Binding IsDisaggregationMode, Mode=TwoWay}"
+						  Content="{Binding DisaggregationModeButtonText}"
+						  HorizontalAlignment="Stretch"
+						  VerticalAlignment="Stretch"
+						  Margin="5"
+						  HorizontalContentAlignment="Center"
+						  VerticalContentAlignment="Center"
+						  FontSize="{Binding Bounds.Width, 
+									  RelativeSource={RelativeSource AncestorType=UserControl}, 
+									  Converter={StaticResource ResponsiveFontSizeConverter}, 
+									  ConverterParameter='0.017;8;36'}">
+				<ToggleButton.Styles>
+					<Style Selector="ToggleButton:checked">
+						<Setter Property="Background" Value="Orange"/>
+					</Style>
+				</ToggleButton.Styles>
+			</ToggleButton>
 			<Button Grid.Row="7"
 					Command="{Binding CompleteAggregationCommand}"
 					IsEnabled="{Binding CanCompleteAggregation}"

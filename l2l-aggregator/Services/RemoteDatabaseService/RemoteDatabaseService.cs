@@ -697,93 +697,6 @@ namespace l2l_aggregator.Services.Database
         }
 
         //  ---------------- Логирование агрегации ----------------
-        //public bool LogAggregation(string UNID, string SSCCID)
-        //{
-        //    try
-        //    {
-        //        return WithConnection(conn =>
-        //        {
-        //            using var transaction = conn.BeginTransaction();
-        //            try
-        //            {
-        //                var sql = "EXECUTE PROCEDURE ARM_SGTIN_SSCC_ADD(@UNID, @SSCCID)";
-
-        //                conn.Execute(sql, new
-        //                {
-        //                    UNID = UNID,
-        //                    SSCCID = SSCCID
-        //                }, transaction: transaction);
-
-        //                transaction.Commit();
-        //                return true;
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                transaction.Rollback();
-        //                throw;
-        //            }
-        //        });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        throw;
-        //    }
-        //}
-
-        //public bool LogAggregationBatch(List<(string UNID, string CHECK_BAR_CODE)> aggregationData)
-        //{
-        //    try
-        //    {
-        //        return WithConnection(conn =>
-        //        {
-        //            using var transaction = conn.BeginTransaction();
-        //            try
-        //            {
-        //                //var sql = "EXECUTE PROCEDURE ARM_SGTIN_SSCC_ADD(@UNID, @CHECK_BAR_CODE)";
-
-        //                using var batchCommand = conn.CreateBatchCommand();
-        //                batchCommand.CommandText = "EXECUTE PROCEDURE ARM_SGTIN_SSCC_ADD(@UNID, @CHECK_BAR_CODE)";
-        //                batchCommand.Transaction = transaction;
-        //                // Выполняем все операции в рамках одной транзакции
-        //                foreach (var (unid, checkBarCode) in aggregationData)
-        //                {
-        //                    var command = batchCommand.AddBatchParameters();
-        //                    command.Add(new FbParameter("@UNID", unid));
-        //                    command.Add(new FbParameter("@CHECK_BAR_CODE", checkBarCode));
-
-        //                    //batchCommand.BatchCommands.Add(command);
-        //                    var result = batchCommand.ExecuteNonQuery();
-        //                    batchCommand.BatchParameters.Clear();
-        //                    if (!result.AllSuccess)
-        //                    {
-        //                        foreach (var itemRes in result)
-        //                        {
-        //                            if (!itemRes.IsSuccess)
-        //                            {
-        //                                throw new Exception($"Ошибка при выполнении процедуры ARM_SGTIN_SSCC_ADD: {itemRes.Exception}", itemRes.Exception);
-        //                            }
-        //                        }
-        //                    }
-        //                }
-
-        //                // Выполняем весь батч за одну операцию
-        //                batchCommand.ExecuteNonQuery();
-
-        //                transaction.Commit();
-        //                return true;
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                transaction.Rollback();
-        //                throw;
-        //            }
-        //        });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        throw;
-        //    }
-        //}
         public bool LogAggregationBatch(List<(string UNID, string CHECK_BAR_CODE)> aggregationData)
         {
             try
@@ -859,49 +772,7 @@ namespace l2l_aggregator.Services.Database
                 throw;
             }
         }
-        //public async Task mtdArmJobSGtinAdd(MtdArmJobSGtinAddDataRequest data)
-        //{
-        //    if (data.include.Length == 0)
-        //        return;
-        //    var conn = (FbConnection)_context.Database.GetDbConnection();
-        //    await using (var cmd = conn.CreateBatchCommand())
-        //    {
-        //        cmd.CommandText = JobSGtinSql;
-        //        conn.Open();
-        //        int i;
-        //        i = 0;
-        //        foreach (var item in data.include)
-        //        {
-        //            i++;
-        //            var bp = cmd.AddBatchParameters();
-        //            bp.Add("JOB_DOCID", item.JOB_DOCID);
-        //            bp.Add("SERIESID", item.SERIESID);
-        //            bp.Add("SESSIONID", item.SESSIONID);
-        //            bp.Add("SYS_DATE", item.SYS_DATE);
-        //            bp.Add("UN_CODEID", item.UN_CODEID);
-        //            bp.Add("UN_CODE_STATE", item.UN_CODE_STATE);
-        //            bp.Add("UN_PARENT_CODEID", item.UN_PARENT_CODEID);
-        //            bp.Add("UN_CODE", (object)item.UN_CODE ?? DBNull.Value);
-        //            if (i > 1000)
-        //            {
-        //                var result = await cmd.ExecuteNonQueryAsync();
-        //                cmd.BatchParameters.Clear();
-        //                i= 0;
-        //                if (!result.AllSuccess)
-        //                {
-        //                    foreach (var itemRes in result)
-        //                    {
-        //                        if (!itemRes.IsSuccess)
-        //                        {
-        //                            throw new Exception(string.Format("Ошибка при загрузки данных в БД. SQL ERROR (0)", itemRes.Exception), itemRes.Exception);
-        //                        }
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    }
-        //}
-
+        
 
         // Вспомогательный метод для конвертации в byte[]
         private byte[]? ConvertToByteArray(object? value)
@@ -1096,6 +967,36 @@ namespace l2l_aggregator.Services.Database
             }
         }
 
+
+        // ---------------- Разагрегация коробки ----------------
+        public bool ClearBoxAggregation(string checkBarCode)
+        {
+            try
+            {
+                return WithConnection(conn =>
+                {
+                    using var transaction = conn.BeginTransaction();
+                    try
+                    {
+                        var sql = "EXECUTE PROCEDURE ARM_SSCC_BOX_CLEAR(@CHECK_BAR_CODE)";
+
+                        conn.Execute(sql, new { CHECK_BAR_CODE = checkBarCode }, transaction: transaction);
+
+                        transaction.Commit();
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
         // Освобождение ресурсов
         public void Dispose()
         {

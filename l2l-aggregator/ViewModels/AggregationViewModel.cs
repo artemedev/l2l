@@ -6,10 +6,8 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DM_wraper_NS;
-using FastReport.Export.Hpgl.Commands;
 using l2l_aggregator.Helpers.AggregationHelpers;
 using l2l_aggregator.Models;
-using l2l_aggregator.Models.AggregationModels;
 using l2l_aggregator.Services;
 using l2l_aggregator.Services.AggregationService;
 using l2l_aggregator.Services.ControllerService;
@@ -27,9 +25,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
-using System.Timers;
 
 namespace l2l_aggregator.ViewModels
 {
@@ -204,7 +200,21 @@ namespace l2l_aggregator.ViewModels
 
 
         private readonly IDialogService _dialogService;
-
+        // Режим разагрегации
+        [ObservableProperty] private bool isDisaggregationMode = false;
+        // Текст кнопки режима разагрегации
+        [ObservableProperty] private string disaggregationModeButtonText = "Режим разагрегации";
+        // Доступность кнопки режима разагрегации
+        [ObservableProperty] private bool canDisaggregation = false;
+        // Предыдущие значения для восстановления при выходе из режима разагрегации
+        private bool _previousCanScanDisaggregation;
+        private bool _previousCanScanHardwareDisaggregation;
+        private bool _previousCanOpenTemplateSettingsDisaggregation;
+        private bool _previousCanPrintBoxLabelDisaggregation;
+        private bool _previousCanClearBoxDisaggregation;
+        private bool _previousCanCompleteAggregationDisaggregation;
+        private string _previousInfoLayerTextDisaggregation;
+        private string _previousAggregationSummaryTextDisaggregation;
         public AggregationViewModel(
             ImageHelper imageProcessingService,
             SessionService sessionService,
@@ -524,6 +534,16 @@ namespace l2l_aggregator.ViewModels
                 CanPrintBoxLabel = false;
                 CanClearBox = false;
                 CanCompleteAggregation = false;
+            }
+            else if (IsDisaggregationMode)
+            {
+                // В режиме разагрегации большинство кнопок отключены
+                CanScan = false;
+                CanScanHardware = false;
+                CanOpenTemplateSettings = false;
+                CanPrintBoxLabel = false;
+                CanClearBox = false;
+                // CanCompleteAggregation остается доступным
             }
             else
             {
@@ -1115,12 +1135,12 @@ namespace l2l_aggregator.ViewModels
 
         }
 
-        //Очистить короб
-        [RelayCommand]
-        public void ClearBox()
-        {
-            CurrentStepIndex = 4;
-        }
+        ////Очистить короб
+        //[RelayCommand]
+        //public void ClearBox()
+        //{
+        //    CurrentStepIndex = 4;
+        //}
 
         //Очистить паллету
         [RelayCommand]
@@ -1168,6 +1188,12 @@ namespace l2l_aggregator.ViewModels
             if (IsInfoMode)
             {
                 HandleInfoModeBarcode(barcode);
+                return;
+            }
+            // Если активен режим разагрегации, обрабатываем код в этом режиме
+            if (IsDisaggregationMode)
+            {
+                HandleDisaggregationModeBarcode(barcode);
                 return;
             }
             // Проверка, что мы находимся на шаге 2
@@ -1725,7 +1751,253 @@ GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
             _notificationService.ShowMessage($"Найден UN код: {typeDescription}", NotificationType.Success);
         }
 
+        // Обработчик изменения режима разагрегации
+        partial void OnIsDisaggregationModeChanged(bool value)
+        {
+            if (value)
+            {
+                EnterDisaggregationMode();
+            }
+            else
+            {
+                ExitDisaggregationMode();
+            }
+        }
 
+        // Вход в режим разагрегации
+        private void EnterDisaggregationMode()
+        {
+            PreviousStepIndex = CurrentStepIndex;
+            CurrentStepIndex = 7; // Новый шаг для режима разагрегации
+            DisaggregationModeButtonText = "Выйти из режима";
+
+            // Сохраняем текущие состояния кнопок
+            _previousCanScanDisaggregation = CanScan;
+            _previousCanScanHardwareDisaggregation = CanScanHardware;
+            _previousCanOpenTemplateSettingsDisaggregation = CanOpenTemplateSettings;
+            _previousCanPrintBoxLabelDisaggregation = CanPrintBoxLabel;
+            _previousCanClearBoxDisaggregation = CanClearBox;
+            _previousCanCompleteAggregationDisaggregation = CanCompleteAggregation;
+            _previousInfoLayerTextDisaggregation = InfoLayerText;
+            _previousAggregationSummaryTextDisaggregation = AggregationSummaryText;
+
+            // Отключаем все кнопки кроме завершения агрегации
+            CanScan = false;
+            CanScanHardware = false;
+            CanOpenTemplateSettings = false;
+            CanPrintBoxLabel = false;
+            CanClearBox = false;
+            // CanCompleteAggregation остается доступным
+
+            // Изменяем информационные сообщения
+            InfoLayerText = "Режим разагрегации: отсканируйте код коробки для разагрегации";
+
+            AggregationSummaryText = $"""
+Режим разагрегации активен. 
+Отсканируйте код коробки для выполнения разагрегации.
+""";
+
+            _notificationService.ShowMessage("Активирован режим разагрегации", NotificationType.Info);
+        }
+
+        // Выход из режима разагрегации
+        private void ExitDisaggregationMode()
+        {
+            CurrentStepIndex = PreviousStepIndex; // Возвращаемся к предыдущему режиму
+            DisaggregationModeButtonText = "Режим разагрегации";
+
+            // Восстанавливаем состояния кнопок
+            CanScan = _previousCanScanDisaggregation;
+            CanScanHardware = _previousCanScanHardwareDisaggregation;
+            CanOpenTemplateSettings = _previousCanOpenTemplateSettingsDisaggregation;
+            CanPrintBoxLabel = _previousCanPrintBoxLabelDisaggregation;
+            CanClearBox = _previousCanClearBoxDisaggregation;
+            CanCompleteAggregation = _previousCanCompleteAggregationDisaggregation;
+            InfoLayerText = _previousInfoLayerTextDisaggregation;
+
+            // Восстанавливаем информационный текст
+            AggregationSummaryText = _previousAggregationSummaryTextDisaggregation;
+
+            _notificationService.ShowMessage("Режим разагрегации деактивирован", NotificationType.Info);
+        }
+
+        // Обработка сканированного кода в режиме разагрегации
+        private async Task HandleDisaggregationModeBarcode(string barcode)
+        {
+            if (!IsDisaggregationMode)
+                return;
+
+            try
+            {
+                if (ResponseSscc?.RECORDSET == null || ResponseSscc.RECORDSET.Count == 0)
+                {
+                    AggregationSummaryText = $"""
+Ошибка: данные SSCC отсутствуют!
+
+Отсканированный код: {barcode}
+Статус: Невозможно выполнить разагрегацию
+""";
+                    _notificationService.ShowMessage("Данные SSCC отсутствуют", NotificationType.Error);
+                    return;
+                }
+
+                // Ищем коробку по отсканированному коду
+                var boxRecord = ResponseSscc.RECORDSET
+                    .Where(r => r.TYPEID == 0) // Только коробки
+                    .FirstOrDefault(r => r.DISPLAY_BAR_CODE == barcode);
+
+                if (boxRecord != null)
+                {
+                    // Показываем диалог подтверждения
+                    var confirmed = await _dialogService.ShowCustomConfirmationAsync(
+                        "Подтверждение разагрегации",
+                        $"Выполнить разагрегацию коробки с кодом {barcode}?",
+                        Material.Icons.MaterialIconKind.PackageVariantClosed,
+                        Avalonia.Media.Brushes.Orange,
+                        Avalonia.Media.Brushes.Orange,
+                        "Да, разагрегировать",
+                        "Отмена"
+                    );
+
+                    if (confirmed)
+                    {
+                        // Выполняем разагрегацию
+                        var success = _databaseDataService.ClearBoxAggregation(boxRecord.CHECK_BAR_CODE);
+
+                        if (success)
+                        {
+                            AggregationSummaryText = $"""
+Разагрегация выполнена успешно!
+
+Отсканированный код: {barcode}
+SSCC ID: {boxRecord.SSCCID}
+CHECK_BAR_CODE: {boxRecord.CHECK_BAR_CODE}
+Статус: Коробка успешно разагрегирована
+Время операции: {DateTime.Now:dd.MM.yyyy HH:mm:ss}
+""";
+
+                            _notificationService.ShowMessage($"Коробка с кодом {barcode} успешно разагрегирована", NotificationType.Success);
+
+                            // Обновляем накопленные коды (удаляем коды разагрегированной коробки)
+                            UpdateScannedCodesAfterDisaggregation();
+
+                            // Обновляем доступность кнопки разагрегации
+                            UpdateDisaggregationAvailability();
+                        }
+                        else
+                        {
+                            AggregationSummaryText = $"""
+Ошибка разагрегации!
+
+Отсканированный код: {barcode}
+SSCC ID: {boxRecord.SSCCID}
+Статус: Не удалось выполнить разагрегацию
+""";
+
+                            _notificationService.ShowMessage($"Ошибка разагрегации коробки с кодом {barcode}", NotificationType.Error);
+                        }
+                    }
+                    else
+                    {
+                        AggregationSummaryText = $"""
+Разагрегация отменена пользователем.
+
+Отсканированный код: {barcode}
+""";
+                    }
+                }
+                else
+                {
+                    // Код не найден среди коробок
+                    AggregationSummaryText = $"""
+Код коробки не найден!
+
+Отсканированный код: {barcode}
+Статус: Код не найден среди доступных коробок
+
+Проверьте правильность кода или убедитесь, что коробка существует в текущем задании.
+""";
+
+                    _notificationService.ShowMessage($"Код коробки {barcode} не найден", NotificationType.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                AggregationSummaryText = $"""
+Ошибка при выполнении разагрегации!
+
+Отсканированный код: {barcode}
+Ошибка: {ex.Message}
+""";
+
+                _notificationService.ShowMessage($"Ошибка разагрегации: {ex.Message}", NotificationType.Error);
+            }
+        }
+
+        // Обновление накопленных кодов после разагрегации
+        private void UpdateScannedCodesAfterDisaggregation()
+        {
+            try
+            {
+                // Перезагружаем агрегированные коды из БД
+                var aggregatedCodes = _databaseDataService.GetAggregatedUnCodes();
+
+                if (aggregatedCodes?.Any() == true)
+                {
+                    // Очищаем и обновляем коллекцию
+                    _sessionService.ClearScannedCodes();
+
+                    foreach (var code in aggregatedCodes)
+                    {
+                        if (!string.IsNullOrWhiteSpace(code))
+                        {
+                            _sessionService.AllScannedDmCodes.Add(code);
+                        }
+                    }
+
+                    _notificationService.ShowMessage($"Обновлено {aggregatedCodes.Count} кодов после разагрегации", NotificationType.Info);
+                }
+                else
+                {
+                    // Если агрегированных кодов нет, очищаем коллекцию
+                    _sessionService.ClearScannedCodes();
+                    _notificationService.ShowMessage("Все коды разагрегированы", NotificationType.Info);
+                }
+            }
+            catch (Exception ex)
+            {
+                _notificationService.ShowMessage($"Ошибка обновления кодов после разагрегации: {ex.Message}", NotificationType.Error);
+            }
+        }
+
+        // Метод для проверки доступности режима разагрегации
+        private void UpdateDisaggregationAvailability()
+        {
+            try
+            {
+                // Проверяем есть ли агрегированные коробки
+                var countersResponse = _databaseDataService.GetArmCounters();
+
+                if (countersResponse?.RECORDSET != null)
+                {
+                    // Ищем записи с QTY > 0 (заполненные коробки) среди SSCC кодов
+                    var hasAggregatedBoxes = ResponseSscc?.RECORDSET?
+                        .Where(r => r.TYPEID == 0) // Только коробки
+                        .Any(r => r.QTY > 0); // С количеством больше 0
+
+                    CanDisaggregation = hasAggregatedBoxes == true;
+                }
+                else
+                {
+                    CanDisaggregation = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                CanDisaggregation = false;
+                _notificationService.ShowMessage($"Ошибка проверки доступности разагрегации: {ex.Message}", NotificationType.Error);
+            }
+        }
 #if DEBUG
         [ObservableProperty]
         private bool isDebugMode = true;
