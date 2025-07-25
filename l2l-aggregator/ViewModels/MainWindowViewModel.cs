@@ -456,6 +456,7 @@ namespace l2l_aggregator.ViewModels
                     // Если мы на странице AggregationViewModel, закрываем сессию агрегации
                     if (Content is AggregationViewModel)
                     {
+                        _sessionService.ClearCurrentBoxCodes();
                         _databaseDataService.CloseAggregationSession();
                     }
                 }

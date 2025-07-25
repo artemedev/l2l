@@ -281,6 +281,7 @@ namespace l2l_aggregator.Services.Printing
                 }
 
                 PrintZpl(zplBytes);
+                _notificationService.ShowMessage($"Этикетка распечатана");
             }
             catch (Exception ex)
             {

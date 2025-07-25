@@ -201,6 +201,10 @@ namespace l2l_aggregator.ViewModels
         private bool _previousCanClearBox;
         private bool _previousCanCompleteAggregation;
         private string _previousInfoLayerText;
+
+
+        private readonly IDialogService _dialogService;
+
         public AggregationViewModel(
             ImageHelper imageProcessingService,
             SessionService sessionService,
@@ -213,7 +217,8 @@ namespace l2l_aggregator.ViewModels
             INotificationService notificationService,
             HistoryRouter<ViewModelBase> router,
             PrintingService printingService,
-            ILogger<PcPlcConnectionService> logger
+            ILogger<PcPlcConnectionService> logger,
+            IDialogService dialogService
             )
         {
             _sessionService = sessionService;
@@ -225,6 +230,7 @@ namespace l2l_aggregator.ViewModels
             _router = router;
             _printingService = printingService;
             _logger = logger;
+            _dialogService = dialogService;
             _databaseDataService = databaseDataService;
 
 
@@ -963,7 +969,7 @@ namespace l2l_aggregator.ViewModels
             if (CurrentLayer == _sessionService.SelectedTaskInfo.LAYERS_QTY &&
             validCountDMCells == DMCells.Count && DMCells.Count > 0)
             {
-               
+
                 _sessionService.AddLayerCodes(validCodes);
                 //CanScan = false;
                 CanOpenTemplateSettings = false;
@@ -972,7 +978,9 @@ namespace l2l_aggregator.ViewModels
                 _printingService.PrintReportTEST(frxBoxBytes, true);
                 if (IsAutoPrintEnabled && validCountDMCells == numberOfLayers)
                 {
+
                     PrintBoxLabel();
+
                 }
                 AggregationSummaryText = $"""
 Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}
@@ -991,7 +999,7 @@ namespace l2l_aggregator.ViewModels
             if (CurrentLayer < _sessionService.SelectedTaskInfo.LAYERS_QTY &&
                 validCountDMCells == numberOfLayers && DMCells.Count > 0)
             {
-                
+
                 _sessionService.AddLayerCodes(validCodes);
                 AggregationSummaryText = $"""
 Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}
@@ -1006,7 +1014,8 @@ namespace l2l_aggregator.ViewModels
 """;
                 CurrentLayer++;
                 await ConfirmPhotoToPlcAsync();
-            }else
+            }
+            else
             if (CurrentLayer < _sessionService.SelectedTaskInfo.LAYERS_QTY &&
                 validCountDMCells == DMCells.Count && DMCells.Count > 0)
             {
@@ -1028,7 +1037,7 @@ namespace l2l_aggregator.ViewModels
 
         //Печать этикетки коробки
         [RelayCommand]
-        public void PrintBoxLabel()
+        public async Task PrintBoxLabel()
         {
             if (frxBoxBytes == null || frxBoxBytes.Length == 0)
             {
@@ -1042,22 +1051,58 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage(InfoMessage);
                 return;
             }
-
-            var boxRecord = ResponseSscc.RECORDSET
-                           .Where(r => r.TYPEID == 0)
-                           .ElementAtOrDefault(CurrentBox - 1);
-
-
-            if (boxRecord != null)
+            int validCountDMCells = DMCells.Count(c => c.IsValid);
+            if (validCountDMCells == DMCells.Count && DMCells.Count > 0 && validCountDMCells == numberOfLayers)
             {
-                _sessionService.SelectedTaskSscc = boxRecord;
-                _printingService.PrintReport(frxBoxBytes, true);
+                var boxRecord = ResponseSscc.RECORDSET
+                                   .Where(r => r.TYPEID == 0)
+                                   .ElementAtOrDefault(CurrentBox - 1);
+
+                if (boxRecord != null)
+                {
+                    _sessionService.SelectedTaskSscc = boxRecord;
+                    _printingService.PrintReport(frxBoxBytes, true);
+                }
+                else
+                {
+                    InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
+                    _notificationService.ShowMessage(InfoMessage);
+                }
             }
             else
+            if (validCountDMCells == DMCells.Count && DMCells.Count > 0 && validCountDMCells < numberOfLayers)
             {
-                InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
-                _notificationService.ShowMessage(InfoMessage);
+                // Показываем модальное окно подтверждения выключения
+                bool confirmed = await _dialogService.ShowCustomConfirmationAsync(
+                    "Подтверждение печати этикетки",
+                    "Распечатать этикетку на не полный короб?",
+                    Material.Icons.MaterialIconKind.Printer,
+                    Avalonia.Media.Brushes.MediumSeaGreen,
+                    Avalonia.Media.Brushes.MediumSeaGreen,
+                    "Да",
+                    "Нет"
+                );
+
+                if (confirmed)
+                {
+                    var boxRecord = ResponseSscc.RECORDSET
+                                       .Where(r => r.TYPEID == 0)
+                                       .ElementAtOrDefault(CurrentBox - 1);
+
+                    if (boxRecord != null)
+                    {
+                        _sessionService.SelectedTaskSscc = boxRecord;
+                        _printingService.PrintReport(frxBoxBytes, true);
+                    }
+                    else
+                    {
+                        InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
+                        _notificationService.ShowMessage(InfoMessage);
+                    }
+                }
             }
+
+
         }
 
         //Очистить короб
@@ -1459,6 +1504,7 @@ OCR:
             if (disposing)
             {
                 // Очищаем коды при конце задания
+                _sessionService.ClearCurrentBoxCodes();
                 //_sessionService.ClearScannedCodes();
                 _databaseDataService.CloseAggregationSession();
                 _plcConnection?.StopPingPong();
@@ -1655,6 +1701,7 @@ GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
 
             _notificationService.ShowMessage($"Найден UN код: {typeDescription}", NotificationType.Success);
         }
+
 
 #if DEBUG
         [ObservableProperty]
