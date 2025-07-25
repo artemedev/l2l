@@ -336,29 +336,29 @@ namespace l2l_aggregator.Services
             }
         }
         //  ---------------- Логирование агрегации ----------------
-        public bool LogAggregationCompleted(string UNID, string SSCCID)
-        {
-            try
-            {
-                if (!EnsureConnection())
-                {
-                    return false;
-                }
+        //public bool LogAggregationCompleted(string UNID, string SSCCID)
+        //{
+        //    try
+        //    {
+        //        if (!EnsureConnection())
+        //        {
+        //            return false;
+        //        }
 
-                var result = _remoteDatabaseService.LogAggregation(UNID, SSCCID);
-                if (result)
-                {
-                    //_notificationService.ShowMessage("Агрегация успешно зарегистрирована", NotificationType.Success);
-                }
+        //        var result = _remoteDatabaseService.LogAggregation(UNID, SSCCID);
+        //        if (result)
+        //        {
+        //            //_notificationService.ShowMessage("Агрегация успешно зарегистрирована", NotificationType.Success);
+        //        }
 
-                return result;
-            }
-            catch (Exception ex)
-            {
-                //_notificationService.ShowMessage($"Ошибка логирования агрегации: {ex.Message}", NotificationType.Error);
-                return false;
-            }
-        }
+        //        return result;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        //_notificationService.ShowMessage($"Ошибка логирования агрегации: {ex.Message}", NotificationType.Error);
+        //        return false;
+        //    }
+        //}
 
         // ---------------- Получение счетчиков ARM ----------------
         public ArmCountersResponse? GetArmCounters()

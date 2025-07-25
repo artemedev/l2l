@@ -202,13 +202,6 @@ namespace l2l_aggregator.Services.AggregationService
         {
             public override Encoding Encoding => Encoding.UTF8;
         }
-        private string EncodeToBase64(XDocument doc)
-        {
-            using (MemoryStream ms = new MemoryStream())
-            {
-                doc.Save(ms);
-                return Convert.ToBase64String(ms.ToArray());
-            }
-        }
+      
     }
 }

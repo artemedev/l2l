@@ -79,6 +79,5 @@ namespace l2l_aggregator.Services.Database
                     LAST_UPDATED TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );");
         }
-
     }
 }
