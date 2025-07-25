@@ -203,7 +203,7 @@ namespace l2l_aggregator.ViewModels
         // Режим разагрегации
         [ObservableProperty] private bool isDisaggregationMode = false;
         // Текст кнопки режима разагрегации
-        [ObservableProperty] private string disaggregationModeButtonText = "Режим разагрегации";
+        [ObservableProperty] private string disaggregationModeButtonText = "Режим очистки короба";
         // Доступность кнопки режима разагрегации
         [ObservableProperty] private bool canDisaggregation = false;
         // Предыдущие значения для восстановления при выходе из режима разагрегации
@@ -1790,21 +1790,21 @@ GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
             // CanCompleteAggregation остается доступным
 
             // Изменяем информационные сообщения
-            InfoLayerText = "Режим разагрегации: отсканируйте код коробки для разагрегации";
+            InfoLayerText = "Режим очистки короба: отсканируйте код коробки для очистки короба";
 
             AggregationSummaryText = $"""
-Режим разагрегации активен. 
-Отсканируйте код коробки для выполнения разагрегации.
+Режим очистки короба активен. 
+Отсканируйте код коробки для выполнения очистки короба.
 """;
 
-            _notificationService.ShowMessage("Активирован режим разагрегации", NotificationType.Info);
+            _notificationService.ShowMessage("Активирован режим очистки короба", NotificationType.Info);
         }
 
         // Выход из режима разагрегации
         private void ExitDisaggregationMode()
         {
             CurrentStepIndex = PreviousStepIndex; // Возвращаемся к предыдущему режиму
-            DisaggregationModeButtonText = "Режим разагрегации";
+            DisaggregationModeButtonText = "Режим очистки короба";
 
             // Восстанавливаем состояния кнопок
             CanScan = _previousCanScanDisaggregation;
@@ -1818,7 +1818,7 @@ GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
             // Восстанавливаем информационный текст
             AggregationSummaryText = _previousAggregationSummaryTextDisaggregation;
 
-            _notificationService.ShowMessage("Режим разагрегации деактивирован", NotificationType.Info);
+            _notificationService.ShowMessage("Режим очистки короба деактивирован", NotificationType.Info);
         }
 
         // Обработка сканированного кода в режиме разагрегации
@@ -1835,7 +1835,7 @@ GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
 Ошибка: данные SSCC отсутствуют!
 
 Отсканированный код: {barcode}
-Статус: Невозможно выполнить разагрегацию
+Статус: Невозможно выполнить очистку короба
 """;
                     _notificationService.ShowMessage("Данные SSCC отсутствуют", NotificationType.Error);
                     return;
@@ -1850,12 +1850,12 @@ GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
                 {
                     // Показываем диалог подтверждения
                     var confirmed = await _dialogService.ShowCustomConfirmationAsync(
-                        "Подтверждение разагрегации",
-                        $"Выполнить разагрегацию коробки с кодом {barcode}?",
+                        "Подтверждение очистки короба",
+                        $"Выполнить очистку короба коробки с кодом {barcode}?",
                         Material.Icons.MaterialIconKind.PackageVariantClosed,
                         Avalonia.Media.Brushes.Orange,
                         Avalonia.Media.Brushes.Orange,
-                        "Да, разагрегировать",
+                        "Да,очистить короб",
                         "Отмена"
                     );
 
@@ -1867,7 +1867,7 @@ GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
                         if (success)
                         {
                             AggregationSummaryText = $"""
-Разагрегация выполнена успешно!
+Очистка короба выполнена успешно!
 
 Отсканированный код: {barcode}
 SSCC ID: {boxRecord.SSCCID}
@@ -1887,20 +1887,20 @@ CHECK_BAR_CODE: {boxRecord.CHECK_BAR_CODE}
                         else
                         {
                             AggregationSummaryText = $"""
-Ошибка разагрегации!
+Ошибка очистки короба!
 
 Отсканированный код: {barcode}
 SSCC ID: {boxRecord.SSCCID}
-Статус: Не удалось выполнить разагрегацию
+Статус: Не удалось выполнить очистку короба
 """;
 
-                            _notificationService.ShowMessage($"Ошибка разагрегации коробки с кодом {barcode}", NotificationType.Error);
+                            _notificationService.ShowMessage($"Ошибка очистки короба, коробки с кодом {barcode}", NotificationType.Error);
                         }
                     }
                     else
                     {
                         AggregationSummaryText = $"""
-Разагрегация отменена пользователем.
+Очистка короба отменена пользователем.
 
 Отсканированный код: {barcode}
 """;
@@ -1924,13 +1924,13 @@ SSCC ID: {boxRecord.SSCCID}
             catch (Exception ex)
             {
                 AggregationSummaryText = $"""
-Ошибка при выполнении разагрегации!
+Ошибка при выполнении очистки короба!
 
 Отсканированный код: {barcode}
 Ошибка: {ex.Message}
 """;
 
-                _notificationService.ShowMessage($"Ошибка разагрегации: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка очистки короба: {ex.Message}", NotificationType.Error);
             }
         }
 
@@ -1955,7 +1955,7 @@ SSCC ID: {boxRecord.SSCCID}
                         }
                     }
 
-                    _notificationService.ShowMessage($"Обновлено {aggregatedCodes.Count} кодов после разагрегации", NotificationType.Info);
+                    _notificationService.ShowMessage($"Обновлено {aggregatedCodes.Count} кодов после очистки короба", NotificationType.Info);
                 }
                 else
                 {
@@ -1966,7 +1966,7 @@ SSCC ID: {boxRecord.SSCCID}
             }
             catch (Exception ex)
             {
-                _notificationService.ShowMessage($"Ошибка обновления кодов после разагрегации: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка обновления кодов после очистки короба: {ex.Message}", NotificationType.Error);
             }
         }
 
@@ -1995,7 +1995,7 @@ SSCC ID: {boxRecord.SSCCID}
             catch (Exception ex)
             {
                 CanDisaggregation = false;
-                _notificationService.ShowMessage($"Ошибка проверки доступности разагрегации: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка проверки доступности очистки короба: {ex.Message}", NotificationType.Error);
             }
         }
 #if DEBUG
