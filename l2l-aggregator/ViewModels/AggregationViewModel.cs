@@ -1135,20 +1135,6 @@ namespace l2l_aggregator.ViewModels
 
         }
 
-        ////Очистить короб
-        //[RelayCommand]
-        //public void ClearBox()
-        //{
-        //    CurrentStepIndex = 4;
-        //}
-
-        //Очистить паллету
-        [RelayCommand]
-        public void ClearPallet()
-        {
-            CurrentStepIndex = 5;
-        }
-
         //Завершить агрегацию
         [RelayCommand]
         public async Task CompleteAggregation()
@@ -1268,9 +1254,6 @@ namespace l2l_aggregator.ViewModels
                             CurrentBox++;
                             CurrentLayer = 1;
                             CurrentStepIndex = 1;
-                            //// Совпадение найдено
-                            //InfoMessage = $"Короб с ШК {barcode} успешно найден!";
-                            //_notificationService.ShowMessage(InfoMessage);
                         }
 
                         break; // Выходим из цикла, так как код найден
@@ -1284,82 +1267,8 @@ namespace l2l_aggregator.ViewModels
                     _notificationService.ShowMessage(InfoMessage);
                 }
             }
-            //if (CurrentStepIndex == 3)
-            //{
-            //    foreach (ArmJobSsccRecord resp in ResponseSscc.RECORDSET)
-            //    {
-            //        //resp.TYPEID == 1 это тип паллеты
-            //        if (resp.TYPEID == 1 && resp.DISPLAY_BAR_CODE == barcode)
-            //        {
-
-            //            //изменение состояния после сканирования
-            //            CurrentPallet++;
-            //            CurrentBox = 1;
-            //            CurrentLayer = 1;
-
-            //            CurrentStepIndex = 1;
-            //            // Совпадение найдено
-            //            InfoMessage = $"Короб с ШК {barcode} успешно найден!";
-            //            _notificationService.ShowMessage(InfoMessage);
-            //        }
-            //        else
-            //        {
-            //            InfoMessage = $"ШК {barcode} не найден в списке!";
-            //            _notificationService.ShowMessage(InfoMessage);
-            //        }
-            //    }
-            //}
-
         }
 
-        //Сохранение в бд.
-        //private bool SaveAllDmCells()
-        //{
-        //    try
-        //    {
-        //        var aggregationData = new List<(string UNID, string SSCCID)>();
-        //        var gS1Parser = new GS1Parser();
-
-        //        // Подготавливаем все данные для batch операции
-        //        foreach (var cell in DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data)))
-        //        {
-        //            var parsedData = gS1Parser.ParseGTIN(cell.Dm_data.Data);
-
-        //            if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
-        //            {
-        //                aggregationData.Add((parsedData.SerialNumber, _sessionService.SelectedTaskSscc.CHECK_BAR_CODE));
-
-        //            }
-        //            else
-        //            {
-        //                _notificationService.ShowMessage($"Не найден SGTIN для серийного номера: {parsedData.SerialNumber}", NotificationType.Warning);
-        //            }
-        //        }
-
-        //        // Выполняем batch операцию - все коды сохраняются в одной транзакции
-        //        if (aggregationData.Count > 0)
-        //        {
-        //            var success = _databaseDataService.LogAggregationCompletedBatch(aggregationData);
-
-        //            if (success)
-        //            {
-        //                _notificationService.ShowMessage($"Сохранено {aggregationData.Count} кодов агрегации", NotificationType.Success);
-        //                return true;
-        //            }
-        //            else
-        //            {
-        //                _notificationService.ShowMessage("Ошибка при сохранении кодов агрегации", NotificationType.Error);
-        //                return false;
-        //            }
-        //        }
-        //        return false;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _notificationService.ShowMessage($"Ошибка сохранения кодов агрегации: {ex.Message}", NotificationType.Error);
-        //        return false;
-        //    }
-        //}
         private bool SaveAllDmCells()
         {
             try
