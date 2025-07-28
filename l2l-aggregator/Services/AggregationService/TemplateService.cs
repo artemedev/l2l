@@ -139,6 +139,10 @@ namespace l2l_aggregator.Services.AggregationService
             if (templatePage == null)
                 return string.Empty;
 
+            // Проверяем, есть ли у нас TfrxReportPage
+            bool isReportPage = templatePage.Name.LocalName == "TfrxReportPage";
+
+
             // Очистка атрибутов страницы
             foreach (var attr in templatePage.Attributes().Where(
                 a => string.IsNullOrWhiteSpace(a.Value) || a.Value == "0").ToList())
@@ -157,9 +161,24 @@ namespace l2l_aggregator.Services.AggregationService
                 }
                 else if (field != null)
                 {
+                    // Если у нас TfrxReportPage, заменяем элементы Template* на обычные
+                    if (isReportPage)
+                    {
+                        if (element.Name.LocalName == "TfrxTemplateMemoView")
+                        {
+                            var newElementName = XName.Get("TfrxMemoView", element.Name.NamespaceName);
+                            element.Name = newElementName;
+                        }
+                        else if (element.Name.LocalName == "TfrxTemplateBarcode2DView")
+                        {
+                            var newElementName = XName.Get("TfrxBarcode2DView", element.Name.NamespaceName);
+                            element.Name = newElementName;
+                        }
+                    }
+
                     var allowedAttrs = new HashSet<string>
                     {
-                        "Name", "Left", "Top", "Width", "Height", "Font.Name", "Text", "DataField"
+                        "Name", "Left", "Top", "Width", "Height", "Font.Name", "Text", "DataField", "Font.Height"
                     };
 
                     foreach (var attr in element.Attributes().Where(a => !allowedAttrs.Contains(a.Name.LocalName)).ToList())
