@@ -1213,20 +1213,23 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage(InfoMessage);
                 return;
             }
+
             if (CurrentStepIndex == 2)
             {
-                //foreach (ArmJobSsccRecord resp in responseSscc.RECORDSET)
+                bool found = false; // Флаг для отслеживания найденного кода
+
                 foreach (ArmJobSsccRecord resp in ResponseSscc.RECORDSET)
                 {
                     //resp.TYPEID == 0 это тип коробки
                     if (resp.TYPEID == 0 && resp.DISPLAY_BAR_CODE == barcode)
                     {
+                        found = true; // Устанавливаем флаг, что код найден
+
                         //добавить сохранение
                         //!!!!!!!!!!!!!!!!!!!!!!!!!
                         var boxRecord = ResponseSscc.RECORDSET
                                                    .Where(r => r.TYPEID == 0)
                                                    .ElementAtOrDefault(CurrentBox - 1);
-
 
                         if (boxRecord != null)
                         {
@@ -1238,7 +1241,9 @@ namespace l2l_aggregator.ViewModels
                             InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
                             _notificationService.ShowMessage(InfoMessage);
                         }
-
+                        // Совпадение найдено
+                        InfoMessage = $"Короб с ШК {barcode} успешно найден!";
+                        _notificationService.ShowMessage(InfoMessage);
 
                         if (SaveAllDmCells())
                         {
@@ -1253,7 +1258,6 @@ namespace l2l_aggregator.ViewModels
                                 if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
                                 {
                                     _sessionService.AllScannedDmCodes.Add(parsedData.SerialNumber);
-
                                 }
                             }
 
@@ -1264,18 +1268,20 @@ namespace l2l_aggregator.ViewModels
                             CurrentBox++;
                             CurrentLayer = 1;
                             CurrentStepIndex = 1;
-                            // Совпадение найдено
-                            InfoMessage = $"Короб с ШК {barcode} успешно найден!";
-                            _notificationService.ShowMessage(InfoMessage);
+                            //// Совпадение найдено
+                            //InfoMessage = $"Короб с ШК {barcode} успешно найден!";
+                            //_notificationService.ShowMessage(InfoMessage);
                         }
 
-                        return;
+                        break; // Выходим из цикла, так как код найден
                     }
-                    else
-                    {
-                        InfoMessage = $"ШК {barcode} не найден в списке!";
-                        _notificationService.ShowMessage(InfoMessage);
-                    }
+                }
+
+                // Проверяем флаг после завершения цикла
+                if (!found)
+                {
+                    InfoMessage = $"ШК {barcode} не найден в списке!";
+                    _notificationService.ShowMessage(InfoMessage);
                 }
             }
             //if (CurrentStepIndex == 3)
@@ -1710,10 +1716,8 @@ SSCC код: {ssccRecord.SSCC_CODE ?? "нет данных"}
 SSCC: {ssccRecord.SSCC ?? "нет данных"}
 Тип: {typeDescription}
 Состояние ID: {ssccRecord.STATEID}
-Состояние: {stateDescription}
 Штрих-код (отображение): {ssccRecord.DISPLAY_BAR_CODE ?? "нет данных"}
 Штрих-код (проверка): {ssccRecord.CHECK_BAR_CODE ?? "нет данных"}
-Порядковый номер: {ssccRecord.ORDER_NUM}
 Количество: {ssccRecord.QTY}
 Родительский SSCC ID: {ssccRecord.PARENT_SSCCID ?? null}
 Время сканирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}
@@ -1728,7 +1732,7 @@ SSCC: {ssccRecord.SSCC ?? "нет данных"}
             string typeDescription = unRecord.UN_TYPE switch
             {
                 0 => "Потребительская упаковка",
-                1 => "Групповая упаковка",
+                1 => "Потребительская упаковка",
                 _ => $"Неизвестный тип ({unRecord.UN_TYPE})"
             };
 
