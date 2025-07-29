@@ -162,20 +162,29 @@ namespace l2l_aggregator.Services.AggregationService
                 else if (field != null)
                 {
                     // Если у нас TfrxReportPage, заменяем элементы Template* на обычные
-                    if (isReportPage)
+                    if (templatePage.Name.LocalName == "TfrxReportPage")
                     {
                         if (element.Name.LocalName == "TfrxTemplateMemoView")
                         {
-                            var newElementName = XName.Get("TfrxMemoView", element.Name.NamespaceName);
-                            element.Name = newElementName;
+                             element.Name = "TfrxMemoView"; 
                         }
                         else if (element.Name.LocalName == "TfrxTemplateBarcode2DView")
                         {
-                            var newElementName = XName.Get("TfrxBarcode2DView", element.Name.NamespaceName);
-                            element.Name = newElementName;
+                            element.Name = "TfrxBarcode2DView"; 
                         }
                     }
-
+                    // Если у нас TfrxTemplatePage, заменяем элементы обычные на Template* 
+                    if (templatePage.Name.LocalName == "TfrxTemplatePage")
+                    {
+                        if (element.Name.LocalName == "TfrxMemoView")
+                        {
+                            element.Name = "TfrxTemplateMemoView";
+                        }
+                        else if (element.Name.LocalName == "TfrxBarcode2DView")
+                        {
+                            element.Name = "TfrxTemplateBarcode2DView";
+                        }
+                    }
                     var allowedAttrs = new HashSet<string>
                     {
                         "Name", "Left", "Top", "Width", "Height", "Font.Name", "Text", "DataField", "Font.Height"
