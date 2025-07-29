@@ -1,4 +1,5 @@
 ﻿using FastReport;
+using FastReport.Barcode;
 using FastReport.Export.Zpl;
 using l2l_aggregator.Services.Notification.Interface;
 using MD.Aggregation.Devices.Printer.ZPL;
@@ -70,6 +71,9 @@ namespace l2l_aggregator.Services.Printing
                 }
                 string zplString = Encoding.UTF8.GetString(zplBytes);
                 _notificationService.ShowMessage($"сформирован zplString");
+
+                // Экспортируем в PDF
+                await ExportReportToPdf(frxBytes, typePrint);
                 //PrintZpl(zplBytes);
             }
             catch (Exception ex)
@@ -349,11 +353,22 @@ namespace l2l_aggregator.Services.Printing
 
         private byte[] GenerateZplFromReportBOX(byte[] frxBytes)
         {
-            using var report = new Report();
+            string frxAsText = Encoding.UTF8.GetString(frxBytes);
+            using var report = new FastReport.Report();
             using (var ms = new MemoryStream(frxBytes))
             {
                 report.Load(ms);
             }
+            // Простая настройка размеров штрих-кода
+            //var barcodeObject = report.FindObject("BarCode1") as BarcodeObject;
+            //if (barcodeObject != null)
+            //{
+            //    barcodeObject.Left = 148;
+            //    barcodeObject.Top = 149;
+            //    barcodeObject.Width = 92;
+            //    barcodeObject.Height = 60;
+            //    barcodeObject.Zoom = 1f;
+            //}
 
             var labelData = new
             {
@@ -372,6 +387,8 @@ namespace l2l_aggregator.Services.Printing
 
             var exporter = new ZplExport();
             exporter.Density = ZplExport.ZplDensity.d12_dpmm_300_dpi;
+
+
             using var exportStream = new MemoryStream();
             exporter.Export(report, exportStream);
 
@@ -524,6 +541,8 @@ namespace l2l_aggregator.Services.Printing
                 }
 
                 byte[] zplBytes = GenerateZplFromTestReport(frxBytes);
+                string zplString = Encoding.UTF8.GetString(zplBytes);
+                _notificationService.ShowMessage($"сформирован zplString");
                 PrintZpl(zplBytes);
             }
             catch (Exception ex)
@@ -545,10 +564,10 @@ namespace l2l_aggregator.Services.Printing
             var labelData = new
             {
                 DISPLAY_BAR_CODE = "(00)046039059900003727",
-                IN_BOX_QTY = "*1*",
-                MNF_DATE = "*06 25*",
-                EXPIRE_DATE = "*06 28*",
-                SERIES_NAME = "*TEST30Х30*",
+                IN_BOX_QTY = "84",
+                MNF_DATE = "03.06.2025",
+                EXPIRE_DATE = "03.06.2028",
+                SERIES_NAME = "TEST30Х30",
                 LEVEL_QTY = 0,
                 CNT = 0
             };
@@ -571,6 +590,76 @@ namespace l2l_aggregator.Services.Printing
             {
                 DisconnectPrinter();
                 _disposed = true;
+            }
+        }
+
+        private async Task ExportReportToPdf(byte[] frxBytes, bool typePrint)
+        {
+            try
+            {
+                using var report = new Report();
+                using (var ms = new MemoryStream(frxBytes))
+                {
+                    report.Load(ms);
+                }
+
+                // Подготавливаем данные для отчета
+                object labelData;
+                if (typePrint)
+                {
+                    labelData = new
+                    {
+                        DISPLAY_BAR_CODE = _sessionService.SelectedTaskSscc.DISPLAY_BAR_CODE,
+                        IN_BOX_QTY = _sessionService.SelectedTaskInfo.IN_BOX_QTY,
+                        MNF_DATE = _sessionService.SelectedTaskInfo.MNF_DATE_VAL,
+                        EXPIRE_DATE = _sessionService.SelectedTaskInfo.EXPIRE_DATE_VAL,
+                        SERIES_NAME = _sessionService.SelectedTaskInfo.SERIES_NAME,
+                        LEVEL_QTY = 0,
+                        CNT = 0
+                    };
+                }
+                else
+                {
+                    labelData = new
+                    {
+                        DISPLAY_BAR_CODE = _sessionService.SelectedTaskSscc.DISPLAY_BAR_CODE,
+                        SERIES_NAME = _sessionService.SelectedTaskInfo.SERIES_NAME,
+                        CNT = 0
+                    };
+                }
+
+                report.RegisterData(new List<object> { labelData }, "LabelQry");
+                report.GetDataSource("LabelQry").Enabled = true;
+                report.Prepare();
+
+                // Экспортируем в PDF
+                var pdfExport = new FastReport.Export.PdfSimple.PDFSimpleExport();
+
+                // Определяем путь для сохранения PDF
+                string fileName = $"Label_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+                string folderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Labels");
+
+                // Создаем папку если не существует
+                if (!Directory.Exists(folderPath))
+                {
+                    Directory.CreateDirectory(folderPath);
+                }
+
+                string fullPath = Path.Combine(folderPath, fileName);
+
+                // Экспортируем отчет в PDF
+                //report.Export(pdfExport, fullPath);
+
+                _notificationService.ShowMessage($"Этикетка сохранена в PDF: {fullPath}");
+
+                // Опционально: открываем PDF файл
+                // System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(fullPath) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                _notificationService.ShowMessage($"Ошибка экспорта в PDF: {ex.Message}");
+                logger.LogError(ex, "Ошибка при экспорте отчета в PDF");
+                throw;
             }
         }
     }

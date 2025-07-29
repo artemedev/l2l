@@ -25,16 +25,120 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace l2l_aggregator.ViewModels
 {
+    // Константы для улучшения читаемости
+    internal static class AggregationConstants
+    {
+        public const int PACK_AGGREGATION_STEP = 1;
+        public const int BOX_AGGREGATION_STEP = 2;
+        public const int PALLET_AGGREGATION_STEP = 3;
+        public const int BOX_SCANNING_STEP = 4;
+        public const int PALLET_SCANNING_STEP = 5;
+        public const int INFO_MODE_STEP = 6;
+        public const int DISAGGREGATION_MODE_STEP = 7;
+
+        public const int CONTROLLER_PING_INTERVAL = 10000;
+        public const int UI_DELAY = 100;
+        public const int BASE_CAMERA_DISTANCE = 450;
+        public const int MIN_CAMERA_DISTANCE = 500;
+
+        public const string GIGE_VISION_INTERFACE = "GigEVision2";
+        public const string OCR_MEMO_VIEW = "TfrxMemoView";
+        public const string OCR_TEMPLATE_MEMO_VIEW = "TfrxTemplateMemoView";
+        public const string DM_BARCODE_VIEW = "TfrxBarcode2DView";
+        public const string DM_TEMPLATE_BARCODE_VIEW = "TfrxTemplateBarcode2DView";
+    }
+
+    // Перечисления для типобезопасности
+    internal enum AggregationStep
+    {
+        PackAggregation = AggregationConstants.PACK_AGGREGATION_STEP,
+        BoxAggregation = AggregationConstants.BOX_AGGREGATION_STEP,
+        PalletAggregation = AggregationConstants.PALLET_AGGREGATION_STEP,
+        BoxScanning = AggregationConstants.BOX_SCANNING_STEP,
+        PalletScanning = AggregationConstants.PALLET_SCANNING_STEP,
+        InfoMode = AggregationConstants.INFO_MODE_STEP,
+        DisaggregationMode = AggregationConstants.DISAGGREGATION_MODE_STEP
+    }
+
+    internal enum SsccType
+    {
+        Box = 0,
+        Pallet = 1
+    }
+
+    internal enum CodeState
+    {
+        NotUsed = 0,
+        Active = 1,
+        Blocked = 2
+    }
+
+    internal enum UnType
+    {
+        ConsumerPackage = 0
+    }
+
+    // Вспомогательные record-ы
+    internal record ValidationResult(bool IsValid, string? ErrorMessage)
+    {
+        public static ValidationResult Success() => new(true, null);
+        public static ValidationResult Error(string message) => new(false, message);
+    }
+
+    internal record AggregationMetrics(
+        int ValidCount,
+        int DuplicatesInCurrentScan,
+        int DuplicatesInAllScans,
+        int TotalCells
+    );
+
+    internal record DuplicateInformation(int InCurrentScan, int InAllScans)
+    {
+        public bool HasDuplicates => InCurrentScan > 0 || InAllScans > 0;
+
+        public string GetDisplayText()
+        {
+            if (!HasDuplicates) return "";
+
+            var sb = new StringBuilder($"\nДубликаты в текущем скане: {InCurrentScan}");
+            if (InAllScans > 0)
+                sb.Append($"\nДубликаты из предыдущих сканов: {InAllScans}");
+            return sb.ToString();
+        }
+    }
+
+    internal record CameraConfiguration(
+        string CameraName,
+        string CameraModel,
+        bool SoftwareTrigger = true,
+        bool HardwareTrigger = true
+    );
+
+    internal record RecognitionSettings(
+        bool OCRRecogn,
+        bool PackRecogn,
+        bool DMRecogn,
+        int CountOfDM
+    );
+
+    internal record BoxWorkConfiguration(
+        ushort CamBoxDistance,
+        ushort BoxHeight,
+        ushort LayersQtty,
+        ushort CamBoxMinDistance
+    );
+
     public partial class AggregationViewModel : ViewModelBase
     {
+        #region Private Fields
+
         //сервис работы с сессией
         private readonly SessionService _sessionService;
-
-        //сервис работы с api
 
         //сервис кропа изображения выбранной ячейки пользователем
         private readonly ImageHelper _imageProcessingService;
@@ -42,13 +146,8 @@ namespace l2l_aggregator.ViewModels
         //сервис обработки шаблона, после выбора пользователя элементов в ui. Для дальнейшей отправки в библиотеку распознавания
         private readonly TemplateService _templateService;
 
-
-
         //сервис работы с бд
         private readonly DatabaseService _databaseService;
-
-        ////сервис сканера через comport
-        //private ScannerWorker _scannerWorker;
 
         //сервис нотификаций
         private readonly INotificationService _notificationService;
@@ -58,6 +157,74 @@ namespace l2l_aggregator.ViewModels
 
         //сервис принтера
         private readonly PrintingService _printingService;
+
+        private readonly DatabaseDataService _databaseDataService;
+
+        //сервис обработки и работы с библиотекой распознавания
+        private readonly DmScanService _dmScanService;
+
+        private readonly IDialogService _dialogService;
+
+        private readonly ILogger<PcPlcConnectionService> _logger;
+
+        //переменные для высчитывания разницы между кропнутым изображением и изображением из интерфейса
+        private double scaleX, scaleY, scaleXObrat, scaleYObrat;
+
+        //переменная для сохранение шаблона при показе информацию из ячейки
+        private string? _lastUsedTemplateJson;
+
+        //переменная для колличества слоёв всего
+        private int numberOfLayers;
+
+        //переменная для шаблона коробки, для печати
+        private byte[] frxBoxBytes;
+
+        //данные распознавания
+        static result_data dmrData;
+
+        //поле для запоминания предыдущего значения информации о агрегации для выхода из информации для клика по ячейке
+        private string _previousAggregationSummaryText;
+
+        private int minX;
+        private int minY;
+        private int maxX;
+        private int maxY;
+
+        private Image<Rgba32> _croppedImageRaw;
+
+        private PcPlcConnectionService _plcConnection;
+
+        //переменная для отслеживания состояния шаблона
+        private bool templateOk = false;
+
+        private AggregationStep CurrentStepIndex = AggregationStep.PackAggregation;
+        private AggregationStep PreviousStepIndex = AggregationStep.PackAggregation;
+
+        //переменная для сообщений нотификации
+        private string InfoMessage;
+
+        // Предыдущие значения состояния кнопок для восстановления
+        private bool _previousCanScan;
+        private bool _previousCanScanHardware;
+        private bool _previousCanOpenTemplateSettings;
+        private bool _previousCanPrintBoxLabel;
+        private bool _previousCanClearBox;
+        private bool _previousCanCompleteAggregation;
+        private string _previousInfoLayerText;
+
+        // Предыдущие значения для восстановления при выходе из режима разагрегации
+        private bool _previousCanScanDisaggregation;
+        private bool _previousCanScanHardwareDisaggregation;
+        private bool _previousCanOpenTemplateSettingsDisaggregation;
+        private bool _previousCanPrintBoxLabelDisaggregation;
+        private bool _previousCanClearBoxDisaggregation;
+        private bool _previousCanCompleteAggregationDisaggregation;
+        private string _previousInfoLayerTextDisaggregation;
+        private string _previousAggregationSummaryTextDisaggregation;
+
+        #endregion
+
+        #region Observable Properties
 
         //для обновления размеров ячейки, UI
         public IRelayCommand<SizeChangedEventArgs> ImageSizeChangedCommand { get; }
@@ -104,34 +271,8 @@ namespace l2l_aggregator.ViewModels
         //Остановить сессию
         [ObservableProperty] private bool canStopSession = false;
 
-        //переменная на каком мы шаге находимся, 1-агрегация пачек, 2 агрегация короба, 3 агрегация паллеты, 4 сканирование короба, 5 сканирование паллеты, 6-режим информации
-        private int CurrentStepIndex = 1;
-
-        private int PreviousStepIndex = 1;
-
-        //переменная для сообщений нотификации
-        private string InfoMessage;
-
         //элементы шаболона в список всплывающего окна 
         public ObservableCollection<TemplateField> TemplateFields { get; } = new();
-
-        //переменные для высчитывания разницы между кропнутым изображением и изображением из интерфейса
-        private double scaleX, scaleY, scaleXObrat, scaleYObrat;
-
-        //переменная для сохранение шаблона при показе информацию из ячейки
-        private string? _lastUsedTemplateJson;
-
-        //переменная для колличества слоёв всего
-        private int numberOfLayers;
-
-        //переменная для шаблона коробки, для печати
-        private byte[] frxBoxBytes;
-
-        //свойство для получения данных SSCC из кэша сессии
-        private ArmJobSsccResponse? ResponseSscc => _sessionService.CachedSsccResponse;
-        //данные распознавания
-        static result_data dmrData;
-
 
         //текущий слой
         [ObservableProperty] private int currentLayer = 1;
@@ -149,37 +290,10 @@ namespace l2l_aggregator.ViewModels
         //информационное текстовое поле справа изображения
         [ObservableProperty] private string aggregationSummaryText = "Результат агрегации пока не рассчитан.";
 
-        //поле для запоминания предыдущего значения информации о агрегации для выхода из информации для клика по ячейке
-        private string _previousAggregationSummaryText;
-
-        private int minX;
-        private int minY;
-        private int maxX;
-        private int maxY;
-
-
-        [ObservableProperty]
-        private bool isControllerAvailable = true; // по умолчанию доступен
-
-        private Image<Rgba32> _croppedImageRaw;
-
-        private PcPlcConnectionService _plcConnection;
-
-        private readonly ILogger<PcPlcConnectionService> _logger;
-
-        //состояние кнопок
-        ////Кнопка "Начать задание"
-        //[ObservableProperty] private bool canStartTask = true;
-
-        //переменная для отслеживания состояния шаблона
-        private bool templateOk = false;
+        [ObservableProperty] private bool isControllerAvailable = true; // по умолчанию доступен
 
         //Кнопка сканировать (hardware trigger)
         [ObservableProperty] private bool canScanHardware = false;
-
-        private readonly DatabaseDataService _databaseDataService;
-        //сервис обработки и работы с библиотекой распознавания, нужно сделать только чтобы была работа с распознавание, перенести обработку!!!!!!!!!!!!!!!!!!!!!!!!!
-        private readonly DmScanService _dmScanService;
 
         //Автоматическая печать этикетки коробки
         [ObservableProperty] private bool isAutoPrintEnabled = true;
@@ -189,32 +303,30 @@ namespace l2l_aggregator.ViewModels
         // Текст кнопки режима информации
         [ObservableProperty] private string infoModeButtonText = "Режим информации";
 
-        // Предыдущие значения состояния кнопок для восстановления
-        private bool _previousCanScan;
-        private bool _previousCanScanHardware;
-        private bool _previousCanOpenTemplateSettings;
-        private bool _previousCanPrintBoxLabel;
-        private bool _previousCanClearBox;
-        private bool _previousCanCompleteAggregation;
-        private string _previousInfoLayerText;
-
-
-        private readonly IDialogService _dialogService;
         // Режим разагрегации
         [ObservableProperty] private bool isDisaggregationMode = false;
         // Текст кнопки режима разагрегации
         [ObservableProperty] private string disaggregationModeButtonText = "Режим очистки короба";
         // Доступность кнопки режима разагрегации
         [ObservableProperty] private bool canDisaggregation = false;
-        // Предыдущие значения для восстановления при выходе из режима разагрегации
-        private bool _previousCanScanDisaggregation;
-        private bool _previousCanScanHardwareDisaggregation;
-        private bool _previousCanOpenTemplateSettingsDisaggregation;
-        private bool _previousCanPrintBoxLabelDisaggregation;
-        private bool _previousCanClearBoxDisaggregation;
-        private bool _previousCanCompleteAggregationDisaggregation;
-        private string _previousInfoLayerTextDisaggregation;
-        private string _previousAggregationSummaryTextDisaggregation;
+
+#if DEBUG
+        [ObservableProperty] private bool isDebugMode = true;
+#else
+        [ObservableProperty] private bool isDebugMode = false;
+#endif
+
+        #endregion
+
+        #region Properties
+
+        //свойство для получения данных SSCC из кэша сессии
+        private ArmJobSsccResponse? ResponseSscc => _sessionService.CachedSsccResponse;
+
+        #endregion
+
+        #region Constructor
+
         public AggregationViewModel(
             ImageHelper imageProcessingService,
             SessionService sessionService,
@@ -243,119 +355,99 @@ namespace l2l_aggregator.ViewModels
             _dialogService = dialogService;
             _databaseDataService = databaseDataService;
 
-
             ImageSizeChangedCommand = new RelayCommand<SizeChangedEventArgs>(OnImageSizeChanged);
             ImageSizeCellChangedCommand = new RelayCommand<SizeChangedEventArgs>(OnImageSizeCellChanged);
-
 
             InitializeAsync();
         }
 
+        #endregion
+
+        #region Initialization Methods
+
         private async void InitializeAsync()
         {
-            ////инициализация предыдущего состояния если оно есть
-            //InitializeFromSavedState();
-
-            //инициализация шаблона коробки 
             InitializeBoxTemplate();
-
-            //инициализация колличества пачек на слое
             InitializeNumberOfLayers();
-
-            //инициализация CurrentBox из счетчиков
             InitializeCurrentBoxFromCounters();
-
-            //инициализация SSCC
             InitializeSscc();
-
-            //заполнение из шаблона в модальное окно для выбора элементов для сканирования
             InitializeTemplate();
-
-            //Периодическая проверка контроллера раз в 10 секунд в
             InitializeControllerPing();
-
             InitializeSession();
-
-            //Инициализация ранее отсканированных кодов
             InitializeScannedCodes();
-
             InitializeUpdateInfoAndUI();
         }
-        private async void InitializeUpdateInfoAndUI()
+
+        private void InitializeUpdateInfoAndUI()
         {
-            InfoLayerText = $"Продолжаем агрегацию!";
-            AggregationSummaryText = $"""
-Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}
-Количество собранных коробов: {CurrentBox - 1}
-Номер собираемого короба: {CurrentBox}
-Номер слоя: {CurrentLayer}
-Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}
-""";
+            InfoLayerText = "Продолжаем агрегацию!";
+            AggregationSummaryText = BuildInitialAggregationSummary();
         }
+
+        private string BuildInitialAggregationSummary()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}");
+            sb.AppendLine($"Количество собранных коробов: {CurrentBox - 1}");
+            sb.AppendLine($"Номер собираемого короба: {CurrentBox}");
+            sb.AppendLine($"Номер слоя: {CurrentLayer}");
+            sb.AppendLine($"Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}");
+            return sb.ToString();
+        }
+
         private void InitializeBoxTemplate()
         {
-            // Проверяем, что BOX_TEMPLATE не null и не пустой
             if (_sessionService.SelectedTaskInfo.BOX_TEMPLATE != null)
             {
-                // Если BOX_TEMPLATE это byte[], то используем его напрямую
                 frxBoxBytes = _sessionService.SelectedTaskInfo.BOX_TEMPLATE;
             }
             else
             {
-                InfoMessage = "Ошибка: шаблон коробки отсутствует.";
-                _notificationService.ShowMessage(InfoMessage, NotificationType.Warning);
+                ShowErrorMessage("Ошибка: шаблон коробки отсутствует.", NotificationType.Warning);
             }
         }
+
         private void InitializeNumberOfLayers()
         {
-            if (_sessionService.SelectedTaskInfo != null)
+            var validation = ValidateTaskInfo();
+            if (!validation.IsValid)
             {
-                var inBoxQty = _sessionService.SelectedTaskInfo.IN_BOX_QTY ?? 0;
-                var layersQty = _sessionService.SelectedTaskInfo.LAYERS_QTY ?? 0;
+                ShowErrorMessage(validation.ErrorMessage);
+                return;
+            }
 
-                if (layersQty > 0)
-                {
-                    numberOfLayers = inBoxQty / layersQty; //колличество пачек в слое
-                }
-                else
-                {
-                    numberOfLayers = 0;
-                    InfoMessage = "Ошибка: некорректное количество слоев (LAYERS_QTY).";
-                    _notificationService.ShowMessage(InfoMessage);
-                }
+            var inBoxQty = _sessionService.SelectedTaskInfo.IN_BOX_QTY ?? 0;
+            var layersQty = _sessionService.SelectedTaskInfo.LAYERS_QTY ?? 0;
+
+            if (layersQty > 0)
+            {
+                numberOfLayers = inBoxQty / layersQty; //колличество пачек в слое
             }
             else
             {
-                InfoMessage = "Ошибка: отсутствует информация о задании.";
-                _notificationService.ShowMessage(InfoMessage);
-                return;
+                numberOfLayers = 0;
+                ShowErrorMessage("Ошибка: некорректное количество слоев (LAYERS_QTY).");
             }
         }
+
         private void InitializeSscc()
         {
-            // Проверяем, что данные уже загружены в TaskDetailsViewModel
             if (ResponseSscc == null)
             {
-                InfoMessage = "Ошибка: SSCC данные не загружены.";
-                _notificationService.ShowMessage(InfoMessage);
+                ShowErrorMessage("Ошибка: SSCC данные не загружены.");
                 return;
             }
-            //!!!!!!!!!!!!!!!!!!!!!!!!!
-            var boxRecord = ResponseSscc.RECORDSET
-                                       .Where(r => r.TYPEID == 0)
-                                       .ElementAtOrDefault(CurrentBox - 1);
 
-
+            var boxRecord = FindBoxRecord(CurrentBox);
             if (boxRecord != null)
             {
                 _sessionService.SelectedTaskSscc = boxRecord;
-                //_printingService.PrintReport(frxBoxBytes, true);
             }
             else
             {
-                InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
-                _notificationService.ShowMessage(InfoMessage);
+                ShowErrorMessage($"Не удалось найти запись коробки с индексом {CurrentBox - 1}.");
             }
+
             _sessionService.SelectedTaskSscc = ResponseSscc.RECORDSET.FirstOrDefault();
         }
 
@@ -367,50 +459,36 @@ namespace l2l_aggregator.ViewModels
 
                 if (countersResponse?.RECORDSET != null)
                 {
-                    // Ищем первую запись с QTY == 0 (незавершенная коробка)
-                    var firstEmptyBox = ResponseSscc.RECORDSET
-                        .Where(r => r.TYPEID == 0) // Только коробки
-                        .Select((record, index) => new { Record = record, Index = index })
-                        .FirstOrDefault(x => x.Record.QTY == 0);
+                    var firstEmptyBox = FindFirstEmptyBox();
 
                     if (firstEmptyBox != null)
                     {
-                        // Устанавливаем CurrentBox на основе индекса найденной записи + 1
-                        // (индекс начинается с 0, а номер коробки с 1)
-                        CurrentBox = firstEmptyBox.Index + 1;
-
-                        InfoMessage = $"Продолжение агрегации с короба №{CurrentBox}";
-                        _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
+                        CurrentBox = firstEmptyBox.Value.Index + 1;
+                        ShowInfoMessage($"Продолжение агрегации с короба №{CurrentBox}");
                     }
                     else
                     {
-                        // Если все коробки заполнены (нет записей с QTY == 0),
-                        // начинаем с первой коробки
                         CurrentBox = 1;
-                        InfoMessage = "Все коробки заполнены, начинаем новую агрегацию";
-                        _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
+                        ShowInfoMessage("Все коробки заполнены, начинаем новую агрегацию");
                     }
                 }
                 else
                 {
-                    // Если данные не получены, начинаем с 1
                     CurrentBox = 1;
-                    InfoMessage = "Не удалось получить данные счетчиков, начинаем с короба №1";
-                    _notificationService.ShowMessage(InfoMessage, NotificationType.Warning);
+                    ShowErrorMessage("Не удалось получить данные счетчиков, начинаем с короба №1", NotificationType.Warning);
                 }
             }
             catch (Exception ex)
             {
                 CurrentBox = 1;
-                InfoMessage = $"Ошибка инициализации CurrentBox: {ex.Message}";
-                _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
+                ShowErrorMessage($"Ошибка инициализации CurrentBox: {ex.Message}", NotificationType.Error);
             }
         }
+
         private void InitializeTemplate()
         {
             TemplateFields.Clear();
 
-            // Проверяем, что UN_TEMPLATE_FR не null
             if (_sessionService.SelectedTaskInfo?.UN_TEMPLATE_FR != null)
             {
                 var loadedFields = _templateService.LoadTemplate(_sessionService.SelectedTaskInfo.UN_TEMPLATE_FR);
@@ -419,8 +497,7 @@ namespace l2l_aggregator.ViewModels
             }
             else
             {
-                InfoMessage = "Ошибка: шаблон распознавания отсутствует.";
-                _notificationService.ShowMessage(InfoMessage);
+                ShowErrorMessage("Ошибка: шаблон распознавания отсутствует.");
             }
 
             UpdateScanAvailability();
@@ -438,36 +515,32 @@ namespace l2l_aggregator.ViewModels
 
                 if (connected)
                 {
-                    // Запуск непрерывного мониторинга ping-pong
-                    _plcConnection.StartPingPong(10000); // Каждые 10 секунд
-
-                    // Подписка на изменения статуса соединения
+                    _plcConnection.StartPingPong(AggregationConstants.CONTROLLER_PING_INTERVAL);
                     _plcConnection.ConnectionStatusChanged += OnPlcConnectionStatusChanged;
                     _plcConnection.ErrorsReceived += OnPlcErrorsReceived;
 
                     IsControllerAvailable = true;
-                    _notificationService.ShowMessage("Контроллер подключен и мониторинг активен");
+                    ShowSuccessMessage("Контроллер подключен и мониторинг активен");
                 }
                 else
                 {
                     IsControllerAvailable = false;
-                    _notificationService.ShowMessage("Не удалось подключиться к контроллеру", NotificationType.Error);
+                    ShowErrorMessage("Не удалось подключиться к контроллеру", NotificationType.Error);
                 }
             }
             catch (Exception ex)
             {
                 IsControllerAvailable = false;
-                _notificationService.ShowMessage($"Ошибка инициализации контроллера: {ex.Message}", NotificationType.Error);
+                ShowErrorMessage($"Ошибка инициализации контроллера: {ex.Message}", NotificationType.Error);
             }
         }
 
         private void InitializeSession()
         {
-            if (_sessionService.SelectedTaskInfo == null)
+            var validation = ValidateTaskInfo();
+            if (!validation.IsValid)
             {
-                InfoMessage = "Ошибка: отсутствует информация о задании.";
-                _notificationService.ShowMessage(InfoMessage);
-                return;
+                ShowErrorMessage(validation.ErrorMessage);
             }
         }
 
@@ -477,210 +550,262 @@ namespace l2l_aggregator.ViewModels
             {
                 if (_sessionService.SelectedTaskInfo?.DOCID == null)
                 {
-                    InfoMessage = "Ошибка: отсутствует информация о задании для загрузки отсканированных кодов.";
-                    _notificationService.ShowMessage(InfoMessage, NotificationType.Warning);
+                    ShowErrorMessage("Ошибка: отсутствует информация о задании для загрузки отсканированных кодов.", NotificationType.Warning);
                     return;
                 }
 
-                // Получаем все коды UN_CODE где PARENT_SSCCID не null (уже агрегированные)
                 var aggregatedCodes = _databaseDataService.GetAggregatedUnCodes();
 
                 if (aggregatedCodes?.Any() == true)
                 {
-                    // Очищаем текущие коды и добавляем загруженные из БД
                     _sessionService.ClearScannedCodes();
 
-                    foreach (var code in aggregatedCodes)
+                    foreach (var code in aggregatedCodes.Where(c => !string.IsNullOrWhiteSpace(c)))
                     {
-                        if (!string.IsNullOrWhiteSpace(code))
-                        {
-                            _sessionService.AllScannedDmCodes.Add(code);
-                        }
+                        _sessionService.AllScannedDmCodes.Add(code);
                     }
 
-                    InfoMessage = $"Загружено {aggregatedCodes.Count} ранее отсканированных кодов";
-                    _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
+                    ShowInfoMessage($"Загружено {aggregatedCodes.Count} ранее отсканированных кодов");
                 }
                 else
                 {
-                    // Если нет агрегированных кодов, просто очищаем коллекцию
                     _sessionService.ClearScannedCodes();
-                    InfoMessage = "Начинаем новую агрегацию - ранее отсканированных кодов не найдено";
-                    _notificationService.ShowMessage(InfoMessage, NotificationType.Info);
+                    ShowInfoMessage("Начинаем новую агрегацию - ранее отсканированных кодов не найдено");
                 }
             }
             catch (Exception ex)
             {
-                InfoMessage = $"Ошибка загрузки отсканированных кодов: {ex.Message}";
-                _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
-
-                // В случае ошибки очищаем коллекцию для безопасности
+                ShowErrorMessage($"Ошибка загрузки отсканированных кодов: {ex.Message}", NotificationType.Error);
                 _sessionService.ClearScannedCodes();
             }
         }
+
+        #endregion
+
+        #region Validation Methods
+
+        private ValidationResult ValidateTaskInfo()
+        {
+            if (_sessionService.SelectedTaskInfo == null)
+                return ValidationResult.Error("Отсутствует информация о задании.");
+
+            return ValidationResult.Success();
+        }
+
+        private ValidationResult ValidateSessionData()
+        {
+            var taskValidation = ValidateTaskInfo();
+            if (!taskValidation.IsValid)
+                return taskValidation;
+
+            if (ResponseSscc?.RECORDSET == null || !ResponseSscc.RECORDSET.Any())
+                return ValidationResult.Error("Данные SSCC отсутствуют.");
+
+            return ValidationResult.Success();
+        }
+
+        #endregion
+
+        #region Helper Methods
+
+        private void ShowErrorMessage(string message, NotificationType type = NotificationType.Error)
+        {
+            InfoMessage = message;
+            _notificationService.ShowMessage(InfoMessage, type);
+        }
+
+        private void ShowSuccessMessage(string message)
+        {
+            _notificationService.ShowMessage(message, NotificationType.Success);
+        }
+
+        private void ShowInfoMessage(string message)
+        {
+            _notificationService.ShowMessage(message, NotificationType.Info);
+        }
+
+        private ArmJobSsccRecord? FindBoxRecord(int boxIndex)
+        {
+            return ResponseSscc.RECORDSET
+                .Where(r => r.TYPEID == (int)SsccType.Box)
+                .ElementAtOrDefault(boxIndex - 1);
+        }
+
+        private (ArmJobSsccRecord Record, int Index)? FindFirstEmptyBox()
+        {
+            return ResponseSscc.RECORDSET
+                .Where(r => r.TYPEID == (int)SsccType.Box)
+                .Select((record, index) => new { Record = record, Index = index })
+                .FirstOrDefault(x => x.Record.QTY == 0)
+                ?.Let(x => (x.Record, x.Index));
+        }
+
+        private IEnumerable<string> GetValidCodesFromCells()
+        {
+            return DMCells
+                .Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data))
+                .Select(c => c.Dm_data.Data);
+        }
+
+        private AggregationMetrics CalculateAggregationMetrics()
+        {
+            return new AggregationMetrics(
+                ValidCount: DMCells.Count(c => c.IsValid),
+                DuplicatesInCurrentScan: DMCells.Count(c => c.IsDuplicateInCurrentScan),
+                DuplicatesInAllScans: DMCells.Count(c => c.IsDuplicateInAllScans),
+                TotalCells: DMCells.Count
+            );
+        }
+
+        private DuplicateInformation BuildDuplicateInfo(AggregationMetrics metrics)
+        {
+            return new DuplicateInformation(metrics.DuplicatesInCurrentScan, metrics.DuplicatesInAllScans);
+        }
+
+        private string BuildAggregationSummary(AggregationMetrics metrics, DuplicateInformation duplicateInfo)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}");
+            sb.AppendLine($"Количество собранных коробов: {CurrentBox - 1}");
+            sb.AppendLine($"Номер собираемого короба: {CurrentBox}");
+            sb.AppendLine($"Номер слоя: {CurrentLayer}");
+            sb.AppendLine($"Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}");
+            sb.AppendLine($"Количество СИ, распознанное в слое: {metrics.ValidCount}");
+            sb.AppendLine($"Количество СИ, считанное в слое: {metrics.TotalCells}");
+            sb.AppendLine($"Количество СИ, ожидаемое в слое: {numberOfLayers}{duplicateInfo.GetDisplayText()}");
+            sb.AppendLine($"Всего СИ в коробе: {_sessionService.CurrentBoxDmCodes.Count}");
+            return sb.ToString();
+        }
+
+        private bool IsLastLayerCompleted(AggregationMetrics metrics)
+        {
+            return CurrentLayer == _sessionService.SelectedTaskInfo.LAYERS_QTY &&
+                   metrics.ValidCount == metrics.TotalCells &&
+                   metrics.TotalCells > 0;
+        }
+
+        private bool IsLayerCompleted(AggregationMetrics metrics)
+        {
+            return CurrentLayer < _sessionService.SelectedTaskInfo.LAYERS_QTY &&
+                   metrics.ValidCount == numberOfLayers &&
+                   metrics.TotalCells > 0;
+        }
+
+        private bool HasValidCodes(AggregationMetrics metrics)
+        {
+            return CurrentLayer < _sessionService.SelectedTaskInfo.LAYERS_QTY &&
+                   metrics.ValidCount == metrics.TotalCells &&
+                   metrics.TotalCells > 0;
+        }
+
+        private CameraConfiguration CreateCameraConfiguration()
+        {
+            return new CameraConfiguration(
+                CameraName: _sessionService.CameraIP,
+                CameraModel: _sessionService.CameraModel
+            );
+        }
+
+        private RecognitionSettings CreateRecognitionSettings()
+        {
+            bool hasOcr = TemplateFields.Any(f => f.IsSelected && IsOcrElement(f.Element.Name.LocalName));
+            bool hasDm = TemplateFields.Any(f => f.IsSelected && IsDmElement(f.Element.Name.LocalName));
+
+            return new RecognitionSettings(
+                OCRRecogn: hasOcr,
+                PackRecogn: RecognizePack,
+                DMRecogn: hasDm,
+                CountOfDM: numberOfLayers
+            );
+        }
+
+        private recogn_params CreateRecognitionParams(RecognitionSettings settings, CameraConfiguration camera)
+        {
+            return new recogn_params
+            {
+                countOfDM = settings.CountOfDM,
+                CamInterfaces = AggregationConstants.GIGE_VISION_INTERFACE,
+                cameraName = camera.CameraName,
+                _Preset = new camera_preset(camera.CameraModel),
+                softwareTrigger = camera.SoftwareTrigger,
+                hardwareTrigger = camera.HardwareTrigger,
+                OCRRecogn = settings.OCRRecogn,
+                packRecogn = settings.PackRecogn,
+                DMRecogn = settings.DMRecogn
+            };
+        }
+
+        private BoxWorkConfiguration CreateBoxWorkConfiguration()
+        {
+            var packHeight = _sessionService.SelectedTaskInfo.PACK_HEIGHT ?? 0;
+            var layersQty = _sessionService.SelectedTaskInfo.LAYERS_QTY ?? 0;
+
+            return new BoxWorkConfiguration(
+                CamBoxDistance: (ushort)(AggregationConstants.BASE_CAMERA_DISTANCE - ((CurrentLayer - 1) * packHeight)),
+                BoxHeight: (ushort)packHeight,
+                LayersQtty: (ushort)layersQty,
+                CamBoxMinDistance: AggregationConstants.MIN_CAMERA_DISTANCE
+            );
+        }
+
+        private static bool IsOcrElement(string elementName) =>
+            elementName is AggregationConstants.OCR_MEMO_VIEW or AggregationConstants.OCR_TEMPLATE_MEMO_VIEW;
+
+        private static bool IsDmElement(string elementName) =>
+            elementName is AggregationConstants.DM_BARCODE_VIEW or AggregationConstants.DM_TEMPLATE_BARCODE_VIEW;
+
+        private async Task<bool> ExecuteWithErrorHandling(Func<Task> action, string operationName)
+        {
+            try
+            {
+                await action();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage($"Ошибка {operationName}: {ex.Message}");
+                return false;
+            }
+        }
+
+        #endregion
+
+        #region Event Handlers
+
         partial void OnIsControllerAvailableChanged(bool value)
         {
             UpdateScanAvailability();
         }
 
-        private void UpdateScanAvailability()
+        partial void OnIsPopupOpenChanged(bool value)
         {
-            if (IsInfoMode)
+            if (!value)
             {
-                // В режиме информации все кнопки кроме режима информации отключены
-                CanScan = false;
-                CanScanHardware = false;
-                CanOpenTemplateSettings = false;
-                CanPrintBoxLabel = false;
-                CanClearBox = false;
-                CanCompleteAggregation = false;
+                AggregationSummaryText = _previousAggregationSummaryText;
             }
-            else if (IsDisaggregationMode)
+        }
+
+        partial void OnIsInfoModeChanged(bool value)
+        {
+            if (value)
             {
-                // В режиме разагрегации большинство кнопок отключены
-                CanScan = false;
-                CanScanHardware = false;
-                CanOpenTemplateSettings = false;
-                CanPrintBoxLabel = false;
-                CanClearBox = false;
-                // CanCompleteAggregation остается доступным
+                EnterInfoMode();
             }
             else
             {
-                // Обычная логика
-                CanScan = IsControllerAvailable && TemplateFields.Count > 0;
-                CanScanHardware = IsControllerAvailable && TemplateFields.Count > 0;
+                ExitInfoMode();
             }
         }
 
-        //отправляет шаблон распознавания в библиотеку
-        [RelayCommand]
-        public async Task ScanSoftware()
+        partial void OnIsDisaggregationModeChanged(bool value)
         {
-            if (_sessionService.SelectedTaskInfo == null)
+            if (value)
             {
-                InfoMessage = "Ошибка: отсутствует информация о задании.";
-                _notificationService.ShowMessage(InfoMessage);
-                return;
+                EnterDisaggregationMode();
             }
-
-            //if (!_databaseDataService.StartAggregationSession())
-            //{
-            //    _notificationService.ShowMessage("Ошибка начала сессии агрегации, зайдите в задание заново", NotificationType.Error);
-            //    return; // Остановить, если позиционирование не удалось
-            //}
-
-            try
+            else
             {
-                //отправляет шаблон распознавания в библиотеку
-                templateOk = SendTemplateToRecognizer();
-            }
-            catch (Exception ex)
-            {
-                InfoMessage = $"Ошибка инициализации задания: {ex.Message}";
-                _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
-                templateOk = false;
-                return;
-            }
-            finally
-            {
-                UpdateScanAvailability();
-            }
-
-            if (!await MoveCameraToCurrentLayerAsync())
-                return; // Остановить, если позиционирование не удалось
-
-            //выполняет процесс получения данных от распознавания и отображение результата в UI
-            await StartScanningSoftwareAsync();
-
-        }
-
-        public bool SendTemplateToRecognizer()
-        {
-            // Генерация шаблона из ui
-            var currentTemplate = _templateService.GenerateTemplate(TemplateFields.ToList());
-            // Сравнение текущего шаблона с последним использованным
-            if (_lastUsedTemplateJson != currentTemplate)
-            {
-                // Определение, есть ли выбранные OCR или DM элементы
-                bool hasOcr = TemplateFields.Any(f =>
-                    f.IsSelected && (
-                        f.Element.Name.LocalName == "TfrxMemoView" ||
-                        f.Element.Name.LocalName == "TfrxTemplateMemoView"
-                    ));
-
-                bool hasDm = TemplateFields.Any(f =>
-                    f.IsSelected && (
-                        f.Element.Name.LocalName == "TfrxBarcode2DView" ||
-                        f.Element.Name.LocalName == "TfrxTemplateBarcode2DView"
-                    ));
-                // Настройки параметров камеры для библиотеки распознавания
-                var recognParams = new recogn_params
-                {
-                    countOfDM = numberOfLayers,
-                    CamInterfaces = "GigEVision2",
-                    cameraName = _sessionService.CameraIP,
-                    _Preset = new camera_preset(_sessionService.CameraModel),
-                    softwareTrigger = true, //поменять на false
-                    hardwareTrigger = true, //поменять на true
-                    OCRRecogn = hasOcr,
-                    packRecogn = RecognizePack,
-                    DMRecogn = hasDm
-                };
-                _dmScanService.StopScan();
-                //отправка настроек камеры в библиотеку распознавания
-                _dmScanService.ConfigureParams(recognParams);
-
-                try
-                {
-                    //отправка шаблона в библиотеку распознавания и даёт старт для распознавания
-                    _dmScanService.StartScan(currentTemplate);
-                    _lastUsedTemplateJson = currentTemplate;
-                    _notificationService.ShowMessage("Шаблон распознавания успешно настроен");
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    _notificationService.ShowMessage("Ошибка настройки шаблона распознавания", NotificationType.Error);
-                    return false;
-                }
-            }
-
-            return true; // шаблон не изменился, можно использовать старый
-        }
-
-        // Команда для hardware trigger сканирования
-        [RelayCommand]
-        public async Task ScanHardware()
-        {
-            if (_sessionService.SelectedTaskInfo == null)
-            {
-                InfoMessage = "Ошибка: отсутствует информация о задании.";
-                _notificationService.ShowMessage(InfoMessage);
-                return;
-            }
-
-            if (!templateOk)
-            {
-                InfoMessage = "Задание не инициализировано. Сначала нажмите 'Начать задание'.";
-                _notificationService.ShowMessage(InfoMessage);
-                return;
-            }
-
-            if (!await MoveCameraToCurrentLayerAsync())
-                return; // Остановить, если позиционирование не удалось
-
-            // Запуск захвата фото через контроллер
-            try
-            {
-                await _plcConnection.TriggerPhotoAsync();
-                //выполняет процесс получения данных от распознавания и отображение результата в UI
-                await StartScanningHardwareAsync();
-            }
-            catch (Exception ex)
-            {
-                InfoMessage = $"Ошибка hardware trigger: {ex.Message}";
-                _notificationService.ShowMessage(InfoMessage);
+                ExitDisaggregationMode();
             }
         }
 
@@ -690,452 +815,129 @@ namespace l2l_aggregator.ViewModels
 
             if (!isConnected)
             {
-                _notificationService.ShowMessage("Потеряно соединение с контроллером!", NotificationType.Error);
+                ShowErrorMessage("Потеряно соединение с контроллером!", NotificationType.Error);
             }
             else
             {
-                _notificationService.ShowMessage("Соединение с контроллером восстановлено");
+                ShowSuccessMessage("Соединение с контроллером восстановлено");
             }
         }
 
         private void OnPlcErrorsReceived(PlcErrors errors)
         {
             string errorMessage = errors.GetErrorDescription();
-            _notificationService.ShowMessage($"Ошибки контроллера: {errorMessage}", NotificationType.Error);
+            ShowErrorMessage($"Ошибки контроллера: {errorMessage}", NotificationType.Error);
         }
 
-        //работа с контроллером, выставление высоты
-        private async Task<bool> MoveCameraToCurrentLayerAsync()
+        private void OnImageSizeChanged(SizeChangedEventArgs e)
         {
-            // Если отключена проверка контроллера — позиционирование не требуется
-            if (!_sessionService.CheckController)
-                return true;
+            imageWidth = e.NewSize.Width;
+            imageHeight = e.NewSize.Height;
+        }
 
-            if (!IsControllerAvailable)
-            {
-                _notificationService.ShowMessage("Контроллер недоступен!");
-                return false;
-            }
+        private void OnImageSizeCellChanged(SizeChangedEventArgs e)
+        {
+            imageCellWidth = e.NewSize.Width;
+            imageCellHeight = e.NewSize.Height;
+        }
 
-            if (_sessionService.SelectedTaskInfo == null)
-            {
-                _notificationService.ShowMessage("Информация о задании отсутствует.");
-                return false;
-            }
+        #endregion
 
-            var packHeight = _sessionService.SelectedTaskInfo.PACK_HEIGHT ?? 0;
-            var layersQty = _sessionService.SelectedTaskInfo.LAYERS_QTY ?? 0;
+        #region Public Methods
 
-            if (packHeight == null || packHeight == 0)
+        /// <summary>
+        /// Выполняет программное сканирование слоя с распознаванием кодов
+        /// </summary>
+        /// <returns>Задача, представляющая асинхронную операцию сканирования</returns>
+        [RelayCommand]
+        public async Task ScanSoftware()
+        {
+            var validation = ValidateTaskInfo();
+            if (!validation.IsValid)
             {
-                _notificationService.ShowMessage("Ошибка: не задана высота слоя (PACK_HEIGHT).");
-                return false;
-            }
-            if (layersQty == null || layersQty == 0)
-            {
-                _notificationService.ShowMessage("Ошибка: не задана колличество слёв (LAYERS_QTY).");
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(_sessionService.ControllerIP))
-            {
-                _notificationService.ShowMessage("IP контроллера не задан.");
-                return false;
+                ShowErrorMessage(validation.ErrorMessage);
+                return;
             }
 
             try
             {
-                // Установка рабочих настроек бокса для текущей операции
-                var boxSettings = new BoxWorkSettings
-                {
-                    CamBoxDistance = (ushort)(450 - ((CurrentLayer - 1) * packHeight)), // Настройка для текущего слоя
-                    BoxHeight = (ushort)packHeight,
-                    LayersQtty = (ushort)layersQty,
-                    CamBoxMinDistance = 500
-                };
-
-                await _plcConnection.SetBoxWorkSettingsAsync(boxSettings);
-
-                // Запуск шага цикла для текущего слоя
-                await _plcConnection.StartCycleStepAsync((ushort)CurrentLayer);
-
-                //// Запуск захвата фото
-                //await _plcConnection.TriggerPhotoAsync();
-                return true;
+                templateOk = SendTemplateToRecognizer();
             }
             catch (Exception ex)
             {
-                _notificationService.ShowMessage($"Ошибка позиционирования: {ex.Message}");
-                return false;
+                ShowErrorMessage($"Ошибка инициализации задания: {ex.Message}", NotificationType.Error);
+                templateOk = false;
+                return;
             }
+            finally
+            {
+                UpdateScanAvailability();
+            }
+
+            if (!await MoveCameraToCurrentLayerAsync())
+                return;
+
+            await StartScanningSoftwareAsync();
         }
 
-        // Метод для подтверждения обработки фото в ПЛК
-        private async Task ConfirmPhotoToPlcAsync()
+        /// <summary>
+        /// Выполняет аппаратное сканирование через контроллер
+        /// </summary>
+        /// <returns>Задача, представляющая асинхронную операцию сканирования</returns>
+        [RelayCommand]
+        public async Task ScanHardware()
         {
-            if (_plcConnection?.IsConnected == true)
+            var validation = ValidateTaskInfo();
+            if (!validation.IsValid)
             {
-                try
-                {
-                    await _plcConnection.ConfirmPhotoProcessedAsync();
-                }
-                catch (Exception ex)
-                {
-                    _notificationService.ShowMessage($"Ошибка подтверждения фото: {ex.Message}");
-                }
-            }
-        }
-
-        //выполняет процесс получения данных от распознавания и отображение результата в UI.Software
-        public async Task StartScanningSoftwareAsync()
-        {
-            if (_lastUsedTemplateJson == null)
-            {
-                _notificationService.ShowMessage("Шаблон не отправлен. Сначала выполните отправку шаблона.");
+                ShowErrorMessage(validation.ErrorMessage);
                 return;
             }
 
-            var boxRecord = ResponseSscc.RECORDSET
-                           .Where(r => r.TYPEID == 0)
-                           .ElementAtOrDefault(CurrentBox - 1);
-
-
-            if (boxRecord != null)
+            if (!templateOk)
             {
-                _sessionService.SelectedTaskSscc = boxRecord;
-                //_printingService.PrintReport(frxBoxBytes, true);
-            }
-            else
-            {
-                InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
-                _notificationService.ShowMessage(InfoMessage);
-            }
-            if (!await TryReceiveScanDataSoftwareAsync())
-                return;
-
-            if (!await TryCropImageAsync())
-                return;
-
-            if (!await TryBuildCellsAsync())
-                return;
-
-            UpdateInfoAndUI();
-        }
-
-        //выполняет процесс получения данных от распознавания и отображение результата в UI.Hardware
-        public async Task StartScanningHardwareAsync()
-        {
-            if (_lastUsedTemplateJson == null)
-            {
-                _notificationService.ShowMessage("Шаблон не отправлен. Сначала выполните отправку шаблона.");
+                ShowErrorMessage("Задание не инициализировано. Сначала нажмите 'Начать задание'.");
                 return;
             }
 
-            if (!await TryReceiveScanDataHardwareAsync())
+            if (!await MoveCameraToCurrentLayerAsync())
                 return;
 
-            if (!await TryCropImageAsync())
-                return;
-
-            if (!await TryBuildCellsAsync())
-                return;
-
-            UpdateInfoAndUI();
-        }
-
-        // Получение данных распознавания. Software
-        private async Task<bool> TryReceiveScanDataSoftwareAsync()
-        {
             try
             {
-                CanOpenTemplateSettings = false;
-                //старт распознавания
-                //await _dmScanService.WaitForStartOkAsync();
-                _dmScanService.startShot();
-                dmrData = await _dmScanService.WaitForResultAsync();
-                return true;
+                await _plcConnection.TriggerPhotoAsync();
+                await StartScanningHardwareAsync();
             }
             catch (Exception ex)
             {
-                InfoMessage = $"Ошибка распознавания: {ex.Message}";
-                _notificationService.ShowMessage(InfoMessage);
-                return false;
-            }
-        }
-        // Получение данных распознавания. Hardware
-        private async Task<bool> TryReceiveScanDataHardwareAsync()
-        {
-            try
-            {
-                CanOpenTemplateSettings = false;
-                //старт распознавания
-                dmrData = await _dmScanService.WaitForResultAsync();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                InfoMessage = $"Ошибка распознавания: {ex.Message}";
-                _notificationService.ShowMessage(InfoMessage);
-                return false;
+                ShowErrorMessage($"Ошибка hardware trigger: {ex.Message}");
             }
         }
 
-        // Кроп изображения
-        private async Task<bool> TryCropImageAsync()
-        {
-            if (dmrData.rawImage == null)
-            {
-                InfoMessage = "Изображение из распознавания не получено.";
-                _notificationService.ShowMessage(InfoMessage);
-                return false;
-            }
-
-            double boxRadius = Math.Sqrt(dmrData.BOXs[0].height * dmrData.BOXs[0].height +
-                                         dmrData.BOXs[0].width * dmrData.BOXs[0].width) / 2;
-
-            minX = Math.Max(0, (int)dmrData.BOXs.Min(d => d.poseX - boxRadius));
-            minY = Math.Max(0, (int)dmrData.BOXs.Min(d => d.poseY - boxRadius));
-            maxX = Math.Min(dmrData.rawImage.Width, (int)dmrData.BOXs.Max(d => d.poseX + boxRadius));
-            maxY = Math.Min(dmrData.rawImage.Height, (int)dmrData.BOXs.Max(d => d.poseY + boxRadius));
-
-            //кроп изображения
-            //ScannedImage = await _dmScanService.GetCroppedImage(dmrData, minX, minY, maxX, maxY);
-            _croppedImageRaw = _imageProcessingService.GetCroppedImage(dmrData, minX, minY, maxX, maxY);
-
-            // Освобождаем старое изображение перед новым
-            ScannedImage?.Dispose();
-            ScannedImage = _imageProcessingService.ConvertToAvaloniaBitmap(_croppedImageRaw);
-
-            await Task.Delay(100); //исправить
-            scaleX = imageSize.Width / ScannedImage.PixelSize.Width;
-            scaleY = imageSize.Height / ScannedImage.PixelSize.Height;
-
-            scaleXObrat = ScannedImage.PixelSize.Width / imageSize.Width;
-            scaleYObrat = ScannedImage.PixelSize.Height / imageSize.Height;
-
-            return true;
-        }
-
-        // Построение ячеек
-        private async Task<bool> TryBuildCellsAsync()
-        {
-            var docId = _sessionService.SelectedTaskInfo?.DOCID ?? 0;
-            if (docId == 0)
-            {
-                InfoMessage = "Ошибка: некорректный ID документа.";
-                _notificationService.ShowMessage(InfoMessage);
-                return false;
-            }
-            // Используем кэшированные данные SGTIN из сессии
-            var responseSgtin = _sessionService.CachedSgtinResponse;
-            if (responseSgtin == null)
-            {
-                InfoMessage = "Ошибка загрузки данных SGTIN.";
-                _notificationService.ShowMessage(InfoMessage);
-                return false;
-            }
-
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                DMCells.Clear();
-                foreach (var cell in _imageProcessingService.BuildCellViewModels(
-                             dmrData,
-                             scaleX,
-                             scaleY,
-                             _sessionService,
-                             TemplateFields,
-                             responseSgtin,
-                             this,
-                             minX, minY))
-                {
-                    DMCells.Add(cell);
-                }
-            });
-
-            return true;
-        }
-
-        private async void UpdateInfoAndUI()
-        {
-            int validCountDMCells = DMCells.Count(c => c.IsValid);
-            int duplicatesInCurrentScan = DMCells.Count(c => c.IsDuplicateInCurrentScan);
-            int duplicatesInAllScans = DMCells.Count(c => c.IsDuplicateInAllScans);
-
-
-
-            // Обновление информационного текста выше изображения
-            InfoLayerText = $"Слой {CurrentLayer} из {_sessionService.SelectedTaskInfo.LAYERS_QTY}. Распознано {validCountDMCells} из {numberOfLayers}";
-
-            // Обновление информационного текста справа изображения с информацией о дубликатах
-            string duplicateInfo = "";
-            if (duplicatesInCurrentScan > 0 || duplicatesInAllScans > 0)
-            {
-                duplicateInfo = $"\nДубликаты в текущем скане: {duplicatesInCurrentScan}";
-                if (duplicatesInAllScans > 0)
-                {
-                    duplicateInfo += $"\nДубликаты из предыдущих сканов: {duplicatesInAllScans}";
-                }
-            }
-
-            AggregationSummaryText = $"""
-Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}
-Количество собранных коробов: {CurrentBox - 1}
-Номер собираемого короба: {CurrentBox}
-Номер слоя: {CurrentLayer}
-Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}
-Количество СИ, распознанное в слое: {validCountDMCells}
-Количество СИ, считанное в слое: {DMCells.Count}
-Количество СИ, ожидаемое в слое: {numberOfLayers}{duplicateInfo}
-Всего СИ в коробе: {_sessionService.CurrentBoxDmCodes.Count}
-""";
-
-            CanScan = true;
-            CanOpenTemplateSettings = true;
-
-            var validCodes = DMCells
-                                 .Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data))
-                                 .Select(c => c.Dm_data.Data)
-                                 .ToList();
-            if (CurrentLayer == _sessionService.SelectedTaskInfo.LAYERS_QTY &&
-            validCountDMCells == DMCells.Count && DMCells.Count > 0)
-            {
-
-                _sessionService.AddLayerCodes(validCodes);
-                //CanScan = false;
-                CanOpenTemplateSettings = false;
-                CanPrintBoxLabel = true;
-                CurrentStepIndex = 2;
-                _printingService.PrintReportTEST(frxBoxBytes, true);
-                if (IsAutoPrintEnabled && validCountDMCells == numberOfLayers)
-                {
-
-                    PrintBoxLabel();
-
-                }
-                AggregationSummaryText = $"""
-Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}
-Количество собранных коробов: {CurrentBox - 1}
-Номер собираемого короба: {CurrentBox}
-Номер слоя: {CurrentLayer}
-Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}
-Количество СИ, распознанное в слое: {validCountDMCells}
-Количество СИ, считанное в слое: {DMCells.Count}
-Количество СИ, ожидаемое в слое: {numberOfLayers}{duplicateInfo}
-Всего СИ в коробе: {_sessionService.CurrentBoxDmCodes.Count}
-""";
-                // Метод подтверждения обработки фотографий в ПЛК
-                await ConfirmPhotoToPlcAsync();
-            }
-            if (CurrentLayer < _sessionService.SelectedTaskInfo.LAYERS_QTY &&
-                validCountDMCells == numberOfLayers && DMCells.Count > 0)
-            {
-
-                _sessionService.AddLayerCodes(validCodes);
-                AggregationSummaryText = $"""
-Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}
-Количество собранных коробов: {CurrentBox - 1}
-Номер собираемого короба: {CurrentBox}
-Номер слоя: {CurrentLayer}
-Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}
-Количество СИ, распознанное в слое: {validCountDMCells}
-Количество СИ, считанное в слое: {DMCells.Count}
-Количество СИ, ожидаемое в слое: {numberOfLayers}{duplicateInfo}
-Всего СИ в коробе: {_sessionService.CurrentBoxDmCodes.Count}
-""";
-                CurrentLayer++;
-                await ConfirmPhotoToPlcAsync();
-            }
-            else
-            if (CurrentLayer < _sessionService.SelectedTaskInfo.LAYERS_QTY &&
-                validCountDMCells == DMCells.Count && DMCells.Count > 0)
-            {
-                _sessionService.AddLayerCodes(validCodes);
-
-                AggregationSummaryText = $"""
-Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}
-Количество собранных коробов: {CurrentBox - 1}
-Номер собираемого короба: {CurrentBox}
-Номер слоя: {CurrentLayer}
-Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}
-Количество СИ, распознанное в слое: {validCountDMCells}
-Количество СИ, считанное в слое: {DMCells.Count}
-Количество СИ, ожидаемое в слое: {numberOfLayers}{duplicateInfo}
-Всего СИ в коробе: {_sessionService.CurrentBoxDmCodes.Count}
-""";
-            }
-        }
-
-        //Печать этикетки коробки
+        /// <summary>
+        /// Печатает этикетку коробки
+        /// </summary>
         [RelayCommand]
         public async Task PrintBoxLabel()
         {
-            if (frxBoxBytes == null || frxBoxBytes.Length == 0)
-            {
-                InfoMessage = "Шаблон коробки не загружен.";
-                _notificationService.ShowMessage(InfoMessage);
+            if (!ValidateBoxLabelPrinting())
                 return;
-            }
-            if (ResponseSscc == null)
+
+            var metrics = CalculateAggregationMetrics();
+
+            if (ShouldPrintFullBox(metrics))
             {
-                InfoMessage = "SSCC данные не загружены.";
-                _notificationService.ShowMessage(InfoMessage);
-                return;
+                await PrintBoxLabelInternal();
             }
-            int validCountDMCells = DMCells.Count(c => c.IsValid);
-            if (validCountDMCells == DMCells.Count && DMCells.Count > 0 && validCountDMCells == numberOfLayers)
+            else if (ShouldShowPartialBoxConfirmation(metrics))
             {
-                var boxRecord = ResponseSscc.RECORDSET
-                                   .Where(r => r.TYPEID == 0)
-                                   .ElementAtOrDefault(CurrentBox - 1);
-
-                if (boxRecord != null)
-                {
-                    _sessionService.SelectedTaskSscc = boxRecord;
-                    _printingService.PrintReport(frxBoxBytes, true);
-                }
-                else
-                {
-                    InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
-                    _notificationService.ShowMessage(InfoMessage);
-                }
+                await HandlePartialBoxPrinting();
             }
-            else
-            if (validCountDMCells == DMCells.Count && DMCells.Count > 0 && validCountDMCells < numberOfLayers)
-            {
-                // Показываем модальное окно подтверждения выключения
-                bool confirmed = await _dialogService.ShowCustomConfirmationAsync(
-                    "Подтверждение печати этикетки",
-                    "Распечатать этикетку на не полный короб?",
-                    Material.Icons.MaterialIconKind.Printer,
-                    Avalonia.Media.Brushes.MediumSeaGreen,
-                    Avalonia.Media.Brushes.MediumSeaGreen,
-                    "Да",
-                    "Нет"
-                );
-
-                if (confirmed)
-                {
-                    var boxRecord = ResponseSscc.RECORDSET
-                                       .Where(r => r.TYPEID == 0)
-                                       .ElementAtOrDefault(CurrentBox - 1);
-
-                    if (boxRecord != null)
-                    {
-                        _sessionService.SelectedTaskSscc = boxRecord;
-                        _printingService.PrintReport(frxBoxBytes, true);
-                    }
-                    else
-                    {
-                        InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
-                        _notificationService.ShowMessage(InfoMessage);
-                    }
-                }
-            }
-
-
         }
 
-        //Завершить агрегацию
+        /// <summary>
+        /// Завершает агрегацию и закрывает задание
+        /// </summary>
         [RelayCommand]
         public async Task CompleteAggregation()
         {
@@ -1151,209 +953,659 @@ namespace l2l_aggregator.ViewModels
 
             if (confirmed)
             {
-                _dmScanService.StopScan();
-                _databaseDataService.CloseAggregationSession();
-                _databaseDataService.CloseJob();
-
-                // Очищаем кэшированные данные
-                _sessionService.ClearCachedAggregationData();
-
-                // Очищаем коды при конце задания
-                _sessionService.ClearScannedCodes();
-                _sessionService.ClearCurrentBoxCodes();
-
-                _notificationService.ShowMessage("Агрегация завершена.");
-                _router.GoTo<TaskListViewModel>();
+                await CompleteAggregationInternal();
             }
         }
 
-        //сканирование кода этикетки
+        /// <summary>
+        /// Открывает окно настроек шаблона
+        /// </summary>
+        [RelayCommand]
+        public void OpenTemplateSettings()
+        {
+            var window = new TemplateSettingsWindow
+            {
+                DataContext = this
+            };
+
+            if (App.Current.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                window.ShowDialog(desktop.MainWindow);
+            }
+        }
+
+        /// <summary>
+        /// Обрабатывает отсканированный штрих-код в зависимости от текущего режима работы
+        /// </summary>
+        /// <param name="barcode">Отсканированный штрих-код</param>
         public void HandleScannedBarcode(string barcode)
         {
-            // Если активен режим информации, обрабатываем код в этом режиме
             if (IsInfoMode)
             {
                 HandleInfoModeBarcode(barcode);
                 return;
             }
-            // Если активен режим разагрегации, обрабатываем код в этом режиме
+
             if (IsDisaggregationMode)
             {
                 HandleDisaggregationModeBarcode(barcode);
                 return;
             }
-            // Проверка, что мы находимся на шаге 2
-            if (CurrentStepIndex != 2 && CurrentStepIndex != 3)
+
+            if (CurrentStepIndex != AggregationStep.BoxAggregation && CurrentStepIndex != AggregationStep.PalletAggregation)
                 return;
 
-            if (ResponseSscc?.RECORDSET == null || ResponseSscc.RECORDSET.Count == 0)
+            HandleNormalModeBarcode(barcode);
+        }
+
+        /// <summary>
+        /// Обрабатывает клик по ячейке и отображает детальную информацию
+        /// </summary>
+        /// <param name="cell">Выбранная ячейка</param>
+        public async void OnCellClicked(DmCellViewModel cell)
+        {
+            _previousAggregationSummaryText = AggregationSummaryText;
+
+            await ProcessCellImage(cell);
+            UpdateCellPopupData(cell);
+            DisplayCellInformation(cell);
+
+            IsPopupOpen = true;
+        }
+
+        #endregion
+
+        #region Private Scanning Methods
+
+        public bool SendTemplateToRecognizer()
+        {
+            var currentTemplate = _templateService.GenerateTemplate(TemplateFields.ToList());
+
+            if (_lastUsedTemplateJson != currentTemplate)
             {
-                InfoMessage = "Данные SSCC отсутствуют.";
-                _notificationService.ShowMessage(InfoMessage);
+                var settings = CreateRecognitionSettings();
+                var camera = CreateCameraConfiguration();
+                var recognParams = CreateRecognitionParams(settings, camera);
+
+                _dmScanService.StopScan();
+                _dmScanService.ConfigureParams(recognParams);
+
+                try
+                {
+                    _dmScanService.StartScan(currentTemplate);
+                    _lastUsedTemplateJson = currentTemplate;
+                    ShowSuccessMessage("Шаблон распознавания успешно настроен");
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    ShowErrorMessage("Ошибка настройки шаблона распознавания", NotificationType.Error);
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private async Task<bool> MoveCameraToCurrentLayerAsync()
+        {
+            if (!_sessionService.CheckController)
+                return true;
+
+            if (!IsControllerAvailable)
+            {
+                ShowErrorMessage("Контроллер недоступен!");
+                return false;
+            }
+
+            var validation = ValidateTaskInfo();
+            if (!validation.IsValid)
+            {
+                ShowErrorMessage("Информация о задании отсутствует.");
+                return false;
+            }
+
+            var packHeight = _sessionService.SelectedTaskInfo.PACK_HEIGHT ?? 0;
+            var layersQty = _sessionService.SelectedTaskInfo.LAYERS_QTY ?? 0;
+
+            if (packHeight == 0)
+            {
+                ShowErrorMessage("Ошибка: не задана высота слоя (PACK_HEIGHT).");
+                return false;
+            }
+
+            if (layersQty == 0)
+            {
+                ShowErrorMessage("Ошибка: не задано количество слоёв (LAYERS_QTY).");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(_sessionService.ControllerIP))
+            {
+                ShowErrorMessage("IP контроллера не задан.");
+                return false;
+            }
+
+            try
+            {
+                var boxConfig = CreateBoxWorkConfiguration();
+                var boxSettings = new BoxWorkSettings
+                {
+                    CamBoxDistance = boxConfig.CamBoxDistance,
+                    BoxHeight = boxConfig.BoxHeight,
+                    LayersQtty = boxConfig.LayersQtty,
+                    CamBoxMinDistance = boxConfig.CamBoxMinDistance
+                };
+
+                await _plcConnection.SetBoxWorkSettingsAsync(boxSettings);
+                await _plcConnection.StartCycleStepAsync((ushort)CurrentLayer);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage($"Ошибка позиционирования: {ex.Message}");
+                return false;
+            }
+        }
+
+        private async Task ConfirmPhotoToPlcAsync()
+        {
+            if (_plcConnection?.IsConnected == true)
+            {
+                try
+                {
+                    await _plcConnection.ConfirmPhotoProcessedAsync();
+                }
+                catch (Exception ex)
+                {
+                    ShowErrorMessage($"Ошибка подтверждения фото: {ex.Message}");
+                }
+            }
+        }
+
+        private async Task StartScanningSoftwareAsync()
+        {
+            if (_lastUsedTemplateJson == null)
+            {
+                ShowErrorMessage("Шаблон не отправлен. Сначала выполните отправку шаблона.");
+                return;
+            }
+
+            SetCurrentBoxRecord();
+
+            if (!await TryReceiveScanDataSoftwareAsync() ||
+                !await TryCropImageAsync() ||
+                !await TryBuildCellsAsync())
+                return;
+
+            await UpdateInfoAndUI();
+        }
+
+        private async Task StartScanningHardwareAsync()
+        {
+            if (_lastUsedTemplateJson == null)
+            {
+                ShowErrorMessage("Шаблон не отправлен. Сначала выполните отправку шаблона.");
+                return;
+            }
+
+            if (!await TryReceiveScanDataHardwareAsync() ||
+                !await TryCropImageAsync() ||
+                !await TryBuildCellsAsync())
+                return;
+
+            await UpdateInfoAndUI();
+        }
+
+        private void SetCurrentBoxRecord()
+        {
+            var boxRecord = FindBoxRecord(CurrentBox);
+            if (boxRecord != null)
+            {
+                _sessionService.SelectedTaskSscc = boxRecord;
+            }
+            else
+            {
+                ShowErrorMessage($"Не удалось найти запись коробки с индексом {CurrentBox - 1}.");
+            }
+        }
+
+        private async Task<bool> TryReceiveScanDataSoftwareAsync()
+        {
+            try
+            {
+                CanOpenTemplateSettings = false;
+                _dmScanService.startShot();
+                dmrData = await _dmScanService.WaitForResultAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage($"Ошибка распознавания: {ex.Message}");
+                return false;
+            }
+        }
+
+        private async Task<bool> TryReceiveScanDataHardwareAsync()
+        {
+            try
+            {
+                CanOpenTemplateSettings = false;
+                dmrData = await _dmScanService.WaitForResultAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage($"Ошибка распознавания: {ex.Message}");
+                return false;
+            }
+        }
+
+        private async Task<bool> TryCropImageAsync()
+        {
+            if (dmrData.rawImage == null)
+            {
+                ShowErrorMessage("Изображение из распознавания не получено.");
+                return false;
+            }
+
+            CalculateCropBounds();
+            CropAndProcessImage();
+            await CalculateScaleFactors();
+
+            return true;
+        }
+
+        private void CalculateCropBounds()
+        {
+            double boxRadius = Math.Sqrt(dmrData.BOXs[0].height * dmrData.BOXs[0].height +
+                                         dmrData.BOXs[0].width * dmrData.BOXs[0].width) / 2;
+
+            minX = Math.Max(0, (int)dmrData.BOXs.Min(d => d.poseX - boxRadius));
+            minY = Math.Max(0, (int)dmrData.BOXs.Min(d => d.poseY - boxRadius));
+            maxX = Math.Min(dmrData.rawImage.Width, (int)dmrData.BOXs.Max(d => d.poseX + boxRadius));
+            maxY = Math.Min(dmrData.rawImage.Height, (int)dmrData.BOXs.Max(d => d.poseY + boxRadius));
+        }
+
+        private void CropAndProcessImage()
+        {
+            _croppedImageRaw = _imageProcessingService.GetCroppedImage(dmrData, minX, minY, maxX, maxY);
+
+            ScannedImage?.Dispose();
+            ScannedImage = _imageProcessingService.ConvertToAvaloniaBitmap(_croppedImageRaw);
+        }
+
+        private async Task CalculateScaleFactors()
+        {
+            await Task.Delay(AggregationConstants.UI_DELAY);
+
+            scaleX = imageSize.Width / ScannedImage.PixelSize.Width;
+            scaleY = imageSize.Height / ScannedImage.PixelSize.Height;
+            scaleXObrat = ScannedImage.PixelSize.Width / imageSize.Width;
+            scaleYObrat = ScannedImage.PixelSize.Height / imageSize.Height;
+        }
+
+        private async Task<bool> TryBuildCellsAsync()
+        {
+            var validation = ValidateTaskInfo();
+            if (!validation.IsValid)
+            {
+                ShowErrorMessage(validation.ErrorMessage);
+                return false;
+            }
+
+            var docId = _sessionService.SelectedTaskInfo.DOCID;
+            if (docId == 0)
+            {
+                ShowErrorMessage("Ошибка: некорректный ID документа.");
+                return false;
+            }
+
+            var responseSgtin = _sessionService.CachedSgtinResponse;
+            if (responseSgtin == null)
+            {
+                ShowErrorMessage("Ошибка загрузки данных SGTIN.");
+                return false;
+            }
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                DMCells.Clear();
+                var cells = _imageProcessingService.BuildCellViewModels(
+                    dmrData, scaleX, scaleY, _sessionService, TemplateFields,
+                    responseSgtin, this, minX, minY);
+
+                foreach (var cell in cells)
+                {
+                    DMCells.Add(cell);
+                }
+            });
+
+            return true;
+        }
+
+        #endregion
+
+        #region UI Update Methods
+
+        private void UpdateScanAvailability()
+        {
+            if (IsInfoMode)
+            {
+                DisableAllButtonsForInfoMode();
+            }
+            else if (IsDisaggregationMode)
+            {
+                DisableAllButtonsForDisaggregationMode();
+            }
+            else
+            {
+                EnableNormalModeButtons();
+            }
+        }
+
+        private void DisableAllButtonsForInfoMode()
+        {
+            CanScan = false;
+            CanScanHardware = false;
+            CanOpenTemplateSettings = false;
+            CanPrintBoxLabel = false;
+            CanClearBox = false;
+            CanCompleteAggregation = false;
+        }
+
+        private void DisableAllButtonsForDisaggregationMode()
+        {
+            CanScan = false;
+            CanScanHardware = false;
+            CanOpenTemplateSettings = false;
+            CanPrintBoxLabel = false;
+            CanClearBox = false;
+        }
+
+        private void EnableNormalModeButtons()
+        {
+            CanScan = IsControllerAvailable && TemplateFields.Count > 0;
+            CanScanHardware = IsControllerAvailable && TemplateFields.Count > 0;
+        }
+
+        private async Task UpdateInfoAndUI()
+        {
+            var metrics = CalculateAggregationMetrics();
+            var duplicateInfo = BuildDuplicateInfo(metrics);
+
+            UpdateInfoLayerText(metrics);
+            UpdateAggregationSummaryText(metrics, duplicateInfo);
+            UpdateButtonStates();
+
+            var validCodes = GetValidCodesFromCells().ToList();
+
+            if (IsLastLayerCompleted(metrics))
+            {
+                await HandleLastLayerCompletion(validCodes);
+            }
+            else if (IsLayerCompleted(metrics))
+            {
+                await HandleLayerCompletion(validCodes);
+            }
+            else if (HasValidCodes(metrics))
+            {
+                HandlePartialLayerCompletion(validCodes);
+            }
+        }
+
+        private void UpdateInfoLayerText(AggregationMetrics metrics)
+        {
+            InfoLayerText = $"Слой {CurrentLayer} из {_sessionService.SelectedTaskInfo.LAYERS_QTY}. Распознано {metrics.ValidCount} из {numberOfLayers}";
+        }
+
+        private void UpdateAggregationSummaryText(AggregationMetrics metrics, DuplicateInformation duplicateInfo)
+        {
+            AggregationSummaryText = BuildAggregationSummary(metrics, duplicateInfo);
+        }
+
+        private void UpdateButtonStates()
+        {
+            CanScan = true;
+            CanOpenTemplateSettings = true;
+        }
+
+        private async Task HandleLastLayerCompletion(List<string> validCodes)
+        {
+            _sessionService.AddLayerCodes(validCodes);
+
+            CanOpenTemplateSettings = false;
+            CanPrintBoxLabel = true;
+            CurrentStepIndex = AggregationStep.BoxAggregation;
+
+            _printingService.PrintReportTEST(frxBoxBytes, true);
+
+            if (IsAutoPrintEnabled && validCodes.Count == numberOfLayers)
+            {
+                await PrintBoxLabel();
+            }
+
+            await ConfirmPhotoToPlcAsync();
+        }
+
+        private async Task HandleLayerCompletion(List<string> validCodes)
+        {
+            _sessionService.AddLayerCodes(validCodes);
+            CurrentLayer++;
+            await ConfirmPhotoToPlcAsync();
+        }
+
+        private void HandlePartialLayerCompletion(List<string> validCodes)
+        {
+            _sessionService.AddLayerCodes(validCodes);
+        }
+
+        #endregion
+
+        #region Printing Methods
+
+        private bool ValidateBoxLabelPrinting()
+        {
+            if (frxBoxBytes == null || frxBoxBytes.Length == 0)
+            {
+                ShowErrorMessage("Шаблон коробки не загружен.");
+                return false;
+            }
+
+            if (ResponseSscc == null)
+            {
+                ShowErrorMessage("SSCC данные не загружены.");
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool ShouldPrintFullBox(AggregationMetrics metrics)
+        {
+            return metrics.ValidCount == metrics.TotalCells &&
+                   metrics.TotalCells > 0 &&
+                   metrics.ValidCount == numberOfLayers;
+        }
+
+        private bool ShouldShowPartialBoxConfirmation(AggregationMetrics metrics)
+        {
+            return metrics.ValidCount == metrics.TotalCells &&
+                   metrics.TotalCells > 0 &&
+                   metrics.ValidCount < numberOfLayers;
+        }
+
+        private async Task PrintBoxLabelInternal()
+        {
+            var boxRecord = FindBoxRecord(CurrentBox);
+            if (boxRecord != null)
+            {
+                _sessionService.SelectedTaskSscc = boxRecord;
+                _printingService.PrintReport(frxBoxBytes, true);
+            }
+            else
+            {
+                ShowErrorMessage($"Не удалось найти запись коробки с индексом {CurrentBox - 1}.");
+            }
+        }
+
+        private async Task HandlePartialBoxPrinting()
+        {
+            bool confirmed = await _dialogService.ShowCustomConfirmationAsync(
+                "Подтверждение печати этикетки",
+                "Распечатать этикетку на не полный короб?",
+                Material.Icons.MaterialIconKind.Printer,
+                Avalonia.Media.Brushes.MediumSeaGreen,
+                Avalonia.Media.Brushes.MediumSeaGreen,
+                "Да",
+                "Нет"
+            );
+
+            if (confirmed)
+            {
+                await PrintBoxLabelInternal();
+            }
+        }
+
+        private async Task CompleteAggregationInternal()
+        {
+            _dmScanService.StopScan();
+            _databaseDataService.CloseAggregationSession();
+            _databaseDataService.CloseJob();
+
+            _sessionService.ClearCachedAggregationData();
+            _sessionService.ClearScannedCodes();
+            _sessionService.ClearCurrentBoxCodes();
+
+            ShowSuccessMessage("Агрегация завершена.");
+            _router.GoTo<TaskListViewModel>();
+        }
+
+        #endregion
+
+        #region Barcode Handling Methods
+
+        private void HandleNormalModeBarcode(string barcode)
+        {
+            if (CurrentStepIndex != AggregationStep.BoxAggregation)
+                return;
+
+            var validation = ValidateSessionData();
+            if (!validation.IsValid)
+            {
+                ShowErrorMessage(validation.ErrorMessage);
                 return;
             }
 
             if (_sessionService.SelectedTaskSscc == null)
             {
-                InfoMessage = "Данные SSCC отсутствуют.";
-                _notificationService.ShowMessage(InfoMessage);
+                ShowErrorMessage("Данные SSCC отсутствуют.");
                 return;
             }
 
-            if (CurrentStepIndex == 2)
+            ProcessNormalModeBarcode(barcode);
+        }
+
+        private void ProcessNormalModeBarcode(string barcode)
+        {
+            var foundRecord = ResponseSscc.RECORDSET
+                .Where(r => r.TYPEID == (int)SsccType.Box)
+                .FirstOrDefault(r => r.CHECK_BAR_CODE == barcode);
+
+            if (foundRecord != null)
             {
-                bool found = false; // Флаг для отслеживания найденного кода
-
-                foreach (ArmJobSsccRecord resp in ResponseSscc.RECORDSET)
-                {
-                    //resp.TYPEID == 0 это тип коробки
-                    if (resp.TYPEID == 0 && resp.DISPLAY_BAR_CODE == barcode)
-                    {
-                        found = true; // Устанавливаем флаг, что код найден
-
-                        //добавить сохранение
-                        //!!!!!!!!!!!!!!!!!!!!!!!!!
-                        var boxRecord = ResponseSscc.RECORDSET
-                                                   .Where(r => r.TYPEID == 0)
-                                                   .ElementAtOrDefault(CurrentBox - 1);
-
-                        if (boxRecord != null)
-                        {
-                            _sessionService.SelectedTaskSscc = boxRecord;
-                            //_printingService.PrintReport(frxBoxBytes, true);
-                        }
-                        else
-                        {
-                            InfoMessage = $"Не удалось найти запись коробки с индексом {CurrentBox - 1}.";
-                            _notificationService.ShowMessage(InfoMessage);
-                        }
-                        // Совпадение найдено
-                        InfoMessage = $"Короб с ШК {barcode} успешно найден!";
-                        _notificationService.ShowMessage(InfoMessage);
-
-                        if (SaveAllDmCells())
-                        {
-                            var gS1Parser = new GS1Parser();
-                            // Добавляем накопленные коды коробки в глобальную коллекцию
-                            foreach (var code in _sessionService.CurrentBoxDmCodes)
-                            {
-                                if (string.IsNullOrWhiteSpace(code)) continue;
-
-                                var parsedData = gS1Parser.ParseGTIN(code);
-
-                                if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
-                                {
-                                    _sessionService.AllScannedDmCodes.Add(parsedData.SerialNumber);
-                                }
-                            }
-
-                            // Очищаем коды текущей коробки после успешного сохранения
-                            _sessionService.ClearCurrentBoxCodes();
-                            CanPrintBoxLabel = false;
-                            CanScan = true;
-                            CurrentBox++;
-                            CurrentLayer = 1;
-                            CurrentStepIndex = 1;
-                        }
-
-                        break; // Выходим из цикла, так как код найден
-                    }
-                }
-
-                // Проверяем флаг после завершения цикла
-                if (!found)
-                {
-                    InfoMessage = $"ШК {barcode} не найден в списке!";
-                    _notificationService.ShowMessage(InfoMessage);
-                }
+                HandleFoundBarcode(barcode, foundRecord);
+            }
+            else
+            {
+                ShowErrorMessage($"ШК {barcode} не найден в списке!");
             }
         }
 
-        private bool SaveAllDmCells()
+        private void HandleFoundBarcode(string barcode, ArmJobSsccRecord foundRecord)
         {
-            try
+            var boxRecord = FindBoxRecord(CurrentBox);
+            if (boxRecord != null)
             {
-                var aggregationData = new List<(string UNID, string CHECK_BAR_CODE)>();
-                var gS1Parser = new GS1Parser();
-
-                // Используем накопленные коды из всех слоев коробки
-                foreach (var dmCode in _sessionService.CurrentBoxDmCodes)
-                {
-                    if (string.IsNullOrWhiteSpace(dmCode)) continue;
-
-                    var parsedData = gS1Parser.ParseGTIN(dmCode);
-
-                    if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
-                    {
-                        aggregationData.Add((parsedData.SerialNumber, _sessionService.SelectedTaskSscc.CHECK_BAR_CODE));
-                    }
-                    else
-                    {
-                        _notificationService.ShowMessage($"Не найден SGTIN для серийного номера: {parsedData.SerialNumber}", NotificationType.Warning);
-                    }
-                }
-
-                // Выполняем batch операцию - все коды сохраняются в одной транзакции
-                if (aggregationData.Count > 0)
-                {
-                    var success = _databaseDataService.LogAggregationCompletedBatch(aggregationData);
-
-                    if (success)
-                    {
-                        _notificationService.ShowMessage($"Сохранено {aggregationData.Count} кодов агрегации", NotificationType.Success);
-                        return true;
-                    }
-                    else
-                    {
-                        _notificationService.ShowMessage("Ошибка при сохранении кодов агрегации", NotificationType.Error);
-                        return false;
-                    }
-                }
-                return false;
+                _sessionService.SelectedTaskSscc = boxRecord;
             }
-            catch (Exception ex)
+            else
             {
-                _notificationService.ShowMessage($"Ошибка сохранения кодов агрегации: {ex.Message}", NotificationType.Error);
-                return false;
+                ShowErrorMessage($"Не удалось найти запись коробки с индексом {CurrentBox - 1}.");
+                return;
+            }
+
+            ShowSuccessMessage($"Короб с ШК {barcode} успешно найден!");
+
+            if (SaveAllDmCells())
+            {
+                ProcessSuccessfulAggregation();
             }
         }
-        public async void OnCellClicked(DmCellViewModel cell)
-        {
-            _previousAggregationSummaryText = AggregationSummaryText; // Сохраняем старый текст
 
+        private void ProcessSuccessfulAggregation()
+        {
+            var gS1Parser = new GS1Parser();
+
+            foreach (var code in _sessionService.CurrentBoxDmCodes.Where(c => !string.IsNullOrWhiteSpace(c)))
+            {
+                var parsedData = gS1Parser.ParseGTIN(code);
+                if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
+                {
+                    _sessionService.AllScannedDmCodes.Add(parsedData.SerialNumber);
+                }
+            }
+
+            _sessionService.ClearCurrentBoxCodes();
+            CanPrintBoxLabel = false;
+            CanScan = true;
+            CurrentBox++;
+            CurrentLayer = 1;
+            CurrentStepIndex = AggregationStep.PackAggregation;
+        }
+
+        #endregion
+
+        #region Cell Processing Methods
+
+        private async Task ProcessCellImage(DmCellViewModel cell)
+        {
             double boxRadius = Math.Sqrt(dmrData.BOXs[0].height * dmrData.BOXs[0].height +
                          dmrData.BOXs[0].width * dmrData.BOXs[0].width) / 2;
+
             int minX = (int)dmrData.BOXs.Min(d => d.poseX - boxRadius);
             int minY = (int)dmrData.BOXs.Min(d => d.poseY - boxRadius);
-            int maxX = (int)dmrData.BOXs.Max(d => d.poseX + boxRadius);
-            int maxY = (int)dmrData.BOXs.Max(d => d.poseY + boxRadius);
 
             var cropped = _imageProcessingService.CropImage(
-                _croppedImageRaw,
-                cell.X,
-                cell.Y,
-                cell.SizeWidth,
-                cell.SizeHeight,
-                scaleXObrat,
-                scaleYObrat,
-                (float)cell.Angle
-            );
+                _croppedImageRaw, cell.X, cell.Y, cell.SizeWidth, cell.SizeHeight,
+                scaleXObrat, scaleYObrat, (float)cell.Angle);
+
             await Dispatcher.UIThread.InvokeAsync(async () =>
             {
                 SelectedSquareImage = _imageProcessingService.ConvertToAvaloniaBitmap(cropped);
-                await Task.Delay(100);
+                await Task.Delay(AggregationConstants.UI_DELAY);
             });
+        }
 
+        private void UpdateCellPopupData(DmCellViewModel cell)
+        {
             var scaleXCell = ImageSizeCell.Width / SelectedSquareImage.PixelSize.Width;
             var scaleYCell = ImageSizeCell.Height / SelectedSquareImage.PixelSize.Height;
 
+            var newOcrList = CreateScaledOcrList(cell, scaleXCell, scaleYCell);
+
+            cell.OcrCellsInPopUp.Clear();
+            foreach (var newOcr in newOcrList)
+                cell.OcrCellsInPopUp.Add(newOcr);
+        }
+
+        private ObservableCollection<SquareCellViewModel> CreateScaledOcrList(DmCellViewModel cell, double scaleXCell, double scaleYCell)
+        {
             var newOcrList = new ObservableCollection<SquareCellViewModel>();
 
+            // Добавляем OCR элементы
             foreach (var ocr in cell.OcrCells)
             {
-                double newX = ocr.X;
-                double newY = ocr.Y;
-
                 newOcrList.Add(new SquareCellViewModel
                 {
                     X = ocr.X * scaleXCell,
@@ -1366,7 +1618,8 @@ namespace l2l_aggregator.ViewModels
                     OcrText = ocr.OcrText
                 });
             }
-            // Добавим DM элемент (если есть)
+
+            // Добавляем DM элемент (если есть)
             if (cell.Dm_data.Data != null)
             {
                 newOcrList.Add(new SquareCellViewModel
@@ -1382,26 +1635,29 @@ namespace l2l_aggregator.ViewModels
                 });
             }
 
-            cell.OcrCellsInPopUp.Clear();
-            foreach (var newOcr in newOcrList)
-                cell.OcrCellsInPopUp.Add(newOcr);
+            return newOcrList;
+        }
 
-            IsPopupOpen = true;
-            var GS1 = false;
-            var GTIN = "";
-            var DMData = "";
-            var SerialNumber = "";
+        private void DisplayCellInformation(DmCellViewModel cell)
+        {
+            var (gtin, serialNumber, duplicateStatus) = ExtractCellData(cell);
+
+            AggregationSummaryText = BuildCellInfoSummary(cell, gtin, serialNumber, duplicateStatus);
+        }
+
+        private (string gtin, string serialNumber, string duplicateStatus) ExtractCellData(DmCellViewModel cell)
+        {
+            string gtin = "";
+            string serialNumber = "";
+
             if (cell.Dm_data?.Data != null)
             {
                 var gS1Parser = new GS1Parser();
-                GS1_data newGS = gS1Parser.ParseGTIN(cell.Dm_data?.Data);
-                GS1 = newGS.GS1isCorrect;
-                GTIN = newGS.GTIN;
-                DMData = newGS.DMData;
-                SerialNumber = newGS.SerialNumber;
+                var newGS = gS1Parser.ParseGTIN(cell.Dm_data.Data);
+                gtin = newGS.GTIN;
+                serialNumber = newGS.SerialNumber;
             }
 
-            // Проверка дубликатов
             string duplicateStatus = "Нет";
             if (cell.IsDuplicateInCurrentScan)
             {
@@ -1412,95 +1668,117 @@ namespace l2l_aggregator.ViewModels
                 duplicateStatus = "Да (в предыдущих сканах)";
             }
 
-            // Обновление текста
-            AggregationSummaryText = $"""
-GTIN-код: {(string.IsNullOrWhiteSpace(GTIN) ? "нет данных" : GTIN)}
-SerialNumber-код: {(string.IsNullOrWhiteSpace(SerialNumber) ? "нет данных" : SerialNumber)}
-Валидность: {(cell.Dm_data?.IsValid == true ? "Да" : "Нет")}
-Дубликат: {duplicateStatus}
-Координаты: {(cell.Dm_data is { } dm1 ? $"({dm1.X:0.##}, {dm1.Y:0.##})" : "нет данных")}
-Размер: {(cell.Dm_data is { } dm ? $"({dm.SizeWidth:0.##} x {dm.SizeHeight:0.##})" : "нет данных")}
-Угол: {(cell.Dm_data?.Angle is double a ? $"{a:0.##}°" : "нет данных")}
-OCR:
-{(cell.OcrCells.Count > 0
-        ? string.Join('\n', cell.OcrCells.Select(o =>
-            $"- {(string.IsNullOrWhiteSpace(o.OcrName) ? "нет данных" : o.OcrName)}: {(string.IsNullOrWhiteSpace(o.OcrText) ? "нет данных" : o.OcrText)} ({(o.IsValid ? "валид" : "не валид")})"))
-        : "- нет данных")}
-""";
+            return (gtin, serialNumber, duplicateStatus);
         }
 
-        partial void OnIsPopupOpenChanged(bool value)
+        private string BuildCellInfoSummary(DmCellViewModel cell, string gtin, string serialNumber, string duplicateStatus)
         {
-            if (!value)
+            var sb = new StringBuilder();
+            sb.AppendLine($"GTIN-код: {(string.IsNullOrWhiteSpace(gtin) ? "нет данных" : gtin)}");
+            sb.AppendLine($"SerialNumber-код: {(string.IsNullOrWhiteSpace(serialNumber) ? "нет данных" : serialNumber)}");
+            sb.AppendLine($"Валидность: {(cell.Dm_data?.IsValid == true ? "Да" : "Нет")}");
+            sb.AppendLine($"Дубликат: {duplicateStatus}");
+            sb.AppendLine($"Координаты: {(cell.Dm_data is { } dm1 ? $"({dm1.X:0.##}, {dm1.Y:0.##})" : "нет данных")}");
+            sb.AppendLine($"Размер: {(cell.Dm_data is { } dm ? $"({dm.SizeWidth:0.##} x {dm.SizeHeight:0.##})" : "нет данных")}");
+            sb.AppendLine($"Угол: {(cell.Dm_data?.Angle is double a ? $"{a:0.##}°" : "нет данных")}");
+            sb.AppendLine("OCR:");
+
+            if (cell.OcrCells.Count > 0)
             {
-                AggregationSummaryText = _previousAggregationSummaryText;
-            }
-        }
-
-        [RelayCommand]
-        public void OpenTemplateSettings()
-        {
-            var window = new TemplateSettingsWindow
-            {
-                DataContext = this
-            };
-
-            if (App.Current.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-            {
-                window.ShowDialog(desktop.MainWindow);
-            }
-        }
-
-        private void OnImageSizeChanged(SizeChangedEventArgs e)
-        {
-            imageWidth = e.NewSize.Width;
-            imageHeight = e.NewSize.Height;
-        }
-
-        private void OnImageSizeCellChanged(SizeChangedEventArgs e)
-        {
-            imageCellWidth = e.NewSize.Width;
-            imageCellHeight = e.NewSize.Height;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                // Очищаем коды при конце задания
-                _sessionService.ClearCurrentBoxCodes();
-                //_sessionService.ClearScannedCodes();
-                _databaseDataService.CloseAggregationSession();
-                _plcConnection?.StopPingPong();
-                _plcConnection?.Disconnect();
-                _plcConnection?.Dispose();
-                _dmScanService?.Dispose();
-                //_scannerWorker?.Dispose();
-            }
-            base.Dispose(disposing);
-        }
-
-        // Обработчик изменения режима информации
-        partial void OnIsInfoModeChanged(bool value)
-        {
-            if (value)
-            {
-                EnterInfoMode();
+                foreach (var ocr in cell.OcrCells)
+                {
+                    sb.AppendLine($"- {(string.IsNullOrWhiteSpace(ocr.OcrName) ? "нет данных" : ocr.OcrName)}: {(string.IsNullOrWhiteSpace(ocr.OcrText) ? "нет данных" : ocr.OcrText)} ({(ocr.IsValid ? "валид" : "не валид")})");
+                }
             }
             else
             {
-                ExitInfoMode();
+                sb.AppendLine("- нет данных");
+            }
+
+            return sb.ToString();
+        }
+
+        #endregion
+
+        #region Data Persistence Methods
+
+        private bool SaveAllDmCells()
+        {
+            try
+            {
+                var aggregationData = new List<(string UNID, string CHECK_BAR_CODE)>();
+                var gS1Parser = new GS1Parser();
+
+                foreach (var dmCode in _sessionService.CurrentBoxDmCodes.Where(c => !string.IsNullOrWhiteSpace(c)))
+                {
+                    var parsedData = gS1Parser.ParseGTIN(dmCode);
+
+                    if (!string.IsNullOrWhiteSpace(parsedData.SerialNumber))
+                    {
+                        aggregationData.Add((parsedData.SerialNumber, _sessionService.SelectedTaskSscc.CHECK_BAR_CODE));
+                    }
+                    else
+                    {
+                        ShowErrorMessage($"Не найден SGTIN для серийного номера: {parsedData.SerialNumber}", NotificationType.Warning);
+                    }
+                }
+
+                if (aggregationData.Count > 0)
+                {
+                    var success = _databaseDataService.LogAggregationCompletedBatch(aggregationData);
+
+                    if (success)
+                    {
+                        ShowSuccessMessage($"Сохранено {aggregationData.Count} кодов агрегации");
+                        return true;
+                    }
+                    else
+                    {
+                        ShowErrorMessage("Ошибка при сохранении кодов агрегации", NotificationType.Error);
+                        return false;
+                    }
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage($"Ошибка сохранения кодов агрегации: {ex.Message}", NotificationType.Error);
+                return false;
             }
         }
 
-        // Вход в режим информации
+        #endregion
+
+        #region Info Mode Methods
+
         private void EnterInfoMode()
         {
             PreviousStepIndex = CurrentStepIndex;
-            CurrentStepIndex = 6;
+            CurrentStepIndex = AggregationStep.InfoMode;
             InfoModeButtonText = "Выйти из режима";
 
-            // Сохраняем текущие состояния кнопок
+            SaveCurrentButtonStates();
+            DisableAllButtonsForInfoMode();
+
+            InfoLayerText = "Режим информации: отсканируйте код для получения информации";
+            AggregationSummaryText = "Режим информации активен. \nОтсканируйте код для получения подробной информации о нем.";
+
+            ShowInfoMessage("Активирован режим информации");
+        }
+
+        private void ExitInfoMode()
+        {
+            CurrentStepIndex = PreviousStepIndex;
+            InfoModeButtonText = "Режим информации";
+
+            RestoreButtonStates();
+            AggregationSummaryText = _previousAggregationSummaryText;
+
+            ShowInfoMessage("Режим информации деактивирован");
+        }
+
+        private void SaveCurrentButtonStates()
+        {
             _previousCanScan = CanScan;
             _previousCanScanHardware = CanScanHardware;
             _previousCanOpenTemplateSettings = CanOpenTemplateSettings;
@@ -1508,32 +1786,10 @@ OCR:
             _previousCanClearBox = CanClearBox;
             _previousCanCompleteAggregation = CanCompleteAggregation;
             _previousInfoLayerText = InfoLayerText;
-
-            // Отключаем все кнопки
-            CanScan = false;
-            CanScanHardware = false;
-            CanOpenTemplateSettings = false;
-            CanPrintBoxLabel = false;
-            CanClearBox = false;
-            CanCompleteAggregation = false;
-
-            // Изменяем информационное сообщение
-            InfoLayerText = "Режим информации: отсканируйте код для получения информации";
-
-            AggregationSummaryText = $"""
-Режим информации активен. 
-Отсканируйте код для получения подробной информации о нем.
-""";
-
-            _notificationService.ShowMessage("Активирован режим информации", NotificationType.Info);
         }
 
-        private void ExitInfoMode()
+        private void RestoreButtonStates()
         {
-            CurrentStepIndex = PreviousStepIndex; // Возвращаемся к обычному режиму
-            InfoModeButtonText = "Режим информации";
-
-            // Восстанавливаем состояния кнопок
             CanScan = _previousCanScan;
             CanScanHardware = _previousCanScanHardware;
             CanOpenTemplateSettings = _previousCanOpenTemplateSettings;
@@ -1541,14 +1797,8 @@ OCR:
             CanClearBox = _previousCanClearBox;
             CanCompleteAggregation = _previousCanCompleteAggregation;
             InfoLayerText = _previousInfoLayerText;
-
-            // Восстанавливаем информационный текст
-            AggregationSummaryText = _previousAggregationSummaryText;
-
-            _notificationService.ShowMessage("Режим информации деактивирован", NotificationType.Info);
         }
 
-        // Обработка сканированного кода в режиме информации
         private void HandleInfoModeBarcode(string barcode)
         {
             if (!IsInfoMode)
@@ -1556,17 +1806,17 @@ OCR:
 
             try
             {
-                // Сначала ищем в SSCC кодах
                 var ssccRecord = _databaseDataService.FindSsccCode(barcode);
                 if (ssccRecord != null)
                 {
                     DisplaySsccInfo(ssccRecord);
                     return;
                 }
+
                 var gS1Parser = new GS1Parser();
-                GS1_data newGS = gS1Parser.ParseGTIN(barcode);
+                var newGS = gS1Parser.ParseGTIN(barcode);
                 var parsedData = newGS.SerialNumber;
-                // Если не найден в SSCC, ищем в UN кодах
+
                 var unRecord = _databaseDataService.FindUnCode(parsedData);
                 if (unRecord != null)
                 {
@@ -1574,38 +1824,20 @@ OCR:
                     return;
                 }
 
-                // Если код не найден ни в одной таблице
-                AggregationSummaryText = $"""
-Код не найден в базе данных!
-
-Отсканированный код: {barcode}
-Статус: Код не найден в системе
-
-Проверьте правильность кода или обратитесь к администратору.
-""";
-
-                _notificationService.ShowMessage($"Код {barcode} не найден в базе данных", NotificationType.Warning);
+                DisplayCodeNotFound(barcode);
             }
             catch (Exception ex)
             {
-                AggregationSummaryText = $"""
-Ошибка поиска кода!
-
-Отсканированный код: {barcode}
-Ошибка: {ex.Message}
-""";
-
-                _notificationService.ShowMessage($"Ошибка поиска кода: {ex.Message}", NotificationType.Error);
+                DisplayErrorInfo(barcode, ex.Message);
             }
         }
 
-        // Отображение информации о SSCC коде
         private void DisplaySsccInfo(ArmJobSsccRecord ssccRecord)
         {
             string typeDescription = ssccRecord.TYPEID switch
             {
-                0 => "Коробка",
-                1 => "Паллета",
+                (int)SsccType.Box => "Коробка",
+                (int)SsccType.Pallet => "Паллета",
                 _ => $"Неизвестный тип ({ssccRecord.TYPEID})"
             };
 
@@ -1617,74 +1849,109 @@ OCR:
                 _ => $"Неизвестное состояние ({ssccRecord.CODE_STATE})"
             };
 
-            AggregationSummaryText = $"""
-ИНФОРМАЦИЯ О SSCC КОДЕ
+            var sb = new StringBuilder();
+            sb.AppendLine("ИНФОРМАЦИЯ О SSCC КОДЕ");
+            sb.AppendLine();
+            sb.AppendLine($"SSCC ID: {ssccRecord.SSCCID}");
+            sb.AppendLine($"SSCC код: {ssccRecord.SSCC_CODE ?? "нет данных"}");
+            sb.AppendLine($"SSCC: {ssccRecord.SSCC ?? "нет данных"}");
+            sb.AppendLine($"Тип: {typeDescription}");
+            sb.AppendLine($"Состояние ID: {ssccRecord.STATEID}");
+            sb.AppendLine($"Штрих-код (отображение): {ssccRecord.DISPLAY_BAR_CODE ?? "нет данных"}");
+            sb.AppendLine($"Штрих-код (проверка): {ssccRecord.CHECK_BAR_CODE ?? "нет данных"}");
+            sb.AppendLine($"Количество: {ssccRecord.QTY}");
+            sb.AppendLine($"Родительский SSCC ID: {ssccRecord.PARENT_SSCCID ?? null}");
+            sb.AppendLine($"Время сканирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
 
-SSCC ID: {ssccRecord.SSCCID}
-SSCC код: {ssccRecord.SSCC_CODE ?? "нет данных"}
-SSCC: {ssccRecord.SSCC ?? "нет данных"}
-Тип: {typeDescription}
-Состояние ID: {ssccRecord.STATEID}
-Штрих-код (отображение): {ssccRecord.DISPLAY_BAR_CODE ?? "нет данных"}
-Штрих-код (проверка): {ssccRecord.CHECK_BAR_CODE ?? "нет данных"}
-Количество: {ssccRecord.QTY}
-Родительский SSCC ID: {ssccRecord.PARENT_SSCCID ?? null}
-Время сканирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}
-""";
-
-            _notificationService.ShowMessage($"Найден SSCC код: {typeDescription}", NotificationType.Success);
+            AggregationSummaryText = sb.ToString();
+            ShowSuccessMessage($"Найден SSCC код: {typeDescription}");
         }
 
-        // Отображение информации о UN коде
         private void DisplayUnInfo(ArmJobSgtinRecord unRecord)
         {
             string typeDescription = unRecord.UN_TYPE switch
             {
-                0 => "Потребительская упаковка",
-                1 => "Потребительская упаковка",
+                (int)UnType.ConsumerPackage => "Потребительская упаковка",
                 _ => $"Неизвестный тип ({unRecord.UN_TYPE})"
             };
 
-            AggregationSummaryText = $"""
-ИНФОРМАЦИЯ О UN КОДЕ (SGTIN)
+            var sb = new StringBuilder();
+            sb.AppendLine("ИНФОРМАЦИЯ О UN КОДЕ (SGTIN)");
+            sb.AppendLine();
+            sb.AppendLine($"UN ID: {unRecord.UNID}");
+            sb.AppendLine($"UN код: {unRecord.UN_CODE ?? "нет данных"}");
+            sb.AppendLine($"Тип: {typeDescription}");
+            sb.AppendLine($"Состояние ID: {unRecord.STATEID}");
+            sb.AppendLine($"GS1 поле 91: {unRecord.GS1FIELD91 ?? "нет данных"}");
+            sb.AppendLine($"GS1 поле 92: {unRecord.GS1FIELD92 ?? "нет данных"}");
+            sb.AppendLine($"GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}");
+            sb.AppendLine($"Родительский SSCC ID: {unRecord.PARENT_SSCCID ?? null}");
+            sb.AppendLine($"Родительский UN ID: {unRecord.PARENT_UNID ?? null}");
+            sb.AppendLine($"Количество: {unRecord.QTY}");
+            sb.AppendLine($"Время сканирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
 
-UN ID: {unRecord.UNID}
-UN код: {unRecord.UN_CODE ?? "нет данных"}
-Тип: {typeDescription}
-Состояние ID: {unRecord.STATEID}
-GS1 поле 91: {unRecord.GS1FIELD91 ?? "нет данных"}
-GS1 поле 92: {unRecord.GS1FIELD92 ?? "нет данных"}
-GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
-Родительский SSCC ID: {unRecord.PARENT_SSCCID ?? null}
-Родительский UN ID: {unRecord.PARENT_UNID ?? null}
-Количество: {unRecord.QTY}
-Время сканирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}
-""";
-
-            _notificationService.ShowMessage($"Найден UN код: {typeDescription}", NotificationType.Success);
+            AggregationSummaryText = sb.ToString();
+            ShowSuccessMessage($"Найден UN код: {typeDescription}");
         }
 
-        // Обработчик изменения режима разагрегации
-        partial void OnIsDisaggregationModeChanged(bool value)
+        private void DisplayCodeNotFound(string barcode)
         {
-            if (value)
-            {
-                EnterDisaggregationMode();
-            }
-            else
-            {
-                ExitDisaggregationMode();
-            }
+            var sb = new StringBuilder();
+            sb.AppendLine("Код не найден в базе данных!");
+            sb.AppendLine();
+            sb.AppendLine($"Отсканированный код: {barcode}");
+            sb.AppendLine("Статус: Код не найден в системе");
+            sb.AppendLine();
+            sb.AppendLine("Проверьте правильность кода или обратитесь к администратору.");
+
+            AggregationSummaryText = sb.ToString();
+            ShowErrorMessage($"Код {barcode} не найден в базе данных", NotificationType.Warning);
         }
 
-        // Вход в режим разагрегации
+        private void DisplayErrorInfo(string barcode, string errorMessage)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Ошибка поиска кода!");
+            sb.AppendLine();
+            sb.AppendLine($"Отсканированный код: {barcode}");
+            sb.AppendLine($"Ошибка: {errorMessage}");
+
+            AggregationSummaryText = sb.ToString();
+            ShowErrorMessage($"Ошибка поиска кода: {errorMessage}", NotificationType.Error);
+        }
+
+        #endregion
+
+        #region Disaggregation Mode Methods
+
         private void EnterDisaggregationMode()
         {
             PreviousStepIndex = CurrentStepIndex;
-            CurrentStepIndex = 7; // Новый шаг для режима разагрегации
+            CurrentStepIndex = AggregationStep.DisaggregationMode;
             DisaggregationModeButtonText = "Выйти из режима";
 
-            // Сохраняем текущие состояния кнопок
+            SaveDisaggregationButtonStates();
+            DisableAllButtonsForDisaggregationMode();
+
+            InfoLayerText = "Режим очистки короба: отсканируйте код коробки для очистки короба";
+            AggregationSummaryText = "Режим очистки короба активен. \nОтсканируйте код коробки для выполнения очистки короба.";
+
+            ShowInfoMessage("Активирован режим очистки короба");
+        }
+
+        private void ExitDisaggregationMode()
+        {
+            CurrentStepIndex = PreviousStepIndex;
+            DisaggregationModeButtonText = "Режим очистки короба";
+
+            RestoreDisaggregationButtonStates();
+            AggregationSummaryText = _previousAggregationSummaryTextDisaggregation;
+
+            ShowInfoMessage("Режим очистки короба деактивирован");
+        }
+
+        private void SaveDisaggregationButtonStates()
+        {
             _previousCanScanDisaggregation = CanScan;
             _previousCanScanHardwareDisaggregation = CanScanHardware;
             _previousCanOpenTemplateSettingsDisaggregation = CanOpenTemplateSettings;
@@ -1693,33 +1960,10 @@ GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
             _previousCanCompleteAggregationDisaggregation = CanCompleteAggregation;
             _previousInfoLayerTextDisaggregation = InfoLayerText;
             _previousAggregationSummaryTextDisaggregation = AggregationSummaryText;
-
-            // Отключаем все кнопки кроме завершения агрегации
-            CanScan = false;
-            CanScanHardware = false;
-            CanOpenTemplateSettings = false;
-            CanPrintBoxLabel = false;
-            CanClearBox = false;
-            // CanCompleteAggregation остается доступным
-
-            // Изменяем информационные сообщения
-            InfoLayerText = "Режим очистки короба: отсканируйте код коробки для очистки короба";
-
-            AggregationSummaryText = $"""
-Режим очистки короба активен. 
-Отсканируйте код коробки для выполнения очистки короба.
-""";
-
-            _notificationService.ShowMessage("Активирован режим очистки короба", NotificationType.Info);
         }
 
-        // Выход из режима разагрегации
-        private void ExitDisaggregationMode()
+        private void RestoreDisaggregationButtonStates()
         {
-            CurrentStepIndex = PreviousStepIndex; // Возвращаемся к предыдущему режиму
-            DisaggregationModeButtonText = "Режим очистки короба";
-
-            // Восстанавливаем состояния кнопок
             CanScan = _previousCanScanDisaggregation;
             CanScanHardware = _previousCanScanHardwareDisaggregation;
             CanOpenTemplateSettings = _previousCanOpenTemplateSettingsDisaggregation;
@@ -1727,14 +1971,8 @@ GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
             CanClearBox = _previousCanClearBoxDisaggregation;
             CanCompleteAggregation = _previousCanCompleteAggregationDisaggregation;
             InfoLayerText = _previousInfoLayerTextDisaggregation;
-
-            // Восстанавливаем информационный текст
-            AggregationSummaryText = _previousAggregationSummaryTextDisaggregation;
-
-            _notificationService.ShowMessage("Режим очистки короба деактивирован", NotificationType.Info);
         }
 
-        // Обработка сканированного кода в режиме разагрегации
         private async Task HandleDisaggregationModeBarcode(string barcode)
         {
             if (!IsDisaggregationMode)
@@ -1742,161 +1980,174 @@ GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}
 
             try
             {
-                if (ResponseSscc?.RECORDSET == null || ResponseSscc.RECORDSET.Count == 0)
+                var validation = ValidateSessionData();
+                if (!validation.IsValid)
                 {
-                    AggregationSummaryText = $"""
-Ошибка: данные SSCC отсутствуют!
-
-Отсканированный код: {barcode}
-Статус: Невозможно выполнить очистку короба
-""";
-                    _notificationService.ShowMessage("Данные SSCC отсутствуют", NotificationType.Error);
+                    DisplayDisaggregationError(barcode, validation.ErrorMessage);
                     return;
                 }
 
-                // Ищем коробку по отсканированному коду
                 var boxRecord = ResponseSscc.RECORDSET
-                    .Where(r => r.TYPEID == 0) // Только коробки
+                    .Where(r => r.TYPEID == (int)SsccType.Box)
                     .FirstOrDefault(r => r.DISPLAY_BAR_CODE == barcode);
 
                 if (boxRecord != null)
                 {
-                    // Показываем диалог подтверждения
-                    var confirmed = await _dialogService.ShowCustomConfirmationAsync(
-                        "Подтверждение очистки короба",
-                        $"Выполнить очистку короба коробки с кодом {barcode}?",
-                        Material.Icons.MaterialIconKind.PackageVariantClosed,
-                        Avalonia.Media.Brushes.Orange,
-                        Avalonia.Media.Brushes.Orange,
-                        "Да,очистить короб",
-                        "Отмена"
-                    );
-
-                    if (confirmed)
-                    {
-                        // Выполняем разагрегацию
-                        var success = _databaseDataService.ClearBoxAggregation(boxRecord.CHECK_BAR_CODE);
-
-                        if (success)
-                        {
-                            AggregationSummaryText = $"""
-Очистка короба выполнена успешно!
-
-Отсканированный код: {barcode}
-SSCC ID: {boxRecord.SSCCID}
-CHECK_BAR_CODE: {boxRecord.CHECK_BAR_CODE}
-Статус: Коробка успешно разагрегирована
-Время операции: {DateTime.Now:dd.MM.yyyy HH:mm:ss}
-""";
-
-                            _notificationService.ShowMessage($"Коробка с кодом {barcode} успешно разагрегирована", NotificationType.Success);
-
-                            // Обновляем накопленные коды (удаляем коды разагрегированной коробки)
-                            UpdateScannedCodesAfterDisaggregation();
-
-                            // Обновляем доступность кнопки разагрегации
-                            UpdateDisaggregationAvailability();
-                        }
-                        else
-                        {
-                            AggregationSummaryText = $"""
-Ошибка очистки короба!
-
-Отсканированный код: {barcode}
-SSCC ID: {boxRecord.SSCCID}
-Статус: Не удалось выполнить очистку короба
-""";
-
-                            _notificationService.ShowMessage($"Ошибка очистки короба, коробки с кодом {barcode}", NotificationType.Error);
-                        }
-                    }
-                    else
-                    {
-                        AggregationSummaryText = $"""
-Очистка короба отменена пользователем.
-
-Отсканированный код: {barcode}
-""";
-                    }
+                    await ProcessDisaggregationRequest(barcode, boxRecord);
                 }
                 else
                 {
-                    // Код не найден среди коробок
-                    AggregationSummaryText = $"""
-Код коробки не найден!
-
-Отсканированный код: {barcode}
-Статус: Код не найден среди доступных коробок
-
-Проверьте правильность кода или убедитесь, что коробка существует в текущем задании.
-""";
-
-                    _notificationService.ShowMessage($"Код коробки {barcode} не найден", NotificationType.Warning);
+                    DisplayBoxNotFound(barcode);
                 }
             }
             catch (Exception ex)
             {
-                AggregationSummaryText = $"""
-Ошибка при выполнении очистки короба!
-
-Отсканированный код: {barcode}
-Ошибка: {ex.Message}
-""";
-
-                _notificationService.ShowMessage($"Ошибка очистки короба: {ex.Message}", NotificationType.Error);
+                DisplayDisaggregationError(barcode, ex.Message);
             }
         }
 
-        // Обновление накопленных кодов после разагрегации
+        private async Task ProcessDisaggregationRequest(string barcode, ArmJobSsccRecord boxRecord)
+        {
+            var confirmed = await _dialogService.ShowCustomConfirmationAsync(
+                "Подтверждение очистки короба",
+                $"Выполнить очистку короба коробки с кодом {barcode}?",
+                Material.Icons.MaterialIconKind.PackageVariantClosed,
+                Avalonia.Media.Brushes.Orange,
+                Avalonia.Media.Brushes.Orange,
+                "Да,очистить короб",
+                "Отмена"
+            );
+
+            if (confirmed)
+            {
+                await ExecuteDisaggregation(barcode, boxRecord);
+            }
+            else
+            {
+                DisplayDisaggregationCancelled(barcode);
+            }
+        }
+
+        private async Task ExecuteDisaggregation(string barcode, ArmJobSsccRecord boxRecord)
+        {
+            var success = _databaseDataService.ClearBoxAggregation(boxRecord.CHECK_BAR_CODE);
+
+            if (success)
+            {
+                DisplayDisaggregationSuccess(barcode, boxRecord);
+                UpdateScannedCodesAfterDisaggregation();
+                UpdateDisaggregationAvailability();
+            }
+            else
+            {
+                DisplayDisaggregationFailure(barcode, boxRecord);
+            }
+        }
+
+        private void DisplayDisaggregationSuccess(string barcode, ArmJobSsccRecord boxRecord)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Очистка короба выполнена успешно!");
+            sb.AppendLine();
+            sb.AppendLine($"Отсканированный код: {barcode}");
+            sb.AppendLine($"SSCC ID: {boxRecord.SSCCID}");
+            sb.AppendLine($"CHECK_BAR_CODE: {boxRecord.CHECK_BAR_CODE}");
+            sb.AppendLine("Статус: Коробка успешно разагрегирована");
+            sb.AppendLine($"Время операции: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
+
+            AggregationSummaryText = sb.ToString();
+            ShowSuccessMessage($"Коробка с кодом {barcode} успешно разагрегирована");
+        }
+
+        private void DisplayDisaggregationFailure(string barcode, ArmJobSsccRecord boxRecord)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Ошибка очистки короба!");
+            sb.AppendLine();
+            sb.AppendLine($"Отсканированный код: {barcode}");
+            sb.AppendLine($"SSCC ID: {boxRecord.SSCCID}");
+            sb.AppendLine("Статус: Не удалось выполнить очистку короба");
+
+            AggregationSummaryText = sb.ToString();
+            ShowErrorMessage($"Ошибка очистки короба, коробки с кодом {barcode}", NotificationType.Error);
+        }
+
+        private void DisplayDisaggregationCancelled(string barcode)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Очистка короба отменена пользователем.");
+            sb.AppendLine();
+            sb.AppendLine($"Отсканированный код: {barcode}");
+
+            AggregationSummaryText = sb.ToString();
+        }
+
+        private void DisplayBoxNotFound(string barcode)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Код коробки не найден!");
+            sb.AppendLine();
+            sb.AppendLine($"Отсканированный код: {barcode}");
+            sb.AppendLine("Статус: Код не найден среди доступных коробок");
+            sb.AppendLine();
+            sb.AppendLine("Проверьте правильность кода или убедитесь, что коробка существует в текущем задании.");
+
+            AggregationSummaryText = sb.ToString();
+            ShowErrorMessage($"Код коробки {barcode} не найден", NotificationType.Warning);
+        }
+
+        private void DisplayDisaggregationError(string barcode, string errorMessage)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Ошибка при выполнении очистки короба!");
+            sb.AppendLine();
+            sb.AppendLine($"Отсканированный код: {barcode}");
+            sb.AppendLine($"Ошибка: {errorMessage}");
+
+            AggregationSummaryText = sb.ToString();
+            ShowErrorMessage($"Ошибка очистки короба: {errorMessage}", NotificationType.Error);
+        }
+
         private void UpdateScannedCodesAfterDisaggregation()
         {
             try
             {
-                // Перезагружаем агрегированные коды из БД
                 var aggregatedCodes = _databaseDataService.GetAggregatedUnCodes();
 
                 if (aggregatedCodes?.Any() == true)
                 {
-                    // Очищаем и обновляем коллекцию
                     _sessionService.ClearScannedCodes();
 
-                    foreach (var code in aggregatedCodes)
+                    foreach (var code in aggregatedCodes.Where(c => !string.IsNullOrWhiteSpace(c)))
                     {
-                        if (!string.IsNullOrWhiteSpace(code))
-                        {
-                            _sessionService.AllScannedDmCodes.Add(code);
-                        }
+                        _sessionService.AllScannedDmCodes.Add(code);
                     }
 
-                    _notificationService.ShowMessage($"Обновлено {aggregatedCodes.Count} кодов после очистки короба", NotificationType.Info);
+                    ShowInfoMessage($"Обновлено {aggregatedCodes.Count} кодов после очистки короба");
                 }
                 else
                 {
-                    // Если агрегированных кодов нет, очищаем коллекцию
                     _sessionService.ClearScannedCodes();
-                    _notificationService.ShowMessage("Все коды разагрегированы", NotificationType.Info);
+                    ShowInfoMessage("Все коды разагрегированы");
                 }
             }
             catch (Exception ex)
             {
-                _notificationService.ShowMessage($"Ошибка обновления кодов после очистки короба: {ex.Message}", NotificationType.Error);
+                ShowErrorMessage($"Ошибка обновления кодов после очистки короба: {ex.Message}", NotificationType.Error);
             }
         }
 
-        // Метод для проверки доступности режима разагрегации
         private void UpdateDisaggregationAvailability()
         {
             try
             {
-                // Проверяем есть ли агрегированные коробки
                 var countersResponse = _databaseDataService.GetArmCounters();
 
                 if (countersResponse?.RECORDSET != null)
                 {
-                    // Ищем записи с QTY > 0 (заполненные коробки) среди SSCC кодов
                     var hasAggregatedBoxes = ResponseSscc?.RECORDSET?
-                        .Where(r => r.TYPEID == 0) // Только коробки
-                        .Any(r => r.QTY > 0); // С количеством больше 0
+                        .Where(r => r.TYPEID == (int)SsccType.Box)
+                        .Any(r => r.QTY > 0);
 
                     CanDisaggregation = hasAggregatedBoxes == true;
                 }
@@ -1908,16 +2159,34 @@ SSCC ID: {boxRecord.SSCCID}
             catch (Exception ex)
             {
                 CanDisaggregation = false;
-                _notificationService.ShowMessage($"Ошибка проверки доступности очистки короба: {ex.Message}", NotificationType.Error);
+                ShowErrorMessage($"Ошибка проверки доступности очистки короба: {ex.Message}", NotificationType.Error);
             }
         }
-#if DEBUG
-        [ObservableProperty]
-        private bool isDebugMode = true;
-#else
-            [ObservableProperty] 
-            private bool isDebugMode = false;
-#endif
 
+        #endregion
+
+        #region Cleanup
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _sessionService.ClearCurrentBoxCodes();
+                _databaseDataService.CloseAggregationSession();
+                _plcConnection?.StopPingPong();
+                _plcConnection?.Disconnect();
+                _plcConnection?.Dispose();
+                _dmScanService?.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        #endregion
     }
+}
+
+// Extension method для улучшения читаемости
+internal static class ObjectExtensions
+{
+    public static TResult Let<T, TResult>(this T obj, Func<T, TResult> func) => func(obj);
 }
