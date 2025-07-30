@@ -70,7 +70,7 @@ namespace l2l_aggregator.Services.Printing
                     zplBytes = GenerateZplFromReportPALLET(frxBytes);
                 }
                 string zplString = Encoding.UTF8.GetString(zplBytes);
-                _notificationService.ShowMessage($"сформирован zplString");
+               
 
                 // Экспортируем в PDF
               //  await ExportReportToPdf(frxBytes, typePrint);

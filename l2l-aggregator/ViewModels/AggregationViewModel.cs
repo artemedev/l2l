@@ -1603,8 +1603,31 @@ namespace l2l_aggregator.ViewModels
             //CurrentBox++;
             CurrentLayer = 1;
             CurrentStepIndex = AggregationStep.PackAggregation;
+            // Обновляем информацию об агрегации после успешного завершения коробки
+            UpdateAggregationSummaryAfterBoxCompletion();
         }
+        /// <summary>
+        /// Обновляет информацию об агрегации после завершения коробки
+        /// </summary>
+        private void UpdateAggregationSummaryAfterBoxCompletion()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}");
+            sb.AppendLine($"Количество собранных коробов: {CurrentBox - 1}");
+            sb.AppendLine($"Номер собираемого короба: {CurrentBox}");
+            sb.AppendLine($"Номер слоя: {CurrentLayer}");
+            sb.AppendLine($"Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}");
+            sb.AppendLine($"Количество СИ, ожидаемое в слое: {numberOfLayers}");
+            sb.AppendLine($"Всего агрегированных СИ: {_sessionService.AllScannedDmCodes.Count}");
+            sb.AppendLine();
+            sb.AppendLine("Коробка успешно агрегирована!");
+            sb.AppendLine("Готов к сканированию.");
 
+            AggregationSummaryText = sb.ToString();
+
+            // Обновляем также информационный текст слоя
+            InfoLayerText = $"Коробка {CurrentBox - 1} завершена. Начинаем новую коробку {CurrentBox}. Выберите элементы шаблона для агрегации и нажмите кнопку сканировать!";
+        }
         #endregion
 
         #region Cell Processing Methods
@@ -2061,7 +2084,7 @@ namespace l2l_aggregator.ViewModels
 
                 var boxRecord = ResponseSscc.RECORDSET
                     .Where(r => r.TYPEID == (int)SsccType.Box)
-                    .FirstOrDefault(r => r.DISPLAY_BAR_CODE == barcode);
+                    .FirstOrDefault(r => r.CHECK_BAR_CODE == barcode);
 
                 if (boxRecord != null)
                 {
