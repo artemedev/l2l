@@ -73,7 +73,7 @@ namespace l2l_aggregator.Services.Printing
                 _notificationService.ShowMessage($"сформирован zplString");
 
                 // Экспортируем в PDF
-                await ExportReportToPdf(frxBytes, typePrint);
+              //  await ExportReportToPdf(frxBytes, typePrint);
                 //PrintZpl(zplBytes);
             }
             catch (Exception ex)

@@ -80,7 +80,7 @@ namespace l2l_aggregator.ViewModels
 
     internal enum UnType
     {
-        ConsumerPackage = 0
+        ConsumerPackage = 1
     }
 
     // Вспомогательные record-ы
@@ -384,7 +384,17 @@ namespace l2l_aggregator.ViewModels
 
         private void InitializeUpdateInfoAndUI()
         {
-            InfoLayerText = "Продолжаем агрегацию!";
+            // Проверяем, является ли это началом новой агрегации
+            bool isNewAggregation = CurrentBox == 1 && CurrentLayer == 1 && !_sessionService.AllScannedDmCodes.Any();
+
+            if (isNewAggregation)
+            {
+                InfoLayerText = "Выберите элементы шаблона для агрегации и нажмите кнопку сканировать!";
+            }
+            else
+            {
+                InfoLayerText = "Продолжаем агрегацию!";
+            }
             AggregationSummaryText = BuildInitialAggregationSummary();
         }
 
@@ -1886,7 +1896,7 @@ namespace l2l_aggregator.ViewModels
             sb.AppendLine($"Штрих-код (проверка): {ssccRecord.CHECK_BAR_CODE ?? "нет данных"}");
             sb.AppendLine($"Количество: {ssccRecord.QTY}");
             sb.AppendLine($"Родительский SSCC ID: {ssccRecord.PARENT_SSCCID ?? null}");
-            sb.AppendLine($"Время сканирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
+            //sb.AppendLine($"Время сканирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
 
             AggregationSummaryText = sb.ToString();
             ShowSuccessMessage($"Найден SSCC код: {typeDescription}");
@@ -1912,8 +1922,8 @@ namespace l2l_aggregator.ViewModels
             sb.AppendLine($"GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}");
             sb.AppendLine($"Родительский SSCC ID: {unRecord.PARENT_SSCCID ?? null}");
             sb.AppendLine($"Родительский UN ID: {unRecord.PARENT_UNID ?? null}");
-            sb.AppendLine($"Количество: {unRecord.QTY}");
-            sb.AppendLine($"Время сканирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
+            //sb.AppendLine($"Количество: {unRecord.QTY}");
+            //sb.AppendLine($"Время сканирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
 
             AggregationSummaryText = sb.ToString();
             ShowSuccessMessage($"Найден UN код: {typeDescription}");
@@ -1973,13 +1983,13 @@ namespace l2l_aggregator.ViewModels
         {
             CurrentStepIndex = PreviousStepIndex;
             DisaggregationModeButtonText = "Режим очистки короба";
+            RestoreDisaggregationButtonStates();
 
             // Восстанавливаем нормальное состояние только если не активен другой режим
             if (!IsInfoMode)
             {
                 RestoreNormalModeState();
             }
-            //RestoreDisaggregationButtonStates();
             //AggregationSummaryText = _previousAggregationSummaryTextDisaggregation;
 
             ShowInfoMessage("Режим очистки короба деактивирован");
