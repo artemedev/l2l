@@ -602,8 +602,8 @@ namespace l2l_aggregator.ViewModels
             if (!taskValidation.IsValid)
                 return taskValidation;
 
-            if (ResponseSscc?.RECORDSET == null || !ResponseSscc.RECORDSET.Any())
-                return ValidationResult.Error("Данные SSCC отсутствуют.");
+            //if (ResponseSscc?.RECORDSET == null || !ResponseSscc.RECORDSET.Any())
+            //    return ValidationResult.Error("Данные SSCC отсутствуют.");
 
             return ValidationResult.Success();
         }
@@ -1563,21 +1563,22 @@ namespace l2l_aggregator.ViewModels
 
         private void HandleFoundBarcode(string barcode, ArmJobSsccRecord foundRecord)
         {
-            // Убеждаемся, что у нас есть актуальный свободный короб для агрегации
-            var currentFreeBox = GetCurrentFreeBox();
-            if (currentFreeBox != null)
+            // Проверяем, есть ли уже агрегированные коды в отсканированной коробке
+            if (foundRecord.QTY > 0)
             {
-                _sessionService.SelectedTaskSscc = currentFreeBox;
-                ShowSuccessMessage($"Короб с ШК {barcode} успешно найден! Используется короб: {currentFreeBox.CHECK_BAR_CODE}");
-
-                if (SaveAllDmCells())
-                {
-                    ProcessSuccessfulAggregation();
-                }
+                ShowErrorMessage($"Коробка с ШК {barcode} уже содержит {foundRecord.QTY} агрегированных кодов!");
+                return;
             }
-            else
+
+            // 2. Используем ОТСКАНИРОВАННУЮ коробку, а не получаем новую свободную
+            _sessionService.SelectedTaskSscc = foundRecord;
+
+            ShowSuccessMessage($"Коробка с ШК {barcode} готова для агрегации");
+
+            // 3. Сохраняем агрегацию в ОТСКАНИРОВАННУЮ коробку
+            if (SaveAllDmCells())
             {
-                ShowErrorMessage("Не удалось получить свободный короб для агрегации.");
+                ProcessSuccessfulAggregation();
             }
         }
 
@@ -2022,11 +2023,13 @@ namespace l2l_aggregator.ViewModels
             DisaggregationModeButtonText = "Режим очистки короба";
             RestoreDisaggregationButtonStates();
 
+            // Обновляем отсканированные коды после выхода из режима разагрегации
+            UpdateScannedCodesAfterDisaggregation();
             // Восстанавливаем нормальное состояние только если не активен другой режим
-            if (!IsInfoMode)
-            {
-                RestoreNormalModeState();
-            }
+            //if (!IsInfoMode)
+            //{
+            //    RestoreNormalModeState();
+            //}
 
             ShowInfoMessage("Режим очистки короба деактивирован");
         }
@@ -2130,7 +2133,7 @@ namespace l2l_aggregator.ViewModels
             if (success)
             {
                 DisplayDisaggregationSuccess(barcode, boxRecord);
-                UpdateScannedCodesAfterDisaggregation();
+                //UpdateScannedCodesAfterDisaggregation();
                 UpdateDisaggregationAvailability();
             }
             else
