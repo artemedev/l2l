@@ -997,6 +997,36 @@ namespace l2l_aggregator.Services.Database
                 throw;
             }
         }
+        // ---------------- Получение количества агрегированных коробов ----------------
+        public int GetAggregatedBoxesCount()
+        {
+            try
+            {
+                return WithConnection(conn =>
+                {
+                    using var transaction = conn.BeginTransaction();
+                    try
+                    {
+                        var sql = @"SELECT COUNT(*) FROM MARK_SSCC_CODE_SHOW(NULL) sc WHERE sc.QTY > 0";
+
+                        var count = conn.QuerySingle<int>(sql, transaction: transaction);
+
+                        transaction.Commit();
+                        return count;
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
+
         // Освобождение ресурсов
         public void Dispose()
         {

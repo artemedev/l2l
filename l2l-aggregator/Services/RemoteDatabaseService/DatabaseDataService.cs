@@ -491,5 +491,23 @@ namespace l2l_aggregator.Services
                 return false;
             }
         }
+        // ---------------- Получение количества агрегированных коробов ----------------
+        public int GetAggregatedBoxesCount()
+        {
+            try
+            {
+                if (!EnsureConnection())
+                {
+                    return 0;
+                }
+
+                return _remoteDatabaseService.GetAggregatedBoxesCount();
+            }
+            catch (Exception ex)
+            {
+                //_notificationService.ShowMessage($"Ошибка получения количества агрегированных коробов: {ex.Message}", NotificationType.Error);
+                return 0;
+            }
+        }
     }
 }

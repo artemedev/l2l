@@ -220,7 +220,6 @@ namespace l2l_aggregator.ViewModels
         private bool _previousCanClearBoxDisaggregation;
         private bool _previousCanCompleteAggregationDisaggregation;
         private string _previousInfoLayerTextDisaggregation;
-        private string _previousAggregationSummaryTextDisaggregation;
 
         // Поля для сохранения состояния до активации режимов
         private string _normalModeInfoLayerText;
@@ -469,27 +468,18 @@ namespace l2l_aggregator.ViewModels
         {
             try
             {
-                var countersResponse = _databaseDataService.GetArmCounters();
+                var aggregatedBoxesCount = _databaseDataService.GetAggregatedBoxesCount();
 
-                if (countersResponse?.RECORDSET != null)
+                // CurrentBox = количество агрегированных коробов + 1 (следующий короб для агрегации)
+                CurrentBox = aggregatedBoxesCount + 1;
+
+                if (aggregatedBoxesCount > 0)
                 {
-                    var firstEmptyBox = FindFirstEmptyBox();
-
-                    if (firstEmptyBox != null)
-                    {
-                        CurrentBox = firstEmptyBox.Value.Index + 1;
-                        ShowInfoMessage($"Продолжение агрегации с короба №{CurrentBox}");
-                    }
-                    else
-                    {
-                        CurrentBox = 1;
-                        ShowInfoMessage("Все коробки заполнены, начинаем новую агрегацию");
-                    }
+                    ShowInfoMessage($"Продолжение агрегации с короба №{CurrentBox} (агрегировано: {aggregatedBoxesCount})");
                 }
                 else
                 {
-                    CurrentBox = 1;
-                    ShowErrorMessage("Не удалось получить данные счетчиков, начинаем с короба №1", NotificationType.Warning);
+                    ShowInfoMessage("Начинаем новую агрегацию с короба №1");
                 }
             }
             catch (Exception ex)
@@ -645,14 +635,6 @@ namespace l2l_aggregator.ViewModels
                 .ElementAtOrDefault(boxIndex - 1);
         }
 
-        private (ArmJobSsccRecord Record, int Index)? FindFirstEmptyBox()
-        {
-            return ResponseSscc.RECORDSET
-                .Where(r => r.TYPEID == (int)SsccType.Box)
-                .Select((record, index) => new { Record = record, Index = index })
-                .FirstOrDefault(x => x.Record.QTY == 0)
-                ?.Let(x => (x.Record, x.Index));
-        }
 
         private IEnumerable<string> GetValidCodesFromCells()
         {
@@ -1583,6 +1565,9 @@ namespace l2l_aggregator.ViewModels
             _sessionService.ClearCurrentBoxCodes();
             CanPrintBoxLabel = false;
             CanScan = true;
+            // Обновляем CurrentBox на основе реального количества агрегированных коробов
+            UpdateCurrentBox();
+
             CurrentBox++;
             CurrentLayer = 1;
             CurrentStepIndex = AggregationStep.PackAggregation;
@@ -1896,7 +1881,6 @@ namespace l2l_aggregator.ViewModels
             sb.AppendLine($"Штрих-код (проверка): {ssccRecord.CHECK_BAR_CODE ?? "нет данных"}");
             sb.AppendLine($"Количество: {ssccRecord.QTY}");
             sb.AppendLine($"Родительский SSCC ID: {ssccRecord.PARENT_SSCCID ?? null}");
-            //sb.AppendLine($"Время сканирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
 
             AggregationSummaryText = sb.ToString();
             ShowSuccessMessage($"Найден SSCC код: {typeDescription}");
@@ -1922,8 +1906,6 @@ namespace l2l_aggregator.ViewModels
             sb.AppendLine($"GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}");
             sb.AppendLine($"Родительский SSCC ID: {unRecord.PARENT_SSCCID ?? null}");
             sb.AppendLine($"Родительский UN ID: {unRecord.PARENT_UNID ?? null}");
-            //sb.AppendLine($"Количество: {unRecord.QTY}");
-            //sb.AppendLine($"Время сканирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
 
             AggregationSummaryText = sb.ToString();
             ShowSuccessMessage($"Найден UN код: {typeDescription}");
@@ -1990,7 +1972,6 @@ namespace l2l_aggregator.ViewModels
             {
                 RestoreNormalModeState();
             }
-            //AggregationSummaryText = _previousAggregationSummaryTextDisaggregation;
 
             ShowInfoMessage("Режим очистки короба деактивирован");
         }
@@ -2019,7 +2000,6 @@ namespace l2l_aggregator.ViewModels
             _previousCanClearBoxDisaggregation = CanClearBox;
             _previousCanCompleteAggregationDisaggregation = CanCompleteAggregation;
             _previousInfoLayerTextDisaggregation = InfoLayerText;
-            _previousAggregationSummaryTextDisaggregation = AggregationSummaryText;
         }
 
         private void RestoreDisaggregationButtonStates()
@@ -2113,7 +2093,6 @@ namespace l2l_aggregator.ViewModels
             sb.AppendLine($"SSCC ID: {boxRecord.SSCCID}");
             sb.AppendLine($"CHECK_BAR_CODE: {boxRecord.CHECK_BAR_CODE}");
             sb.AppendLine("Статус: Коробка успешно разагрегирована");
-            sb.AppendLine($"Время операции: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
 
             AggregationSummaryText = sb.ToString();
             ShowSuccessMessage($"Коробка с кодом {barcode} успешно разагрегирована");
@@ -2167,7 +2146,19 @@ namespace l2l_aggregator.ViewModels
             AggregationSummaryText = sb.ToString();
             ShowErrorMessage($"Ошибка очистки короба: {errorMessage}", NotificationType.Error);
         }
-
+        // Метод для обновления CurrentBox
+        private void UpdateCurrentBox()
+        {
+            try
+            {
+                var aggregatedBoxesCount = _databaseDataService.GetAggregatedBoxesCount();
+                CurrentBox = aggregatedBoxesCount + 1;
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage($"Ошибка обновления CurrentBox: {ex.Message}", NotificationType.Error);
+            }
+        }
         private void UpdateScannedCodesAfterDisaggregation()
         {
             try
@@ -2190,6 +2181,21 @@ namespace l2l_aggregator.ViewModels
                     _sessionService.ClearScannedCodes();
                     ShowInfoMessage("Все коды разагрегированы");
                 }
+
+                // Обновляем CurrentBox после разагрегации
+                UpdateCurrentBox();
+
+                // Обновляем информационный текст
+                InfoLayerText = $"Слой {CurrentLayer} из {_sessionService.SelectedTaskInfo.LAYERS_QTY}. Распознано 0 из {numberOfLayers}";
+
+                // Обновляем сводку агрегации
+                var sb = new StringBuilder();
+                sb.AppendLine($"Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}");
+                sb.AppendLine($"Количество собранных коробов: {CurrentBox - 1}");
+                sb.AppendLine($"Номер собираемого короба: {CurrentBox}");
+                sb.AppendLine($"Номер слоя: {CurrentLayer}");
+                sb.AppendLine($"Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}");
+                AggregationSummaryText = sb.ToString();
             }
             catch (Exception ex)
             {
