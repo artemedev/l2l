@@ -145,8 +145,6 @@ namespace l2l_aggregator.ViewModels
                             if (currentTask != 0 && currentTask != null)
                             {
                                 await GoAggregationAsync(currentTask);
-                                _notificationService.ShowMessage("Обнаружена незавершённая агрегация. Продолжаем...");
-                                _router.GoTo<AggregationViewModel>();
                                 return;
                             }
                             else
@@ -261,6 +259,7 @@ namespace l2l_aggregator.ViewModels
             {
                 foreach (var msg in errors)
                     _notificationService.ShowMessage(msg);
+                return;
             }
 
 
@@ -300,6 +299,7 @@ namespace l2l_aggregator.ViewModels
             // Сохраняем данные в сессию для использования в AggregationViewModel
             _sessionService.CachedSsccResponse = _responseSscc;
             _sessionService.CachedSgtinResponse = _responseSgtin;
+            _notificationService.ShowMessage("Обнаружена незавершённая агрегация. Продолжаем...");
 
             _router.GoTo<AggregationViewModel>();
         }
