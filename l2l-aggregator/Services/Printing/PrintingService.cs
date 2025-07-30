@@ -359,16 +359,6 @@ namespace l2l_aggregator.Services.Printing
             {
                 report.Load(ms);
             }
-            // Простая настройка размеров штрих-кода
-            //var barcodeObject = report.FindObject("BarCode1") as BarcodeObject;
-            //if (barcodeObject != null)
-            //{
-            //    barcodeObject.Left = 148;
-            //    barcodeObject.Top = 149;
-            //    barcodeObject.Width = 92;
-            //    barcodeObject.Height = 60;
-            //    barcodeObject.Zoom = 1f;
-            //}
 
             var labelData = new
             {

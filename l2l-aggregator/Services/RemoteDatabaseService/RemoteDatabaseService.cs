@@ -841,7 +841,7 @@ namespace l2l_aggregator.Services.Database
                     using var transaction = conn.BeginTransaction();
                     try
                     {
-                        var sql = @"SELECT * FROM MARK_SSCC_CODE WHERE DISPLAY_BAR_CODE = @CODE";
+                        var sql = @"SELECT * FROM MARK_SSCC_CODE WHERE CHECK_BAR_CODE = @CODE";
 
                         var record = conn.QueryFirstOrDefault(sql, new { CODE = code }, transaction: transaction);
 

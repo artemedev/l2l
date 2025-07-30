@@ -222,6 +222,10 @@ namespace l2l_aggregator.ViewModels
         private string _previousInfoLayerTextDisaggregation;
         private string _previousAggregationSummaryTextDisaggregation;
 
+        // Поля для сохранения состояния до активации режимов
+        private string _normalModeInfoLayerText;
+        private string _normalModeAggregationSummaryText;
+        private bool _isNormalStateDataSaved = false;
         #endregion
 
         #region Observable Properties
@@ -779,7 +783,7 @@ namespace l2l_aggregator.ViewModels
 
         partial void OnIsPopupOpenChanged(bool value)
         {
-            if (!value)
+            if (!value && !IsDisaggregationMode)
             {
                 AggregationSummaryText = _previousAggregationSummaryText;
             }
@@ -789,6 +793,11 @@ namespace l2l_aggregator.ViewModels
         {
             if (value)
             {
+                // Если включается режим информации, отключаем режим очистки короба
+                if (IsDisaggregationMode)
+                {
+                    IsDisaggregationMode = false; // Это вызовет ExitDisaggregationMode()
+                }
                 EnterInfoMode();
             }
             else
@@ -801,6 +810,11 @@ namespace l2l_aggregator.ViewModels
         {
             if (value)
             {
+                // Если включается режим очистки короба, отключаем режим информации
+                if (IsInfoMode)
+                {
+                    IsInfoMode = false; // Это вызовет ExitInfoMode()
+                }
                 EnterDisaggregationMode();
             }
             else
@@ -1757,6 +1771,12 @@ namespace l2l_aggregator.ViewModels
             CurrentStepIndex = AggregationStep.InfoMode;
             InfoModeButtonText = "Выйти из режима";
 
+            // Сохраняем нормальное состояние только если еще не сохранено
+            if (!_isNormalStateDataSaved)
+            {
+                SaveNormalModeState();
+            }
+
             SaveCurrentButtonStates();
             DisableAllButtonsForInfoMode();
 
@@ -1772,7 +1792,12 @@ namespace l2l_aggregator.ViewModels
             InfoModeButtonText = "Режим информации";
 
             RestoreButtonStates();
-            AggregationSummaryText = _previousAggregationSummaryText;
+            // Восстанавливаем нормальное состояние только если не активен другой режим
+            if (!IsDisaggregationMode)
+            {
+                RestoreNormalModeState();
+            }
+            //AggregationSummaryText = _previousAggregationSummaryText;
 
             ShowInfoMessage("Режим информации деактивирован");
         }
@@ -1930,9 +1955,14 @@ namespace l2l_aggregator.ViewModels
             CurrentStepIndex = AggregationStep.DisaggregationMode;
             DisaggregationModeButtonText = "Выйти из режима";
 
+
+            // Сохраняем нормальное состояние только если еще не сохранено
+            if (!_isNormalStateDataSaved)
+            {
+                SaveNormalModeState();
+            }
             SaveDisaggregationButtonStates();
             DisableAllButtonsForDisaggregationMode();
-
             InfoLayerText = "Режим очистки короба: отсканируйте код коробки для очистки короба";
             AggregationSummaryText = "Режим очистки короба активен. \nОтсканируйте код коробки для выполнения очистки короба.";
 
@@ -1944,12 +1974,32 @@ namespace l2l_aggregator.ViewModels
             CurrentStepIndex = PreviousStepIndex;
             DisaggregationModeButtonText = "Режим очистки короба";
 
-            RestoreDisaggregationButtonStates();
-            AggregationSummaryText = _previousAggregationSummaryTextDisaggregation;
+            // Восстанавливаем нормальное состояние только если не активен другой режим
+            if (!IsInfoMode)
+            {
+                RestoreNormalModeState();
+            }
+            //RestoreDisaggregationButtonStates();
+            //AggregationSummaryText = _previousAggregationSummaryTextDisaggregation;
 
             ShowInfoMessage("Режим очистки короба деактивирован");
         }
-
+        // Методы для сохранения и восстановления нормального состояния
+        private void SaveNormalModeState()
+        {
+            _normalModeInfoLayerText = InfoLayerText;
+            _normalModeAggregationSummaryText = AggregationSummaryText;
+            _isNormalStateDataSaved = true;
+        }
+        private void RestoreNormalModeState()
+        {
+            if (_isNormalStateDataSaved)
+            {
+                InfoLayerText = _normalModeInfoLayerText;
+                AggregationSummaryText = _normalModeAggregationSummaryText;
+                _isNormalStateDataSaved = false;
+            }
+        }
         private void SaveDisaggregationButtonStates()
         {
             _previousCanScanDisaggregation = CanScan;

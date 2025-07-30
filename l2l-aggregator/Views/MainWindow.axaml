@@ -220,4 +220,11 @@
 		<!-- Модальное окно подтверждения -->
 		<customControls:ConfirmationDialog x:Name="ConfirmationDialog" ZIndex="2000"/>
 	</Grid>
+	<Window.Styles>
+		<Style Selector="FlyoutPresenter.wider">
+			<Setter Property="MaxWidth" Value="1700"/>
+			<Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+			<Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled"/>
+		</Style>
+	</Window.Styles>
 </Window>
