@@ -1026,7 +1026,56 @@ namespace l2l_aggregator.Services.Database
                 throw;
             }
         }
+        // ---------------- Свободный короб ----------------
+        public ArmJobSsccRecord? ReserveFreeBox()
+        {
+            try
+            {
+                return WithConnection(conn =>
+                {
+                    using var transaction = conn.BeginTransaction();
+                    try
+                    {
+                        var sql = @"SELECT * FROM ARM_SSCC_CODE_RESERVE(0)";
 
+                        var record = conn.QueryFirstOrDefault(sql, transaction: transaction);
+
+                        if (record != null)
+                        {
+                            var response = new ArmJobSsccRecord
+                            {
+                                SSCCID = record.SSCCID,
+                                SSCC_CODE = record.SSCC_CODE?.ToString(),
+                                STATEID = record.STATEID,
+                                TYPEID = record.TYPEID,
+                                DISPLAY_BAR_CODE = record.DISPLAY_BAR_CODE?.ToString(),
+                                SSCC = record.SSCC?.ToString(),
+                                CHECK_BAR_CODE = record.CHECK_BAR_CODE,
+                                ORDER_NUM = record.ORDER_NUM,
+                                CODE_STATE = record.CODE_STATE?.ToString(),
+                                QTY = record.QTY,
+                                PARENT_SSCCID = record.PARENT_SSCCID
+                            };
+
+                            transaction.Commit();
+                            return response;
+                        }
+
+                        transaction.Rollback();
+                        return null;
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
         // Освобождение ресурсов
         public void Dispose()
         {

@@ -509,5 +509,33 @@ namespace l2l_aggregator.Services
                 return 0;
             }
         }
+        // ---------------- Резервирование свободного короба ----------------
+        public ArmJobSsccRecord? ReserveFreeBox()
+        {
+            try
+            {
+                if (!EnsureConnection())
+                {
+                    return null;
+                }
+
+                var response = _remoteDatabaseService.ReserveFreeBox();
+                if (response != null)
+                {
+                    //_notificationService.ShowMessage($"Зарезервирован короб: {response.CHECK_BAR_CODE}", NotificationType.Success);
+                }
+                else
+                {
+                    //_notificationService.ShowMessage("Нет доступных свободных коробов", NotificationType.Warning);
+                }
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                //_notificationService.ShowMessage($"Ошибка резервирования свободного короба: {ex.Message}", NotificationType.Error);
+                return null;
+            }
+        }
     }
 }

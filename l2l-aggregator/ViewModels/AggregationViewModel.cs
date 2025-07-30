@@ -451,17 +451,17 @@ namespace l2l_aggregator.ViewModels
                 return;
             }
 
-            var boxRecord = FindBoxRecord(CurrentBox);
-            if (boxRecord != null)
+            var freeBox = GetCurrentFreeBox();
+            if (freeBox != null)
             {
-                _sessionService.SelectedTaskSscc = boxRecord;
+                _sessionService.SelectedTaskSscc = freeBox;
             }
             else
             {
-                ShowErrorMessage($"Не удалось найти запись коробки с индексом {CurrentBox - 1}.");
+                ShowErrorMessage("Не удалось получить свободный короб для агрегации.");
+                // Fallback: используем первый доступный короб из ResponseSscc
+               // _sessionService.SelectedTaskSscc = ResponseSscc.RECORDSET.FirstOrDefault();
             }
-
-            _sessionService.SelectedTaskSscc = ResponseSscc.RECORDSET.FirstOrDefault();
         }
 
         private void InitializeCurrentBoxFromCounters()
@@ -628,13 +628,35 @@ namespace l2l_aggregator.ViewModels
             _notificationService.ShowMessage(message, NotificationType.Info);
         }
 
-        private ArmJobSsccRecord? FindBoxRecord(int boxIndex)
+        //private ArmJobSsccRecord? FindBoxRecord(int boxIndex)
+        //{
+        //    return ResponseSscc.RECORDSET
+        //        .Where(r => r.TYPEID == (int)SsccType.Box)
+        //        .ElementAtOrDefault(boxIndex - 1);
+        //}
+        private ArmJobSsccRecord? GetCurrentFreeBox()
         {
-            return ResponseSscc.RECORDSET
-                .Where(r => r.TYPEID == (int)SsccType.Box)
-                .ElementAtOrDefault(boxIndex - 1);
-        }
+            try
+            {
+                var freeBox = _databaseDataService.ReserveFreeBox();
 
+                if (freeBox != null)
+                {
+                    ShowInfoMessage($"Зарезервирован короб: {freeBox.CHECK_BAR_CODE}");
+                    return freeBox;
+                }
+                else
+                {
+                    ShowErrorMessage("Нет доступных свободных коробов для агрегации", NotificationType.Warning);
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage($"Ошибка получения свободного короба: {ex.Message}", NotificationType.Error);
+                return null;
+            }
+        }
 
         private IEnumerable<string> GetValidCodesFromCells()
         {
@@ -1165,14 +1187,14 @@ namespace l2l_aggregator.ViewModels
 
         private void SetCurrentBoxRecord()
         {
-            var boxRecord = FindBoxRecord(CurrentBox);
-            if (boxRecord != null)
+            var freeBox = GetCurrentFreeBox();
+            if (freeBox != null)
             {
-                _sessionService.SelectedTaskSscc = boxRecord;
+                _sessionService.SelectedTaskSscc = freeBox;
             }
             else
             {
-                ShowErrorMessage($"Не удалось найти запись коробки с индексом {CurrentBox - 1}.");
+                ShowErrorMessage("Не удалось получить свободный короб для агрегации.");
             }
         }
 
@@ -1443,15 +1465,26 @@ namespace l2l_aggregator.ViewModels
 
         private async Task PrintBoxLabelInternal()
         {
-            var boxRecord = FindBoxRecord(CurrentBox);
-            if (boxRecord != null)
+            // Используем текущий зарезервированный короб из сессии
+            if (_sessionService.SelectedTaskSscc != null)
             {
-                _sessionService.SelectedTaskSscc = boxRecord;
                 _printingService.PrintReport(frxBoxBytes, true);
+                ShowSuccessMessage($"Этикетка короба {_sessionService.SelectedTaskSscc.CHECK_BAR_CODE} отправлена на печать");
             }
             else
             {
-                ShowErrorMessage($"Не удалось найти запись коробки с индексом {CurrentBox - 1}.");
+                // Если по какой-то причине текущий короб не установлен, получаем новый
+                var currentFreeBox = GetCurrentFreeBox();
+                if (currentFreeBox != null)
+                {
+                    _sessionService.SelectedTaskSscc = currentFreeBox;
+                    _printingService.PrintReport(frxBoxBytes, true);
+                    ShowSuccessMessage($"Этикетка короба {currentFreeBox.CHECK_BAR_CODE} отправлена на печать");
+                }
+                else
+                {
+                    ShowErrorMessage("Не удалось получить данные короба для печати этикетки.");
+                }
             }
         }
 
@@ -1530,22 +1563,21 @@ namespace l2l_aggregator.ViewModels
 
         private void HandleFoundBarcode(string barcode, ArmJobSsccRecord foundRecord)
         {
-            var boxRecord = FindBoxRecord(CurrentBox);
-            if (boxRecord != null)
+            // Убеждаемся, что у нас есть актуальный свободный короб для агрегации
+            var currentFreeBox = GetCurrentFreeBox();
+            if (currentFreeBox != null)
             {
-                _sessionService.SelectedTaskSscc = boxRecord;
+                _sessionService.SelectedTaskSscc = currentFreeBox;
+                ShowSuccessMessage($"Короб с ШК {barcode} успешно найден! Используется короб: {currentFreeBox.CHECK_BAR_CODE}");
+
+                if (SaveAllDmCells())
+                {
+                    ProcessSuccessfulAggregation();
+                }
             }
             else
             {
-                ShowErrorMessage($"Не удалось найти запись коробки с индексом {CurrentBox - 1}.");
-                return;
-            }
-
-            ShowSuccessMessage($"Короб с ШК {barcode} успешно найден!");
-
-            if (SaveAllDmCells())
-            {
-                ProcessSuccessfulAggregation();
+                ShowErrorMessage("Не удалось получить свободный короб для агрегации.");
             }
         }
 
@@ -1568,7 +1600,7 @@ namespace l2l_aggregator.ViewModels
             // Обновляем CurrentBox на основе реального количества агрегированных коробов
             UpdateCurrentBox();
 
-            CurrentBox++;
+            //CurrentBox++;
             CurrentLayer = 1;
             CurrentStepIndex = AggregationStep.PackAggregation;
         }
