@@ -8,6 +8,7 @@
 		xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
 		xmlns:customControls="clr-namespace:l2l_aggregator.Views.Popup;assembly=l2l_aggregator"
         mc:Ignorable="d" d:DesignWidth="1800" d:DesignHeight="1450"
+		SystemDecorations="None"
         x:Class="l2l_aggregator.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
 		Icon="/Assets/Images/Logo2.ico"
