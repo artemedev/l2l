@@ -18,11 +18,8 @@
 		<SolidColorBrush x:Key="PrimaryBackground">#d4d6d5</SolidColorBrush>
 		<converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
 		<converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
-		<converters:CenterToLeftConverter x:Key="CenterToLeftConverter" />
-		<converters:CenterToTopConverter x:Key="CenterToTopConverter" />
 		<converters:ResponsiveMarginConverter x:Key="ResponsiveMarginConverter" />
 		<converters:ResponsiveFontSizeConverter x:Key="ResponsiveFontSizeConverter" />
-		<converters:HalfConverter x:Key="HalfConverter" />
 		<converters:OneThirdWidthConverter x:Key="OneThirdWidthConverter"/>
 		<converters:NotificationTypeToBrushConverter x:Key="NotificationTypeToBrushConverter"/>
 	</Application.Resources>

@@ -89,21 +89,15 @@ namespace l2l_aggregator.ViewModels
             {
                 Content = viewModel;
                 //если страница 
-                IsNotLoginPage = !(viewModel is AuthViewModel || viewModel is InitializationViewModel);
+                IsNotLoginPage = !(viewModel is AuthViewModel);
                 User = sessionService.User;
                 IsAdmin = sessionService.IsAdmin;
                 _enableVirtualKeyboard = _sessionService.EnableVirtualKeyboard;
-                //if (IsNotLoginPage)
-                //{
-                //    await LoadUserData(Content); // Загружаем данные пользователя при входе
-                //}
                 // Инициализируем или переинициализируем сканер при смене страницы
                 await InitializeOrReinitializeScannerAsync();
             };
 
             InitializeAsync();
-
-            //_ = InitializeSessionFromDatabaseAsync();
             //-------Notification--------
             Notifications = _notificationService.Notifications;
             ClearNotificationsCommand = new RelayCommand(ClearNotifications);

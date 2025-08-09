@@ -1,6 +1,4 @@
-﻿using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Logging;
-using Avalonia.SimpleRouter;
+﻿using Avalonia.SimpleRouter;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DM_wraper_NS;
@@ -13,12 +11,9 @@ using l2l_aggregator.Services.Notification.Interface;
 using l2l_aggregator.Services.Printing;
 using l2l_aggregator.Services.ScannerService.Interfaces;
 using l2l_aggregator.ViewModels.VisualElements;
-using Microsoft.Extensions.Logging;
-using Refit;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace l2l_aggregator.ViewModels
@@ -63,8 +58,6 @@ namespace l2l_aggregator.ViewModels
         private readonly ConfigurationLoaderService _configLoader;
         private readonly PrintingService _printingService;
 
-        //private readonly ILogger<PcPlcConnectionService> _logger;
-
         // Свойство для отслеживания состояния принтера
         [ObservableProperty] private bool _isPrinterConnected = false;
 
@@ -96,7 +89,6 @@ namespace l2l_aggregator.ViewModels
             _dmScanService = dmScanService;
             _printingService = printingService;
             _plcConnectionService = plcConnectionService;
-            //_logger = logger;
             _ = InitializeAsync();
         }
         // Метод для уведомления об изменении computed property
@@ -145,8 +137,6 @@ namespace l2l_aggregator.ViewModels
             if (foundScanner != null)
             {
                 SelectedScanner = foundScanner;
-                //session.ScannerPort = SelectedScanner?.Id;
-                //session.ScannerModel = SelectedScannerModel;
             }
             else
             {
@@ -162,15 +152,12 @@ namespace l2l_aggregator.ViewModels
 
         private async Task LoadSettingsAsync()
         {
-            //var (camera, disableVK) = await _configLoader.LoadSettingsToSessionAsync();
-
             Camera = new CameraViewModel
             {
                 CameraIP = _sessionService.CameraIP,
                 SelectedCameraModel = _sessionService.CameraModel
             };
             EnableVirtualKeyboard = _sessionService.EnableVirtualKeyboard;
-            //DatabaseUri = _sessionService.DatabaseUri;
             PrinterIP = _sessionService.PrinterIP;
             SelectedPrinterModel = _sessionService.PrinterModel;
             ControllerIP = _sessionService.ControllerIP;
@@ -188,29 +175,24 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         private async Task ToggleEnableVirtualKeyboardAsync()
         {
-            // await _databaseService.Config.SetConfigValueAsync("DisableVirtualKeyboard", DisableVirtualKeyboard.ToString());
             _sessionService.EnableVirtualKeyboard = EnableVirtualKeyboard;
             InfoMessage = "Настройка клавиатуры сохранена.";
             _notificationService.ShowMessage(InfoMessage);
         }
         partial void OnCheckControllerBeforeAggregationChanged(bool value)
         {
-            //_ = _databaseService.Config.SetConfigValueAsync("CheckController", value.ToString());
             _sessionService.CheckController = value;
         }
         partial void OnCheckCameraBeforeAggregationChanged(bool value)
         {
-            //_ = _databaseService.Config.SetConfigValueAsync("CheckCamera", value.ToString());
             _sessionService.CheckCamera = value;
         }
         partial void OnCheckPrinterBeforeAggregationChanged(bool value)
         {
-            //_ = _databaseService.Config.SetConfigValueAsync("CheckPrinter", value.ToString());
             _sessionService.CheckPrinter = value;
         }
         partial void OnCheckScannerBeforeAggregationChanged(bool value)
         {
-            // _ = _databaseService.Config.SetConfigValueAsync("CheckScanner", value.ToString());
             _sessionService.CheckScanner = value;
         }
 
@@ -225,72 +207,10 @@ namespace l2l_aggregator.ViewModels
 
         }
 
-        //[RelayCommand]
-        //public async Task CheckAndSaveUriAsync()
-        //{
-        //    if (!string.IsNullOrWhiteSpace(DatabaseUri))
-        //    {
-        //        try
-        //        {
-        //            var request = new ArmDeviceRegistrationRequest
-        //            {
-        //                NAME = "test",
-        //                MAC_ADDRESS = "test",
-        //                SERIAL_NUMBER = "test",
-        //                NET_ADDRESS = "test",
-        //                KERNEL_VERSION = "test",
-        //                HADWARE_VERSION = "test",
-        //                SOFTWARE_VERSION = "test",
-        //                FIRMWARE_VERSION = "test",
-        //                DEVICE_TYPE = "test"
-        //            };
-        //            var handler = new HttpClientHandler
-        //            {
-        //                ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
-        //            };
-        //            var httpClient = new HttpClient(handler)
-        //            {
-        //                BaseAddress = new Uri(DatabaseUri)
-        //            };
-        //            httpClient.DefaultRequestHeaders.Add("MTDApikey", "e2fbe0f4fbe2e0fbf4ecf7f1ece5e8f020fbe2e0eff0eae5f020edeeede320fceee8ec343533343536333435212121de2cc1de"); // если нужно
-
-        //            var authClient = RestService.For<IAuthApi>(httpClient);
-        //            var response = await authClient.RegisterDevice(request);
-
-        //            await _databaseService.RegistrationDevice.SaveRegistrationAsync(response);
-
-        //            //await _databaseService.Config.SetConfigValueAsync("ServerUri", ServerUri);
-        //            //_sessionService.DatabaseUri = DatabaseUri;
-        //            InfoMessage = "URI успешно сохранён!";
-        //            _notificationService.ShowMessage(InfoMessage);
-
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            InfoMessage = $"Ошибка: {ex.Message}";
-        //            _notificationService.ShowMessage($"Ошибка: {ex.Message}");
-
-        //        }
-        //    }
-
-
-        //}
-
-
-
-        //[RelayCommand]
-        //private void TestServerConnection() { /* ... */ }
-
-
-
-
-
-
 
         [RelayCommand]
         private async void SaveSettings()
         {
-            //await _databaseService.Config.SetConfigValueAsync("DisableVirtualKeyboard", DisableVirtualKeyboard.ToString());
             _sessionService.EnableVirtualKeyboard = EnableVirtualKeyboard;
             InfoMessage = "Настройки успешно сохранены!";
             _notificationService.ShowMessage(InfoMessage);
@@ -316,7 +236,6 @@ namespace l2l_aggregator.ViewModels
             {
 
                 // Создать службу подключения PLC
-                //var plcService = new PcPlcConnectionService(_logger); // Внедрение ILogger
                 bool connected = await _plcConnectionService.ConnectAsync(ControllerIP);
                 if (!connected)
                 {
@@ -414,11 +333,6 @@ namespace l2l_aggregator.ViewModels
                     _notificationService.ShowMessage("Не удалось применить параметры камеры");
 
                 camera.IsConnected = true;
-
-                //await _databaseService.Config.SetConfigValueAsync("CameraIP", camera.CameraIP);
-                //await _databaseService.Config.SetConfigValueAsync("CameraModel", camera.SelectedCameraModel);
-                //await _databaseService.Config.SetConfigValueAsync("CheckCamera", CheckCameraBeforeAggregation.ToString());
-
                 _sessionService.CameraIP = camera.CameraIP;
                 _sessionService.CameraModel = camera.SelectedCameraModel;
                 _sessionService.CheckCamera = CheckCameraBeforeAggregation;
@@ -450,10 +364,6 @@ namespace l2l_aggregator.ViewModels
                 await _printingService.CheckConnectPrinterAsync(PrinterIP, SelectedPrinterModel);
 
                 // сохраняем в БД
-                //await _databaseService.Config.SetConfigValueAsync("PrinterIP", PrinterIP);
-                //await _databaseService.Config.SetConfigValueAsync("PrinterModel", SelectedPrinterModel);
-                //await _databaseService.Config.SetConfigValueAsync("CheckPrinter", CheckPrinterBeforeAggregation.ToString());
-
                 _sessionService.PrinterIP = PrinterIP;
                 _sessionService.PrinterModel = SelectedPrinterModel;
                 _sessionService.CheckPrinter = CheckPrinterBeforeAggregation;
@@ -486,22 +396,11 @@ namespace l2l_aggregator.ViewModels
             {
                 if (SelectedScannerModel == "Honeywell")
                 {
-                    //await _databaseService.Config.SetConfigValueAsync("ScannerCOMPort", SelectedScanner.Id);
-                    //await _databaseService.Config.SetConfigValueAsync("ScannerModel", SelectedScannerModel);
-                    //await _databaseService.Config.SetConfigValueAsync("CheckScanner", CheckScannerBeforeAggregation.ToString());
-
                     _sessionService.ScannerPort = SelectedScanner.Id;
                     _sessionService.CheckScanner = CheckScannerBeforeAggregation;
                     _sessionService.ScannerModel = SelectedScannerModel;
                     // Установить состояние подключения
                     IsScannerConnected = true;
-                    //var mainWindow = App.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
-                    //? desktop.MainWindow
-                    //: null;
-                    //if (mainWindow?.DataContext is MainWindowViewModel mainVM)
-                    //{
-                    //    await mainVM.ReinitializeScannerAsync();
-                    //}
                     InfoMessage = $"Сканер '{SelectedScanner.Id}' сохранён!";
                     _notificationService.ShowMessage(InfoMessage);
                 }
@@ -527,21 +426,12 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public void AddCamera()
         {
-            //Cameras.Add(new CameraViewModel());
         }
 
         [RelayCommand]
         public void RemoveCamera(CameraViewModel camera)
         {
-            //if (Cameras.Count > 1) // Ensure at least one camera remains
-            //{
-            //    Cameras.Remove(camera);
-            //}
-            //else
-            //{
-            //    InfoMessage = "Как минимум одна камера должна быть настроена";
-            //    _notificationService.ShowMessage(InfoMessage);
-            //}
+          
         }
 
         // Метод для тестовой печати
@@ -570,13 +460,11 @@ namespace l2l_aggregator.ViewModels
         // Методы для сброса состояния принтера при изменении IP или модели
         partial void OnPrinterIPChanged(string value)
         {
-            //IsPrinterConnected = false;
             UpdatePrinterConnectionState();
         }
 
         partial void OnSelectedPrinterModelChanged(string value)
         {
-            //IsPrinterConnected = false;
             UpdatePrinterConnectionState();
         }
 

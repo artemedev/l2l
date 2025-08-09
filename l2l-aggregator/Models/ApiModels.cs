@@ -21,11 +21,7 @@
         public string? SETTINGS_DATA { get; set; }
     }
 
-    public class UserAuthRequest
-    {
-        public string? wid { get; set; }
-        public string? spd { get; set; }
-    }
+
 
     public class UserAuthResponse
     {

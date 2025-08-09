@@ -29,9 +29,6 @@ namespace l2l_aggregator
             services.AddSingleton<SessionService>();
             services.AddSingleton<DmScanService>();
             services.AddSingleton<TemplateService>();
-            services.AddSingleton<ScannerListenerService>();
-            services.AddSingleton<ScannerInputService>();
-            //services.AddSingleton<DMProcessingService>();
             services.AddSingleton<ImageHelper>();
             services.AddSingleton<INotificationService, NotificationService>();
             services.AddSingleton<INotificationLogRepository, NotificationLogRepository>();
@@ -40,7 +37,6 @@ namespace l2l_aggregator
             services.AddSingleton<MainWindowViewModel>();
 
             // Регистрация ViewModels (они зависят от HistoryRouter)
-            services.AddTransient<InitializationViewModel>();
             services.AddTransient<AuthViewModel>();
             services.AddTransient<TaskListViewModel>();
             services.AddTransient<TaskDetailsViewModel>();

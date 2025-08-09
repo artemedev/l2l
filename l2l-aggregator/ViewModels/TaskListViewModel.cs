@@ -7,7 +7,6 @@ using l2l_aggregator.Services.Database;
 using l2l_aggregator.Services.Notification.Interface;
 using System;
 using System.Collections.ObjectModel;
-using System.Threading.Tasks;
 
 namespace l2l_aggregator.ViewModels
 {
@@ -59,8 +58,6 @@ namespace l2l_aggregator.ViewModels
 
 
             Initialize();
-            //string userId = await _databaseService.UserAuth.GetLastUserIdAsync();
-            //LoadTasksAsync(userId).ConfigureAwait(false);
         }
         private void Initialize()
         {
@@ -71,7 +68,6 @@ namespace l2l_aggregator.ViewModels
             }
             catch (Exception ex)
             {
-                //InfoMessage = $"Ошибка инициализации: {ex.Message}";
                 _notificationService.ShowMessage($"Ошибка инициализации: {ex.Message}");
             }
         }
@@ -79,27 +75,10 @@ namespace l2l_aggregator.ViewModels
         {
             try
             {
-                //var serverUri =_sessionService.DatabaseUri;
-                //if (string.IsNullOrWhiteSpace(serverUri))
-                //{
-                //    InfoMessage = "Сервер не настроен!";
-                //    _notificationService.ShowMessage("Сервер не настроен!");
-                //    return;
-                //}
-                //HttpClientHandler httpClientHandler = new HttpClientHandler();
-                //httpClientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
-                //var client = RestService.For<ITaskApi>(new HttpClient(httpClientHandler)
-                //{
-                //    BaseAddress = new Uri(serverUri)
-                //});
-
                 var request = new ArmJobRequest { userid = userId };
-                //var response = await _dataApiService.GetJobsAsync(userId);
                 var response = _databaseDataService.GetJobs(userId);
                 if (response != null)
                 {
-                    //client.GetJobs(request);
-
                     Tasks.Clear();
                     foreach (var rec in response.RECORDSET)
                     {
