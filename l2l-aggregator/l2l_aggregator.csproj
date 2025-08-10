@@ -79,6 +79,9 @@
     <None Update="decode.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="device-config.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Pharma_0-9A-Z_Rej .omc">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

@@ -191,8 +191,7 @@ namespace l2l_aggregator.Services
         /// </summary>
         public async Task InitializeAsync(IConfigurationFileService configService)
         {
-            if (_configService == null)
-                throw new InvalidOperationException("Configuration service not initialized");
+            _configService = configService;
 
 
             // Загружаем настройки устройств
