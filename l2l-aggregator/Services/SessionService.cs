@@ -138,15 +138,10 @@ namespace l2l_aggregator.Services
         }
 
         // ---------------- Database Connection (Read-only) ----------------
-        /// <summary>
-        /// Статичный адрес базы данных (только для чтения)
-        /// </summary>
-        public string DatabaseUri { get; set; }
 
         /// <summary>
         /// Отображаемая информация о базе данных
         /// </summary>
-        public string DatabaseDisplayInfo => "172.16.3.237:3050";
 
         // ---------------- Device Registration Info ----------------
         public string? DeviceId { get; set; }
@@ -160,8 +155,7 @@ namespace l2l_aggregator.Services
         public ArmJobRecord? SelectedTask { get; set; }
         public ArmJobInfoRecord? SelectedTaskInfo { get; set; }
         public ArmJobSsccRecord? SelectedTaskSscc { get; set; }
-        public ArmJobSgtinRecord? SelectedTaskSgtin { get; set; }
-        // ---------------- Cached Data for Aggregation ----------------
+
         /// <summary>
         /// Кэшированные данные SSCC, загруженные в TaskDetailsViewModel
         /// </summary>
@@ -172,19 +166,6 @@ namespace l2l_aggregator.Services
         /// </summary>
         public ArmJobSgtinResponse? CachedSgtinResponse { get; set; }
 
-        // ---------------- Aggregation State ----------------
-        public AggregationState? AggregationState { get; set; }
-
-        /// <summary>
-        /// Проверяет, есть ли незавершенная агрегация
-        /// </summary>
-        public bool HasUnfinishedAggregation => SelectedTaskInfo != null &&
-            AggregationState != null &&
-            !string.IsNullOrWhiteSpace(AggregationState.TemplateJson) &&
-            !string.IsNullOrWhiteSpace(AggregationState.ProgressJson);
-
-        // ---------------- Session Management ----------------
-        public long? CurrentSessionId { get; set; }
 
         /// <summary>
         /// Инициализация настроек сессии
@@ -272,61 +253,6 @@ namespace l2l_aggregator.Services
             catch (Exception ex)
             {
                 throw new Exception($"Ошибка при сохранении информации о регистрации устройства: {ex.Message}", ex);
-            }
-        }
-        /// <summary>
-        /// Получает сохраненные данные устройства из конфигурации
-        /// </summary>
-        public async Task<ArmDeviceRegistrationRequest?> GetSavedDeviceDataAsync()
-        {
-            if (_configService == null) return null;
-
-            try
-            {
-                return new ArmDeviceRegistrationRequest
-                {
-                    NAME = await _configService.GetConfigValueAsync("Device_NAME"),
-                    MAC_ADDRESS = await _configService.GetConfigValueAsync("Device_MAC_ADDRESS"),
-                    SERIAL_NUMBER = await _configService.GetConfigValueAsync("Device_SERIAL_NUMBER"),
-                    NET_ADDRESS = await _configService.GetConfigValueAsync("Device_NET_ADDRESS"),
-                    KERNEL_VERSION = await _configService.GetConfigValueAsync("Device_KERNEL_VERSION"),
-                    HARDWARE_VERSION = await _configService.GetConfigValueAsync("Device_HADWARE_VERSION"),
-                    SOFTWARE_VERSION = await _configService.GetConfigValueAsync("Device_SOFTWARE_VERSION"),
-                    FIRMWARE_VERSION = await _configService.GetConfigValueAsync("Device_FIRMWARE_VERSION"),
-                    DEVICE_TYPE = await _configService.GetConfigValueAsync("Device_DEVICE_TYPE")
-                };
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Ошибка при получении сохраненных данных устройства: {ex.Message}", ex);
-            }
-        }
-
-        /// <summary>
-        /// Проверяет, изменились ли данные устройства по сравнению с сохраненными
-        /// </summary>
-        public async Task<bool> HasDeviceDataChangedAsync(ArmDeviceRegistrationRequest currentRequest)
-        {
-            if (_configService == null) return true; // Если нет доступа к конфигурации, считаем что данные изменились
-
-            try
-            {
-                var savedData = await GetSavedDeviceDataAsync();
-                if (savedData == null) return true; // Если нет сохраненных данных, требуется регистрация
-
-                return savedData.NAME != currentRequest.NAME ||
-                       savedData.MAC_ADDRESS != currentRequest.MAC_ADDRESS ||
-                       savedData.SERIAL_NUMBER != currentRequest.SERIAL_NUMBER ||
-                       savedData.NET_ADDRESS != currentRequest.NET_ADDRESS ||
-                       savedData.KERNEL_VERSION != currentRequest.KERNEL_VERSION ||
-                       savedData.HARDWARE_VERSION != currentRequest.HARDWARE_VERSION ||
-                       savedData.SOFTWARE_VERSION != currentRequest.SOFTWARE_VERSION ||
-                       savedData.FIRMWARE_VERSION != currentRequest.FIRMWARE_VERSION ||
-                       savedData.DEVICE_TYPE != currentRequest.DEVICE_TYPE;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Ошибка при проверке изменений данных устройства: {ex.Message}", ex);
             }
         }
         //хранение кодов в сессии

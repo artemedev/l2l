@@ -18,8 +18,6 @@ namespace l2l_aggregator.Services.Database
 {
     public class RemoteDatabaseService : IDisposable
     {
-        //private readonly INotificationService _notificationService;
-        private long? _currentSessionId;
         private long? _currentDeviceId;
         private readonly string _connectionString;
         private IConfiguration _configuration;

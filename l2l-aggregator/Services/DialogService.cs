@@ -9,7 +9,6 @@ namespace l2l_aggregator.Services
 {
     public interface IDialogService
     {
-        Task<bool> ShowConfirmationAsync(string title, string message, string confirmText = "Да", string cancelText = "Отмена");
         Task<bool> ShowExitConfirmationAsync();
         Task<bool> ShowDeleteConfirmationAsync(string itemName = "элемент");
         Task<bool> ShowSaveConfirmationAsync();
@@ -26,24 +25,6 @@ namespace l2l_aggregator.Services
             _dialogContainer = dialog;
         }
 
-        public async Task<bool> ShowConfirmationAsync(string title, string message, string confirmText = "Да", string cancelText = "Отмена")
-        {
-            return await ShowDialogSafely(async () =>
-            {
-                if (_dialogContainer == null)
-                    throw new InvalidOperationException("Dialog container не установлен. Вызовите SetDialogContainer сначала.");
-
-                _dialogContainer.Title = title;
-                _dialogContainer.Message = message;
-                _dialogContainer.ConfirmText = confirmText;
-                _dialogContainer.CancelText = cancelText;
-                _dialogContainer.IconKind = MaterialIconKind.HelpCircle;
-                _dialogContainer.IconColor = Brushes.Orange;
-                _dialogContainer.ConfirmButtonColor = Brushes.Blue;
-
-                return await _dialogContainer.ShowAndWaitAsync();
-            });
-        }
 
         public async Task<bool> ShowExitConfirmationAsync()
         {

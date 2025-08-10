@@ -40,7 +40,6 @@ namespace l2l_aggregator.ViewModels
         private readonly HistoryRouter<ViewModelBase> _router;
         private readonly SessionService _sessionService;
         private readonly INotificationService _notificationService;
-        //private ScannerWorker _scannerWorker;
         private readonly DatabaseDataService _databaseDataService;
         private readonly DeviceInfoService _deviceInfoService;
         public AuthViewModel(HistoryRouter<ViewModelBase> router,
@@ -73,7 +72,7 @@ namespace l2l_aggregator.ViewModels
         {
             _sessionService.EnableVirtualKeyboard = EnableVirtualKeyboard;
             _notificationService.ShowMessage(
-                value ? "Виртуальная клавиатура отключена" : "Виртуальная клавиатура включена",
+                value ? "Виртуальная клавиатура включена" : "Виртуальная клавиатура отключена",
                 NotificationType.Info
             );
         }
@@ -179,16 +178,6 @@ namespace l2l_aggregator.ViewModels
 
                 // Получаем текущую информацию об устройстве
                 var currentRequest = _deviceInfoService.CreateRegistrationRequest();
-
-                // Проверяем, изменились ли данные устройства с помощью SessionService
-                //bool deviceChanged = await _sessionService.HasDeviceDataChangedAsync(currentRequest);
-
-                //// Если данные не изменились, проверка не нужна
-                //if (!deviceChanged)
-                //{
-                //    InfoMessage = "";
-                //    return true;
-                //}
 
                 InfoMessage = "Обнаружены изменения в конфигурации устройства. Выполняется перерегистрация...";
 

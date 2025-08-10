@@ -10,7 +10,6 @@ using l2l_aggregator.Models;
 using l2l_aggregator.Services;
 using l2l_aggregator.Services.AggregationService;
 using l2l_aggregator.Services.ControllerService;
-using l2l_aggregator.Services.Database;
 using l2l_aggregator.Services.DmProcessing;
 using l2l_aggregator.Services.GS1ParserService;
 using l2l_aggregator.Services.Notification.Interface;
@@ -1398,7 +1397,6 @@ namespace l2l_aggregator.ViewModels
             CanPrintBoxLabel = true;
             CurrentStepIndex = AggregationStep.BoxAggregation;
 
-            _printingService.PrintReportTEST(frxBoxBytes, true);
 
             if (IsAutoPrintEnabled && validCodes.Count == numberOfLayers)
             {
@@ -2294,7 +2292,7 @@ namespace l2l_aggregator.ViewModels
                 _plcConnection?.Dispose();
                 _dmScanService?.Dispose();
             }
-            base.Dispose(disposing);
+            //base.Dispose(disposing);
         }
 
         #endregion

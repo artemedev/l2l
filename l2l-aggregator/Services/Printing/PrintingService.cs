@@ -44,44 +44,8 @@ namespace l2l_aggregator.Services.Printing
                 _notificationService.ShowMessage($"Модель принтера '{_sessionService.PrinterModel}' не поддерживается.");
             }
         }
-        public void PrintReportTEST(byte[] frxBytes, bool typePrint)
-        {
-            PrintToZebraPrinterTEST(frxBytes, typePrint);
-            //if (_sessionService.PrinterModel == "Zebra")
-            //{
-            //    PrintToZebraPrinterTEST(frxBytes, typePrint);
-            //}
-            //else
-            //{
-            //    _notificationService.ShowMessage($"Модель принтера '{_sessionService.PrinterModel}' не поддерживается.");
-            //}
-        }
-        private async void PrintToZebraPrinterTEST(byte[] frxBytes, bool typePrint)
-        {
-            try
-            {
-                byte[] zplBytes;
-                if (typePrint)
-                {
-                    zplBytes = GenerateZplFromReportBOX(frxBytes);
-                }
-                else
-                {
-                    zplBytes = GenerateZplFromReportPALLET(frxBytes);
-                }
-                string zplString = Encoding.UTF8.GetString(zplBytes);
-               
 
-                // Экспортируем в PDF
-              //  await ExportReportToPdf(frxBytes, typePrint);
-                //PrintZpl(zplBytes);
-            }
-            catch (Exception ex)
-            {
-                _notificationService.ShowMessage($"Ошибка принтера: {ex.Message}");
-                logger.LogError(ex, "Ошибка при печати на Zebra принтере");
-            }
-        }
+       
         public async Task<bool> CheckConnectPrinterAsync(string printerIP, string printerModel)
         {
             try
@@ -459,25 +423,7 @@ namespace l2l_aggregator.Services.Printing
                 return null;
             }
         }
-        private byte[] GetTestTemplate()
-        {
-            try
-            {
-                if (!string.IsNullOrEmpty(TEST_TEMPLATE_BASE64))
-                {
-                    byte[] bytes = Convert.FromBase64String(TEST_TEMPLATE_BASE64);
-                    string decodedString = Encoding.UTF8.GetString(bytes);
-                    return Encoding.UTF8.GetBytes(decodedString);
-                }
 
-                return null;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Ошибка при получении тестового шаблона");
-                return null;
-            }
-        }
         public async Task PrintTestLabel()
         {
             try
@@ -582,75 +528,6 @@ namespace l2l_aggregator.Services.Printing
                 _disposed = true;
             }
         }
-
-        private async Task ExportReportToPdf(byte[] frxBytes, bool typePrint)
-        {
-            try
-            {
-                using var report = new Report();
-                using (var ms = new MemoryStream(frxBytes))
-                {
-                    report.Load(ms);
-                }
-
-                // Подготавливаем данные для отчета
-                object labelData;
-                if (typePrint)
-                {
-                    labelData = new
-                    {
-                        DISPLAY_BAR_CODE = _sessionService.SelectedTaskSscc.DISPLAY_BAR_CODE,
-                        IN_BOX_QTY = _sessionService.SelectedTaskInfo.IN_BOX_QTY,
-                        MNF_DATE = _sessionService.SelectedTaskInfo.MNF_DATE_VAL,
-                        EXPIRE_DATE = _sessionService.SelectedTaskInfo.EXPIRE_DATE_VAL,
-                        SERIES_NAME = _sessionService.SelectedTaskInfo.SERIES_NAME,
-                        LEVEL_QTY = 0,
-                        CNT = 0
-                    };
-                }
-                else
-                {
-                    labelData = new
-                    {
-                        DISPLAY_BAR_CODE = _sessionService.SelectedTaskSscc.DISPLAY_BAR_CODE,
-                        SERIES_NAME = _sessionService.SelectedTaskInfo.SERIES_NAME,
-                        CNT = 0
-                    };
-                }
-
-                report.RegisterData(new List<object> { labelData }, "LabelQry");
-                report.GetDataSource("LabelQry").Enabled = true;
-                report.Prepare();
-
-                // Экспортируем в PDF
-                var pdfExport = new FastReport.Export.PdfSimple.PDFSimpleExport();
-
-                // Определяем путь для сохранения PDF
-                string fileName = $"Label_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-                string folderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Labels");
-
-                // Создаем папку если не существует
-                if (!Directory.Exists(folderPath))
-                {
-                    Directory.CreateDirectory(folderPath);
-                }
-
-                string fullPath = Path.Combine(folderPath, fileName);
-
-                // Экспортируем отчет в PDF
-                //report.Export(pdfExport, fullPath);
-
-                _notificationService.ShowMessage($"Этикетка сохранена в PDF: {fullPath}");
-
-                // Опционально: открываем PDF файл
-                // System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(fullPath) { UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                _notificationService.ShowMessage($"Ошибка экспорта в PDF: {ex.Message}");
-                logger.LogError(ex, "Ошибка при экспорте отчета в PDF");
-                throw;
-            }
-        }
+       
     }
 }

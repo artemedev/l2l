@@ -1,5 +1,4 @@
-﻿using Avalonia.Controls;
-using Avalonia.Notification;
+﻿using Avalonia.Notification;
 using Avalonia.SimpleRouter;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -7,7 +6,6 @@ using l2l_aggregator.Models;
 using l2l_aggregator.Services;
 using l2l_aggregator.Services.AggregationService;
 using l2l_aggregator.Services.Configuration;
-using l2l_aggregator.Services.Database;
 using l2l_aggregator.Services.Notification.Interface;
 using l2l_aggregator.Services.ScannerService;
 using System;
@@ -57,10 +55,6 @@ namespace l2l_aggregator.ViewModels
         //-------Notification--------
         [ObservableProperty]
         private ObservableCollection<NotificationItem> _notifications = new();
-
-        public IRelayCommand ToggleNotificationsFlyoutCommand { get; }
-
-        private Flyout? _notificationsFlyout;
 
         public IRelayCommand ClearNotificationsCommand { get; }
 
@@ -265,11 +259,6 @@ namespace l2l_aggregator.ViewModels
                 if (parts.Length == 2)
                 {
                     authVM.Login = barcode;
-
-                    //authVM.Login = parts[0];
-                    //authVM.Password = parts[1];
-                    // Можно автоматически запустить авторизацию
-                    // authVM.LoginCommand.Execute(null);
                 }
                 else
                 {
@@ -476,10 +465,7 @@ namespace l2l_aggregator.ViewModels
             _router.GoTo<SettingsViewModel>();
         }
 
-        public void SetFlyout(Flyout flyout)
-        {
-            _notificationsFlyout = flyout;
-        }
+
         private void ClearNotifications()
         {
             Notifications.Clear();

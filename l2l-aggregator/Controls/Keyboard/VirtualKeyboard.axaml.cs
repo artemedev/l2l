@@ -108,7 +108,7 @@ public partial class VirtualKeyboard : UserControl
                     TransitioningContentControl_.Content = Activator.CreateInstance(DefaultLayout.Invoke());
                 }
             }
-            // Обновить визуал после смены лейаута
+            // Обновить визуал после смены layout
             Dispatcher.UIThread.Post(() =>
             {
                 UpdateKeyVisuals(this.Bounds.Width);
@@ -236,7 +236,7 @@ public partial class VirtualKeyboard : UserControl
         this.IsVisible = true;
         ((Control)this.Parent).IsVisible = true;
         TransitioningContentControl_.Content = Activator.CreateInstance(DefaultLayout.Invoke());
-        // Обновить визуал после смены лейаута
+        // Обновить визуал после смены layout
         Dispatcher.UIThread.Post(() =>
         {
             UpdateKeyVisuals(this.Bounds.Width);
@@ -258,7 +258,7 @@ public partial class VirtualKeyboard : UserControl
         this.IsVisible = true;
         ((Control)this.Parent).IsVisible = true;
         TransitioningContentControl_.Content = Activator.CreateInstance(layout);
-        // Обновить визуал после смены лейаута
+        // Обновить визуал после смены layout
         Dispatcher.UIThread.Post(() =>
         {
             UpdateKeyVisuals(this.Bounds.Width);
@@ -353,7 +353,7 @@ public partial class VirtualKeyboard : UserControl
                     {
                         TransitioningContentControl_.Content = Activator.CreateInstance(Layouts[0]);
                     }
-                    // Обновить визуал после смены лейаута
+                    // Обновить визуал после смены layout
                     Dispatcher.UIThread.Post(() =>
                     {
                         UpdateKeyVisuals(this.Bounds.Width);
@@ -394,7 +394,7 @@ public partial class VirtualKeyboard : UserControl
                 {
                     TransitioningContentControl_.Content = Activator.CreateInstance(typeof(VirtualKeyboardLayoutNumpad));
                 }
-                // Обновить визуал после смены лейаута
+                // Обновить визуал после смены layout
                 Dispatcher.UIThread.Post(() =>
                 {
                     UpdateKeyVisuals(this.Bounds.Width);
@@ -412,7 +412,7 @@ public partial class VirtualKeyboard : UserControl
                 {
                     TransitioningContentControl_.Content = Activator.CreateInstance(typeof(VirtualKeyboardLayoutUS));
                 }
-                // Обновить визуал после смены лейаута
+                // Обновить визуал после смены layout
                 Dispatcher.UIThread.Post(() =>
                 {
                     UpdateKeyVisuals(this.Bounds.Width);
@@ -430,7 +430,7 @@ public partial class VirtualKeyboard : UserControl
                 {
                     TransitioningContentControl_.Content = Activator.CreateInstance(typeof(VirtualKeyboardLayoutRU));
                 }
-                // Обновить визуал после смены лейаута
+                // Обновить визуал после смены layout
                 Dispatcher.UIThread.Post(() =>
                 {
                     UpdateKeyVisuals(this.Bounds.Width);
