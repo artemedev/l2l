@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 
-namespace l2l_aggregator.Helpers.AggregationHelpers
+namespace l2l_aggregator.Services.AggregationService
 {
     public enum RecognitionType
     {
@@ -13,7 +13,7 @@ namespace l2l_aggregator.Helpers.AggregationHelpers
         EnglishText,
         Number
     }
-    public class TemplateField : ObservableObject
+    public class TemplateParserService : ObservableObject
     {
         private string _name = string.Empty;
         private string _type = string.Empty;

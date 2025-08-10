@@ -1,5 +1,4 @@
 ﻿using Avalonia.SimpleRouter;
-using l2l_aggregator.Helpers.AggregationHelpers;
 using l2l_aggregator.Services;
 using l2l_aggregator.Services.AggregationService;
 using l2l_aggregator.Services.Configuration;
@@ -25,7 +24,7 @@ namespace l2l_aggregator
             services.AddSingleton<SessionService>();
             services.AddSingleton<DmScanService>();
             services.AddSingleton<TemplateService>();
-            services.AddSingleton<ImageHelper>();
+            services.AddSingleton<ImageProcessorService>();
             services.AddSingleton<INotificationService, NotificationService>();
 
             // Регистрируем главную VM (она требует HistoryRouter)

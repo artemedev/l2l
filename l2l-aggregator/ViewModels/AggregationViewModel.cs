@@ -6,7 +6,6 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DM_wraper_NS;
-using l2l_aggregator.Helpers.AggregationHelpers;
 using l2l_aggregator.Models;
 using l2l_aggregator.Services;
 using l2l_aggregator.Services.AggregationService;
@@ -141,7 +140,7 @@ namespace l2l_aggregator.ViewModels
         private readonly SessionService _sessionService;
 
         //сервис кропа изображения выбранной ячейки пользователем
-        private readonly ImageHelper _imageProcessingService;
+        private readonly ImageProcessorService _imageProcessingService;
 
         //сервис обработки шаблона, после выбора пользователя элементов в ui. Для дальнейшей отправки в библиотеку распознавания
         private readonly TemplateService _templateService;
@@ -272,7 +271,7 @@ namespace l2l_aggregator.ViewModels
         [ObservableProperty] private bool canStopSession = false;
 
         //элементы шаболона в список всплывающего окна 
-        public ObservableCollection<TemplateField> TemplateFields { get; } = new();
+        public ObservableCollection<TemplateParserService> TemplateFields { get; } = new();
 
         //текущий слой
         [ObservableProperty] private int currentLayer = 1;
@@ -328,7 +327,7 @@ namespace l2l_aggregator.ViewModels
         #region Constructor
 
         public AggregationViewModel(
-            ImageHelper imageProcessingService,
+            ImageProcessorService imageProcessingService,
             SessionService sessionService,
             TemplateService templateService,
             DmScanService dmScanService,

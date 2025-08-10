@@ -1,5 +1,4 @@
-﻿using l2l_aggregator.Helpers.AggregationHelpers;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,9 +11,9 @@ namespace l2l_aggregator.Services.AggregationService
     {
         public XDocument OriginalDocument { get; private set; }
 
-        public List<TemplateField> LoadTemplate(byte[] template)
+        public List<TemplateParserService> LoadTemplate(byte[] template)
         {
-            var fields = new List<TemplateField>();
+            var fields = new List<TemplateParserService>();
 
             if (template == null || template.Length == 0)
                 return fields;
@@ -47,7 +46,7 @@ namespace l2l_aggregator.Services.AggregationService
                     {
                         if (!string.IsNullOrWhiteSpace(dataFieldAttr?.Value))
                         {
-                            fields.Add(new TemplateField
+                            fields.Add(new TemplateParserService
                             {
                                 Name = dataFieldAttr.Value,
                                 Type = "переменная",
@@ -58,7 +57,7 @@ namespace l2l_aggregator.Services.AggregationService
                         else if (!string.IsNullOrWhiteSpace(expressionAttr?.Value))
                         {
                             var extractedName = ExtractFieldName(expressionAttr.Value);
-                            fields.Add(new TemplateField
+                            fields.Add(new TemplateParserService
                             {
                                 Name = extractedName,
                                 Type = "переменная",
@@ -69,7 +68,7 @@ namespace l2l_aggregator.Services.AggregationService
                         else if (!string.IsNullOrWhiteSpace(textAttr?.Value) && textAttr.Value.StartsWith("["))
                         {
                             // Значение в [] — вероятно, выражение
-                            fields.Add(new TemplateField
+                            fields.Add(new TemplateParserService
                             {
                                 Name = ExtractFieldName(textAttr.Value),
                                 Type = "переменная",
@@ -79,7 +78,7 @@ namespace l2l_aggregator.Services.AggregationService
                         }
                         else if (!string.IsNullOrWhiteSpace(textAttr?.Value))
                         {
-                            fields.Add(new TemplateField
+                            fields.Add(new TemplateParserService
                             {
                                 Name = textAttr.Value,
                                 Type = "текст",
@@ -94,7 +93,7 @@ namespace l2l_aggregator.Services.AggregationService
             }
             catch
             {
-                return new List<TemplateField>();
+                return new List<TemplateParserService>();
             }
         }
         private string ExtractFieldName(string expression)
@@ -111,7 +110,7 @@ namespace l2l_aggregator.Services.AggregationService
 
             return expression; // fallback
         }
-        public string GenerateTemplate(List<TemplateField> templateFields)
+        public string GenerateTemplate(List<TemplateParserService> templateFields)
         {
             if (OriginalDocument == null || templateFields.Count == 0)
                 return string.Empty;

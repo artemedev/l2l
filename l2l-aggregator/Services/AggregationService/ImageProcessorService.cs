@@ -14,9 +14,9 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 
-namespace l2l_aggregator.Helpers.AggregationHelpers
+namespace l2l_aggregator.Services.AggregationService
 {
-    public class ImageHelper
+    public class ImageProcessorService
     {
         public Image<Rgba32> CropImage(Image<Rgba32> source, double xCell, double yCell, double sizeWidth, double sizeHeight, double scaleXObrat, double scaleYObrat, float angleDegrees)
         {
@@ -108,7 +108,7 @@ namespace l2l_aggregator.Helpers.AggregationHelpers
         public ObservableCollection<DmCellViewModel> BuildCellViewModels(in result_data dmrData,
                                                                 double scaleX, double scaleY,
                                                                 SessionService sessionService,
-                                                                ObservableCollection<TemplateField> fields,
+                                                                ObservableCollection<TemplateParserService> fields,
                                                                 ArmJobSgtinResponse response,
                                                                 AggregationViewModel thisModel, int minX, int minY)
         {
@@ -134,8 +134,8 @@ namespace l2l_aggregator.Helpers.AggregationHelpers
                 var dmValueParsed = gs1Parser.ParseGTIN(dmValue);
                 var dm_data = new DmSquareViewModel
                 {
-                    X = dmd.DM.poseX - (dmd.DM.width / 2),
-                    Y = dmd.DM.poseY - (dmd.DM.height / 2),
+                    X = dmd.DM.poseX - dmd.DM.width / 2,
+                    Y = dmd.DM.poseY - dmd.DM.height / 2,
                     SizeWidth = dmd.DM.width,
                     SizeHeight = dmd.DM.height,
                     Angle = -dmd.DM.alpha,
@@ -197,8 +197,8 @@ namespace l2l_aggregator.Helpers.AggregationHelpers
 
                 var dmVm = new DmCellViewModel(thisModel)
                 {
-                    X = (dmd.poseX - (dmd.width / 2) - minX) * scaleX,
-                    Y = (dmd.poseY - (dmd.height / 2) - minY) * scaleY,
+                    X = (dmd.poseX - dmd.width / 2 - minX) * scaleX,
+                    Y = (dmd.poseY - dmd.height / 2 - minY) * scaleY,
                     SizeWidth = dmd.width * scaleX,
                     SizeHeight = dmd.height * scaleY,
                     Angle = -dmd.alpha,
@@ -252,8 +252,8 @@ namespace l2l_aggregator.Helpers.AggregationHelpers
 
                     dmVm.OcrCells.Add(new SquareCellViewModel
                     {
-                        X = ocr.poseX - (ocr.width / 2),
-                        Y = ocr.poseY - (ocr.height / 2),
+                        X = ocr.poseX - ocr.width / 2,
+                        Y = ocr.poseY - ocr.height / 2,
                         SizeWidth = ocr.width,
                         SizeHeight = ocr.height,
                         Angle = ocr.alpha,
