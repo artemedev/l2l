@@ -1,6 +1,5 @@
 ﻿using l2l_aggregator.Models;
 using l2l_aggregator.Services.Database;
-using l2l_aggregator.Services.Database.Repositories.Interfaces;
 using l2l_aggregator.Services.Notification.Interface;
 using System;
 using System.Collections.Generic;
@@ -12,17 +11,14 @@ namespace l2l_aggregator.Services
     public class DatabaseDataService
     {
         private readonly RemoteDatabaseService _remoteDatabaseService;
-        private readonly DatabaseService _localDatabaseService;
         //private readonly INotificationService _notificationService;
         private bool _isConnectionInitialized = false;
 
         public DatabaseDataService(
             RemoteDatabaseService remoteDatabaseService,
-            DatabaseService localDatabaseService,
             INotificationService notificationService)
         {
             _remoteDatabaseService = remoteDatabaseService;
-            _localDatabaseService = localDatabaseService;
             //_notificationService = notificationService;
         }
 

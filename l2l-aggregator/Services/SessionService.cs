@@ -1,13 +1,10 @@
 ﻿using l2l_aggregator.Models;
 using l2l_aggregator.Models.AggregationModels;
-using l2l_aggregator.Services.Database;
-using l2l_aggregator.Services.Database.Repositories.Interfaces;
+using l2l_aggregator.Services.Configuration;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace l2l_aggregator.Services
@@ -24,25 +21,25 @@ namespace l2l_aggregator.Services
         private static SessionService? _instance;
         public static SessionService Instance => _instance ??= new SessionService();
 
-        private static IConfigRepository? _configRepo;
+        private static IConfigurationFileService? _configService;
 
-        public void SetConfigRepository(IConfigRepository config)
+        public void SetConfigurationService(IConfigurationFileService configService)
         {
-            _configRepo = config;
+            _configService = configService;
         }
 
-        private async void SaveSettingToDb(string key, string? value)
+        private async void SaveSettingToFile(string key, string? value)
         {
-            if (_configRepo != null && value != null)
+            if (_configService != null && value != null)
             {
-                await _configRepo.SetConfigValueAsync(key, value);
+                await _configService.SetConfigValueAsync(key, value);
             }
         }
 
         private T SetAndSave<T>(ref T field, T value, string key)
         {
             field = value;
-            SaveSettingToDb(key, value?.ToString());
+            SaveSettingToFile(key, value?.ToString());
             return field;
         }
 
@@ -57,7 +54,7 @@ namespace l2l_aggregator.Services
                 {
                     _enableVirtualKeyboard = value;
                     OnPropertyChanged();
-                    SaveSettingToDb("EnableVirtualKeyboard", value.ToString());
+                    SaveSettingToFile("EnableVirtualKeyboard", value.ToString());
                 }
             }
         }
@@ -192,63 +189,43 @@ namespace l2l_aggregator.Services
         /// <summary>
         /// Инициализация настроек сессии
         /// </summary>
-        public async Task InitializeAsync(DatabaseService db)
+        public async Task InitializeAsync(IConfigurationFileService configService)
         {
-            SetConfigRepository(db.Config);
-            await InitializeCheckFlagsAsync(db);
+            if (_configService == null)
+                throw new InvalidOperationException("Configuration service not initialized");
 
-            var config = db.Config;
 
             // Загружаем настройки устройств
-            PrinterIP = await config.GetConfigValueAsync("PrinterIP");
-            PrinterModel = await config.GetConfigValueAsync("PrinterModel");
-            ControllerIP = await config.GetConfigValueAsync("ControllerIP");
-            CameraIP = await config.GetConfigValueAsync("CameraIP");
-            CameraModel = await config.GetConfigValueAsync("CameraModel");
-            ScannerPort = await config.GetConfigValueAsync("ScannerCOMPort");
-            ScannerModel = await config.GetConfigValueAsync("ScannerModel");
-            EnableVirtualKeyboard = bool.TryParse(await config.GetConfigValueAsync("EnableVirtualKeyboard"), out var vkParsed) && vkParsed;
+            PrinterIP = await _configService.GetConfigValueAsync("PrinterIP");
+            PrinterModel = await _configService.GetConfigValueAsync("PrinterModel");
+            ControllerIP = await _configService.GetConfigValueAsync("ControllerIP");
+            CameraIP = await _configService.GetConfigValueAsync("CameraIP");
+            CameraModel = await _configService.GetConfigValueAsync("CameraModel");
+            ScannerPort = await _configService.GetConfigValueAsync("ScannerCOMPort");
+            ScannerModel = await _configService.GetConfigValueAsync("ScannerModel");
+            EnableVirtualKeyboard = bool.TryParse(await _configService.GetConfigValueAsync("EnableVirtualKeyboard"), out var vkParsed) && vkParsed;
 
             // Загружаем информацию об устройстве
-            DeviceId = await config.GetConfigValueAsync("DeviceId");
-            DeviceName = await config.GetConfigValueAsync("DeviceName");
+            DeviceId = await _configService.GetConfigValueAsync("DeviceId");
+            DeviceName = await _configService.GetConfigValueAsync("DeviceName");
 
-            //// Загружаем последнего авторизованного пользователя
-            //var users = await db.UserAuth.GetUserAuthAsync();
-            //if (users != null && users.Count > 0)
-            //{
-            //    User = users.FirstOrDefault();
-
-            //    // Если есть пользователь, загружаем его состояние агрегации
-            //    if (User != null)
-            //    {
-            //        await LoadAggregationStateAsync(db);
-            //    }
-            //}
+            // Инициализируем флаги проверки
+            CheckCamera = await LoadOrInitBool("CheckCamera", true);
+            CheckPrinter = await LoadOrInitBool("CheckPrinter", true);
+            CheckController = await LoadOrInitBool("CheckController", true);
+            CheckScanner = await LoadOrInitBool("CheckScanner", true);
         }
 
-        /// <summary>
-        /// Инициализация флагов проверки устройств
-        /// </summary>
-        private async Task InitializeCheckFlagsAsync(DatabaseService db)
-        {
-            var config = db.Config;
-
-            CheckCamera = await LoadOrInitBool(config, "CheckCamera", true);
-            CheckPrinter = await LoadOrInitBool(config, "CheckPrinter", true);
-            CheckController = await LoadOrInitBool(config, "CheckController", true);
-            CheckScanner = await LoadOrInitBool(config, "CheckScanner", true);
-        }
 
         /// <summary>
         /// Загружает или инициализирует булево значение в конфигурации
         /// </summary>
-        private async Task<bool> LoadOrInitBool(IConfigRepository config, string key, bool defaultValue)
+        private async Task<bool> LoadOrInitBool(string key, bool defaultValue)
         {
-            var value = await config.GetConfigValueAsync(key);
+            var value = await _configService.GetConfigValueAsync(key);
             if (string.IsNullOrWhiteSpace(value))
             {
-                await config.SetConfigValueAsync(key, defaultValue.ToString());
+                await _configService.SetConfigValueAsync(key, defaultValue.ToString());
                 return defaultValue;
             }
 
@@ -272,24 +249,24 @@ namespace l2l_aggregator.Services
             try
             {
                 // Сохраняем в базу данных
-                if (_configRepo != null)
+                if (_configService != null)
                 {
                     // Сохраняем все свойства запроса регистрации
-                    await _configRepo.SetConfigValueAsync("Device_NAME", request.NAME ?? string.Empty);
-                    await _configRepo.SetConfigValueAsync("Device_MAC_ADDRESS", request.MAC_ADDRESS ?? string.Empty);
-                    await _configRepo.SetConfigValueAsync("Device_SERIAL_NUMBER", request.SERIAL_NUMBER ?? string.Empty);
-                    await _configRepo.SetConfigValueAsync("Device_NET_ADDRESS", request.NET_ADDRESS ?? string.Empty);
-                    await _configRepo.SetConfigValueAsync("Device_KERNEL_VERSION", request.KERNEL_VERSION ?? string.Empty);
-                    await _configRepo.SetConfigValueAsync("Device_HADWARE_VERSION", request.HARDWARE_VERSION ?? string.Empty);
-                    await _configRepo.SetConfigValueAsync("Device_SOFTWARE_VERSION", request.SOFTWARE_VERSION ?? string.Empty);
-                    await _configRepo.SetConfigValueAsync("Device_FIRMWARE_VERSION", request.FIRMWARE_VERSION ?? string.Empty);
-                    await _configRepo.SetConfigValueAsync("Device_DEVICE_TYPE", request.DEVICE_TYPE ?? string.Empty);
+                    await _configService.SetConfigValueAsync("Device_NAME", request.NAME ?? string.Empty);
+                    await _configService.SetConfigValueAsync("Device_MAC_ADDRESS", request.MAC_ADDRESS ?? string.Empty);
+                    await _configService.SetConfigValueAsync("Device_SERIAL_NUMBER", request.SERIAL_NUMBER ?? string.Empty);
+                    await _configService.SetConfigValueAsync("Device_NET_ADDRESS", request.NET_ADDRESS ?? string.Empty);
+                    await _configService.SetConfigValueAsync("Device_KERNEL_VERSION", request.KERNEL_VERSION ?? string.Empty);
+                    await _configService.SetConfigValueAsync("Device_HADWARE_VERSION", request.HARDWARE_VERSION ?? string.Empty);
+                    await _configService.SetConfigValueAsync("Device_SOFTWARE_VERSION", request.SOFTWARE_VERSION ?? string.Empty);
+                    await _configService.SetConfigValueAsync("Device_FIRMWARE_VERSION", request.FIRMWARE_VERSION ?? string.Empty);
+                    await _configService.SetConfigValueAsync("Device_DEVICE_TYPE", request.DEVICE_TYPE ?? string.Empty);
 
                     // Сохраняем все свойства ответа регистрации
-                    await _configRepo.SetConfigValueAsync("Device_DEVICEID", deviceRegistered.DEVICEID ?? string.Empty);
-                    await _configRepo.SetConfigValueAsync("Device_DEVICE_NAME", deviceRegistered.DEVICE_NAME ?? string.Empty);
-                    await _configRepo.SetConfigValueAsync("Device_LICENSE_DATA", deviceRegistered.LICENSE_DATA ?? string.Empty);
-                    await _configRepo.SetConfigValueAsync("Device_SETTINGS_DATA", deviceRegistered.SETTINGS_DATA ?? string.Empty);
+                    await _configService.SetConfigValueAsync("Device_DEVICEID", deviceRegistered.DEVICEID ?? string.Empty);
+                    await _configService.SetConfigValueAsync("Device_DEVICE_NAME", deviceRegistered.DEVICE_NAME ?? string.Empty);
+                    await _configService.SetConfigValueAsync("Device_LICENSE_DATA", deviceRegistered.LICENSE_DATA ?? string.Empty);
+                    await _configService.SetConfigValueAsync("Device_SETTINGS_DATA", deviceRegistered.SETTINGS_DATA ?? string.Empty);
 
                 }
             }
@@ -303,21 +280,21 @@ namespace l2l_aggregator.Services
         /// </summary>
         public async Task<ArmDeviceRegistrationRequest?> GetSavedDeviceDataAsync()
         {
-            if (_configRepo == null) return null;
+            if (_configService == null) return null;
 
             try
             {
                 return new ArmDeviceRegistrationRequest
                 {
-                    NAME = await _configRepo.GetConfigValueAsync("Device_NAME"),
-                    MAC_ADDRESS = await _configRepo.GetConfigValueAsync("Device_MAC_ADDRESS"),
-                    SERIAL_NUMBER = await _configRepo.GetConfigValueAsync("Device_SERIAL_NUMBER"),
-                    NET_ADDRESS = await _configRepo.GetConfigValueAsync("Device_NET_ADDRESS"),
-                    KERNEL_VERSION = await _configRepo.GetConfigValueAsync("Device_KERNEL_VERSION"),
-                    HARDWARE_VERSION = await _configRepo.GetConfigValueAsync("Device_HADWARE_VERSION"),
-                    SOFTWARE_VERSION = await _configRepo.GetConfigValueAsync("Device_SOFTWARE_VERSION"),
-                    FIRMWARE_VERSION = await _configRepo.GetConfigValueAsync("Device_FIRMWARE_VERSION"),
-                    DEVICE_TYPE = await _configRepo.GetConfigValueAsync("Device_DEVICE_TYPE")
+                    NAME = await _configService.GetConfigValueAsync("Device_NAME"),
+                    MAC_ADDRESS = await _configService.GetConfigValueAsync("Device_MAC_ADDRESS"),
+                    SERIAL_NUMBER = await _configService.GetConfigValueAsync("Device_SERIAL_NUMBER"),
+                    NET_ADDRESS = await _configService.GetConfigValueAsync("Device_NET_ADDRESS"),
+                    KERNEL_VERSION = await _configService.GetConfigValueAsync("Device_KERNEL_VERSION"),
+                    HARDWARE_VERSION = await _configService.GetConfigValueAsync("Device_HADWARE_VERSION"),
+                    SOFTWARE_VERSION = await _configService.GetConfigValueAsync("Device_SOFTWARE_VERSION"),
+                    FIRMWARE_VERSION = await _configService.GetConfigValueAsync("Device_FIRMWARE_VERSION"),
+                    DEVICE_TYPE = await _configService.GetConfigValueAsync("Device_DEVICE_TYPE")
                 };
             }
             catch (Exception ex)
@@ -331,7 +308,7 @@ namespace l2l_aggregator.Services
         /// </summary>
         public async Task<bool> HasDeviceDataChangedAsync(ArmDeviceRegistrationRequest currentRequest)
         {
-            if (_configRepo == null) return true; // Если нет доступа к конфигурации, считаем что данные изменились
+            if (_configService == null) return true; // Если нет доступа к конфигурации, считаем что данные изменились
 
             try
             {

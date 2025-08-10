@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using DM_wraper_NS;
 using l2l_aggregator.Models;
 using l2l_aggregator.Services;
+using l2l_aggregator.Services.Configuration;
 using l2l_aggregator.Services.ControllerService;
 using l2l_aggregator.Services.Database;
 using l2l_aggregator.Services.DmProcessing;
@@ -51,7 +52,6 @@ namespace l2l_aggregator.ViewModels
 
         private readonly HistoryRouter<ViewModelBase> _router;
         private readonly INotificationService _notificationService;
-        private readonly DatabaseService _databaseService;
         private readonly SessionService _sessionService;
         private readonly IScannerPortResolver _scannerResolver;
         private readonly DmScanService _dmScanService;
@@ -70,8 +70,7 @@ namespace l2l_aggregator.ViewModels
 
         private PcPlcConnectionService _plcConnectionService;
 
-        public SettingsViewModel(DatabaseService databaseService,
-            HistoryRouter<ViewModelBase> router,
+        public SettingsViewModel(HistoryRouter<ViewModelBase> router,
             INotificationService notificationService,
             SessionService sessionService,
             IScannerPortResolver scannerResolver,
@@ -82,7 +81,6 @@ namespace l2l_aggregator.ViewModels
         {
             _configLoader = configLoader;
             _notificationService = notificationService;
-            _databaseService = databaseService;
             _router = router;
             _sessionService = sessionService;
             _scannerResolver = scannerResolver;

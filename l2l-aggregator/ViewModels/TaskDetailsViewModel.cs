@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using l2l_aggregator.Models;
 using l2l_aggregator.Services;
-using l2l_aggregator.Services.Database;
+using l2l_aggregator.Services.Configuration;
 using l2l_aggregator.Services.Notification.Interface;
 using System;
 using System.Collections.Generic;
@@ -24,7 +24,6 @@ namespace l2l_aggregator.ViewModels
         private ArmJobSsccResponse? _responseSscc;
         private ArmJobSgtinResponse? _responseSgtin;
 
-        private readonly DatabaseService _databaseService;
         private readonly HistoryRouter<ViewModelBase> _router;
         private readonly SessionService _sessionService;
         private readonly INotificationService _notificationService;
@@ -34,7 +33,6 @@ namespace l2l_aggregator.ViewModels
 
 
         public TaskDetailsViewModel(HistoryRouter<ViewModelBase> router, 
-            DatabaseService databaseService,
             DatabaseDataService databaseDataService,
             SessionService sessionService, 
             INotificationService notificationService, 
@@ -42,7 +40,6 @@ namespace l2l_aggregator.ViewModels
             ConfigurationLoaderService configLoader)
         {
             _configLoader = configLoader;
-            _databaseService = databaseService;
             _router = router;
             _sessionService = sessionService;
             _notificationService = notificationService;

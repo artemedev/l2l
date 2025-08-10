@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using l2l_aggregator.Models;
 using l2l_aggregator.Services;
 using l2l_aggregator.Services.AggregationService;
+using l2l_aggregator.Services.Configuration;
 using l2l_aggregator.Services.Database;
 using l2l_aggregator.Services.Notification.Interface;
 using l2l_aggregator.Services.ScannerService;
@@ -40,7 +41,6 @@ namespace l2l_aggregator.ViewModels
         [ObservableProperty]
         private bool _isAdmin;
 
-        private readonly DatabaseService _databaseService;
         private readonly HistoryRouter<ViewModelBase> _router;
         private readonly INotificationService _notificationService;
         private readonly SessionService _sessionService;
@@ -68,8 +68,9 @@ namespace l2l_aggregator.ViewModels
 
         private readonly IDialogService _dialogService;
 
-        public MainWindowViewModel(HistoryRouter<ViewModelBase> router,
-                                    DatabaseService databaseService,
+        private readonly IConfigurationFileService _configurationService;
+        public MainWindowViewModel(IConfigurationFileService configurationService, 
+                                    HistoryRouter<ViewModelBase> router,
                                     INotificationService notificationService,
                                     SessionService sessionService,
                                     ConfigurationLoaderService configLoader,
@@ -77,7 +78,7 @@ namespace l2l_aggregator.ViewModels
                                     IDialogService dialogService)
         {
             _router = router;
-            _databaseService = databaseService;
+            _configurationService = configurationService;
             _configLoader = configLoader;
             _notificationService = notificationService;
             _sessionService = sessionService;
@@ -118,7 +119,7 @@ namespace l2l_aggregator.ViewModels
         }
         private async void InitializeAsync()
         {
-            await _sessionService.InitializeAsync(_databaseService);
+            await _sessionService.InitializeAsync(_configurationService);
 
             // Запускаем мониторинг сканера
             StartScannerMonitoring();

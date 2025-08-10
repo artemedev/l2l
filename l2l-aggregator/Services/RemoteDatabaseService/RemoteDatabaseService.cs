@@ -1,7 +1,6 @@
 ﻿using Dapper;
 using FirebirdSql.Data.FirebirdClient;
 using l2l_aggregator.Models;
-using l2l_aggregator.Services.Database.Repositories.Interfaces;
 using l2l_aggregator.Services.Notification.Interface;
 using MD.Marking.Codes;
 using Microsoft.Extensions.Configuration;
@@ -19,7 +18,6 @@ namespace l2l_aggregator.Services.Database
 {
     public class RemoteDatabaseService : IDisposable
     {
-        private readonly IConfigRepository _configRepository;
         //private readonly INotificationService _notificationService;
         private long? _currentSessionId;
         private long? _currentDeviceId;
@@ -29,9 +27,8 @@ namespace l2l_aggregator.Services.Database
         // Мьютекс для синхронизации операций с базой данных
         private readonly Mutex _dbMutex = new Mutex();
 
-        public RemoteDatabaseService(IConfigRepository configRepository, IConfiguration configuration, INotificationService notificationService)
+        public RemoteDatabaseService(IConfiguration configuration, INotificationService notificationService)
         {
-            _configRepository = configRepository;
             _configuration = configuration;
             //_notificationService = notificationService;
             _connectionString = _configuration.GetConnectionString("FirebirdDatabase");

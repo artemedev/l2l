@@ -38,21 +38,18 @@ namespace l2l_aggregator.ViewModels
         [ObservableProperty] private bool _enableVirtualKeyboard;
 
         private readonly HistoryRouter<ViewModelBase> _router;
-        private readonly DatabaseService _databaseService;
         private readonly SessionService _sessionService;
         private readonly INotificationService _notificationService;
         //private ScannerWorker _scannerWorker;
         private readonly DatabaseDataService _databaseDataService;
         private readonly DeviceInfoService _deviceInfoService;
-        public AuthViewModel(DatabaseService databaseService,
-                            HistoryRouter<ViewModelBase> router,
+        public AuthViewModel(HistoryRouter<ViewModelBase> router,
                             INotificationService notificationService,
                             DatabaseDataService databaseDataService,
                             DeviceInfoService deviceInfoService,
                             DeviceCheckService deviceCheckService,
                             SessionService sessionService)
         {
-            _databaseService = databaseService;
             _router = router;
             _notificationService = notificationService;
             _sessionService = sessionService;
@@ -126,9 +123,6 @@ namespace l2l_aggregator.ViewModels
                         if (response.AUTH_OK == "1")
                         {
                             _sessionService.User = response;
-
-                            // Сохраняем в локальную базу
-                            //await _databaseService.UserAuth.SaveUserAuthAsync(response);
 
                             // Проверяем права администратора
                             bool isAdmin = _databaseDataService.CheckAdminRole(response.USERID);

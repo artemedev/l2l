@@ -1,0 +1,39 @@
+{
+  "printer": {
+    "ip": "192.168.1.100",
+    "model": "Zebra"
+  },
+  "camera": {
+    "ip": "192.168.1.101",
+    "model": "Basler"
+  },
+  "controller": {
+    "ip": "192.168.1.102"
+  },
+  "scanner": {
+    "port": "COM3",
+    "model": "Honeywell"
+  },
+  "ui": {
+    "enableVirtualKeyboard": false
+  },
+  "device": {
+    "name": "L2L-Aggregator-PC01",
+    "macAddress": "00:11:22:33:44:55",
+    "serialNumber": "SN-001122334455",
+    "netAddress": "192.168.1.200",
+    "kernelVersion": "10.0.19044",
+    "hardwareVersion": "X64/X64 (Windows)",
+    "softwareVersion": "1.0.0",
+    "firmwareVersion": "1.0.0",
+    "deviceType": "X64",
+    "deviceId": "12345",
+    "deviceName": "Aggregator Device"
+  },
+  "validation": {
+    "checkCamera": true,
+    "checkPrinter": true,
+    "checkController": true,
+    "checkScanner": true
+  }
+}

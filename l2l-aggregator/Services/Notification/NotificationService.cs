@@ -1,6 +1,5 @@
 ﻿using Avalonia.Notification;
 using Avalonia.Threading;
-using l2l_aggregator.Services.Database.Repositories.Interfaces;
 using l2l_aggregator.Services.Notification.Interface;
 using System;
 using System.Collections.ObjectModel;
@@ -9,7 +8,6 @@ namespace l2l_aggregator.Services.Notification
 {
     public class NotificationService : INotificationService
     {
-        private readonly INotificationLogRepository _notificationLog;
         private readonly SessionService _sessionService;
         public INotificationMessageManager Manager { get; }
 
@@ -24,10 +22,9 @@ namespace l2l_aggregator.Services.Notification
 
         public ObservableCollection<NotificationItem> Notifications { get; } = new();
 
-        public NotificationService(SessionService sessionService, INotificationLogRepository notificationLog)
+        public NotificationService(SessionService sessionService)
         {
             Manager = new NotificationMessageManager();
-            _notificationLog = notificationLog;
             _sessionService = sessionService;
         }
 
@@ -85,7 +82,7 @@ namespace l2l_aggregator.Services.Notification
             //Notifications.Add(item);
             Notifications.Insert(0, item);
             // Сохраняем в БД (асинхронно, не блокируя UI)
-            _ = _notificationLog.SaveNotificationAsync(item);
+            //_ = _notificationLog.SaveNotificationAsync(item);
 
             var builder = Manager
                 .CreateMessage()

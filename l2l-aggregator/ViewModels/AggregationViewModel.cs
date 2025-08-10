@@ -146,9 +146,6 @@ namespace l2l_aggregator.ViewModels
         //сервис обработки шаблона, после выбора пользователя элементов в ui. Для дальнейшей отправки в библиотеку распознавания
         private readonly TemplateService _templateService;
 
-        //сервис работы с бд
-        private readonly DatabaseService _databaseService;
-
         //сервис нотификаций
         private readonly INotificationService _notificationService;
 
@@ -335,7 +332,6 @@ namespace l2l_aggregator.ViewModels
             SessionService sessionService,
             TemplateService templateService,
             DmScanService dmScanService,
-            DatabaseService databaseService,
             DatabaseDataService databaseDataService,
             INotificationService notificationService,
             HistoryRouter<ViewModelBase> router,
@@ -348,7 +344,6 @@ namespace l2l_aggregator.ViewModels
             _imageProcessingService = imageProcessingService;
             _templateService = templateService;
             _dmScanService = dmScanService;
-            _databaseService = databaseService;
             _notificationService = notificationService;
             _router = router;
             _printingService = printingService;

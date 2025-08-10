@@ -19,7 +19,6 @@ namespace l2l_aggregator.ViewModels
             set => SetProperty(ref _isLast, value);
         }
 
-        private readonly DatabaseService _databaseService;
 
         [ObservableProperty]
         private ObservableCollection<ArmJobRecord> _tasks = new();
@@ -44,13 +43,11 @@ namespace l2l_aggregator.ViewModels
         private readonly HistoryRouter<ViewModelBase> _router;
         private readonly DatabaseDataService _databaseDataService;
 
-        public TaskListViewModel(DatabaseService databaseService, 
-                                DatabaseDataService databaseDataService, 
+        public TaskListViewModel(DatabaseDataService databaseDataService, 
                                 HistoryRouter<ViewModelBase> router, 
                                 SessionService sessionService, 
                                 INotificationService notificationService)
         {
-            _databaseService = databaseService;
             _router = router;
             _sessionService = sessionService;
             _notificationService = notificationService;
