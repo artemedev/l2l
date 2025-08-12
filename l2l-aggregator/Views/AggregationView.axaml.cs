@@ -61,7 +61,6 @@ public partial class AggregationView : UserControl
 
             border.PointerPressed += (s, e) =>
                 {
-                    //((AggregationViewModel)DataContext).OnCellClicked(cellVM);
                     if (cellVM.DmSquareClickedCommand.CanExecute(null))
                         cellVM.DmSquareClickedCommand.Execute(null);
                 };
@@ -83,13 +82,7 @@ public partial class AggregationView : UserControl
             vm.ImageSizeCell = e.NewSize;
         }
     }
-    //private void OnImageGridSizeCellChanged(object? sender, SizeChangedEventArgs e)
-    //{
-    //    if (DataContext is AggregationViewModel vm)
-    //    {
-    //        vm.ImageSizeGridCell = e.NewSize;
-    //    }
-    //}
+
     private void Popup_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (DataContext is AggregationViewModel vm)

@@ -26,7 +26,7 @@ namespace l2l_aggregator.ViewModels.VisualElements
         [ObservableProperty] private bool isDuplicateInCurrentScan;
         [ObservableProperty] private bool isDuplicateInAllScans;
 
-        // Можно ли сделать валидацию, цвет рамки и т.д.
+        // Валидация, цвет рамки и т.д.
         [ObservableProperty] private bool isValid;
 
         public IBrush BorderColor => IsValid ? Brushes.Green : Brushes.Red;

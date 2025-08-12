@@ -41,38 +41,7 @@
 					<RowDefinition Height="*"/>
 					<RowDefinition Height="*"/>
 				</Grid.RowDefinitions>
-				<!--<Border Margin="0,5,0,10"
-						BorderBrush="LightGray"
-						BorderThickness="1"
-						CornerRadius="4"
-						Padding="10" Grid.Row="0">
-					<Grid RowDefinitions="*,*,*">
-						-->
-				<!-- Подпись "Адрес сервера:" в первой колонке, строка 1 -->
-				<!--
-						<TextBlock Grid.Row="0" Text="Адрес сервера"
-								   FontWeight="SemiBold"
-								   FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>
-						-->
-				<!-- TextBox во второй колонке, строка 1, растягивается по горизонтали -->
-				<!--
-						<TextBox Grid.Row="1" Text="{Binding DatabaseUri, Mode=TwoWay}"
-								 HorizontalAlignment="Stretch"
-								 VerticalAlignment="Center"
-								 Watermark="IP адрес сервера"
-								 Margin="0,10,0,10"
-								 FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>
-						-->
-				<!-- Кнопка на третьей строке, занимает две колонки -->
-				<!--
-						<Button Grid.Row="2" Content="Проверить и Сохранить"
-								Command="{Binding CheckAndSaveUriCommand}"
-								HorizontalAlignment="Stretch"
-								HorizontalContentAlignment="Center"
-								VerticalAlignment="Center"
-								FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>
-					</Grid>
-				</Border>-->
+
 
 				<!-- Контроллер -->
 				<Border Margin="0,15,0,15"
@@ -106,12 +75,7 @@
 									 Margin="8,0,0,0"
 									 Fill="{Binding IsControllerConnected, Converter={StaticResource BoolToColorConverter}, ConverterParameter='Green,Red'}"/>
 						</Grid>
-						<!--<Button Command="{Binding TestControllerConnectionCommand}"
-								Content="Проверить и Сохранить"
-								HorizontalAlignment="Stretch"
-								HorizontalContentAlignment="Center"
-								VerticalAlignment="Center"
-								FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>-->
+						
 
 						<CheckBox Content="Проверять перед агрегацией"
 								  IsChecked="{Binding CheckControllerBeforeAggregation, Mode=TwoWay}"
@@ -179,13 +143,7 @@
 									 Width="12"
 									 Height="12"
 									 Fill="{Binding Camera.IsConnected, Converter={StaticResource BoolToColorConverter}, ConverterParameter='Green,Red'}"/>
-							<!--<Button Grid.Column="2"
-									Content="Настроить"
-									Command="{Binding OpenCameraSettingsCommand}"
-									IsEnabled="{Binding Camera.IsConnected}"
-									Margin="5,0,0,0"
-									HorizontalAlignment="Right"
-									FontSize="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ResponsiveFontSizeConverter}, ConverterParameter='0.017;8;36'}"/>-->
+						
 						</Grid>
 						<CheckBox Content="Проверять перед агрегацией"
 								  IsChecked="{Binding CheckCameraBeforeAggregation, Mode=TwoWay}"

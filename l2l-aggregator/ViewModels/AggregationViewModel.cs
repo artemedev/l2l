@@ -2299,8 +2299,3 @@ namespace l2l_aggregator.ViewModels
     }
 }
 
-// Extension method для улучшения читаемости
-internal static class ObjectExtensions
-{
-    public static TResult Let<T, TResult>(this T obj, Func<T, TResult> func) => func(obj);
-}

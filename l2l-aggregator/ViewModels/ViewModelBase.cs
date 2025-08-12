@@ -34,7 +34,6 @@ namespace l2l_aggregator.ViewModels
 
         public void Dispose()
         {
-            // Не следует модифицировать, а всю логику освобождения ресурсов нужно размещать в перегруженном методе Dispose(bool disposing)
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }

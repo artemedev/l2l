@@ -1,9 +1,6 @@
-using System.Linq;
-using System.Runtime.InteropServices.JavaScript;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using l2l_aggregator.ViewModels;
@@ -11,6 +8,7 @@ using l2l_aggregator.Views;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Linq;
 
 namespace l2l_aggregator
 {
@@ -31,7 +29,7 @@ namespace l2l_aggregator
         {
             // Создаем Host для DI
             _host = Host.CreateDefaultBuilder()
-                //appsettings нужен только для подключения бд.
+                //appsettings нужен для подключения бд.
                 .ConfigureAppConfiguration(configBuilder =>
                 {
                     configBuilder.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);

@@ -14,7 +14,6 @@ namespace l2l_aggregator.ViewModels.VisualElements
         [ObservableProperty] private string ocrName;
         [ObservableProperty] private string ocrText;
 
-        // Если нужно отмечать валидность
         [ObservableProperty] private bool isValid;
 
         public IBrush BorderColor => IsValid ? Brushes.Green : Brushes.Red;

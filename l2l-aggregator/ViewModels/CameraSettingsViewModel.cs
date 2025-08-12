@@ -315,22 +315,6 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task Scan()
         {
-            //старое
-            //_dmScanService.getScan();
-            //новое
-            //await _dmScanService.WaitForStartOkAsync();
-            //_dmScanService.StopScan();
-            //var recognParams = new recogn_params
-            //{
-            //    CamInterfaces = "GigEVision2",
-            //    cameraName = _sessionService.CameraIP,
-            //    _Preset = new camera_preset(_sessionService.CameraModel),
-            //    softwareTrigger = true, //поменять на false
-            //};
-            //_dmScanService.ConfigureParams(recognParams);
-            //_dmScanService.StartScan();
-
-            //await Task.Delay(600000);
             _dmScanService.startShot();
             dmrData = await _dmScanService.WaitForResultAsync();
             using (var ms = new MemoryStream())
