@@ -18,14 +18,7 @@ namespace l2l_aggregator.Services.Configuration
         {
             _notificationService = notificationService;
 
-            // Определяем путь к файлу конфигурации
-            var configDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "L2LAggregator"
-            );
-
-            Directory.CreateDirectory(configDirectory);
-            _configFilePath = Path.Combine(configDirectory, "device-config.json");
+            _configFilePath = Path.Combine(AppContext.BaseDirectory, "device-config.json");
         }
 
         public async Task<DeviceConfiguration> LoadConfigurationAsync()
