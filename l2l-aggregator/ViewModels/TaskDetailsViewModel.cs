@@ -28,7 +28,6 @@ namespace l2l_aggregator.ViewModels
         private readonly SessionService _sessionService;
         private readonly INotificationService _notificationService;
         private readonly DeviceCheckService _deviceCheckService;
-        private readonly ConfigurationLoaderService _configLoader;
         private readonly DatabaseDataService _databaseDataService;
 
 
@@ -36,10 +35,8 @@ namespace l2l_aggregator.ViewModels
             DatabaseDataService databaseDataService,
             SessionService sessionService, 
             INotificationService notificationService, 
-            DeviceCheckService deviceCheckService,
-            ConfigurationLoaderService configLoader)
+            DeviceCheckService deviceCheckService)
         {
-            _configLoader = configLoader;
             _router = router;
             _sessionService = sessionService;
             _notificationService = notificationService;

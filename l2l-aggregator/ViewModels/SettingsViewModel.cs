@@ -55,7 +55,6 @@ namespace l2l_aggregator.ViewModels
         private readonly SessionService _sessionService;
         private readonly IScannerPortResolver _scannerResolver;
         private readonly DmScanService _dmScanService;
-        private readonly ConfigurationLoaderService _configLoader;
         private readonly PrintingService _printingService;
 
         // Свойство для отслеживания состояния принтера
@@ -75,11 +74,9 @@ namespace l2l_aggregator.ViewModels
             SessionService sessionService,
             IScannerPortResolver scannerResolver,
             DmScanService dmScanService,
-            ConfigurationLoaderService configLoader,
             PrintingService printingService,
             PcPlcConnectionService plcConnectionService)
         {
-            _configLoader = configLoader;
             _notificationService = notificationService;
             _router = router;
             _sessionService = sessionService;

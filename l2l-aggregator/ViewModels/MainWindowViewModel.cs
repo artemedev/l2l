@@ -42,7 +42,6 @@ namespace l2l_aggregator.ViewModels
         private readonly HistoryRouter<ViewModelBase> _router;
         private readonly INotificationService _notificationService;
         private readonly SessionService _sessionService;
-        private readonly ConfigurationLoaderService _configLoader;
 
         // Глобальный сканер
         private ScannerWorker _globalScannerWorker;
@@ -67,13 +66,11 @@ namespace l2l_aggregator.ViewModels
                                     HistoryRouter<ViewModelBase> router,
                                     INotificationService notificationService,
                                     SessionService sessionService,
-                                    ConfigurationLoaderService configLoader,
                                     DatabaseDataService databaseDataService,
                                     IDialogService dialogService)
         {
             _router = router;
             _configurationService = configurationService;
-            _configLoader = configLoader;
             _notificationService = notificationService;
             _sessionService = sessionService;
             _databaseDataService = databaseDataService;

@@ -9,6 +9,13 @@ using System.Threading.Tasks;
 
 namespace l2l_aggregator.Services.Configuration
 {
+    public interface IConfigurationFileService
+    {
+        Task<DeviceConfiguration> LoadConfigurationAsync();
+        Task SaveConfigurationAsync(DeviceConfiguration configuration);
+        Task<string?> GetConfigValueAsync(string key);
+        Task SetConfigValueAsync(string key, string? value);
+    }
     public class ConfigurationFileService : IConfigurationFileService
     {
         private readonly string _configFilePath;

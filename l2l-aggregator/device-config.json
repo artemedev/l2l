@@ -4,11 +4,11 @@
     "model": "Zebra"
   },
   "camera": {
-    "ip": "192.168.1.101",
+    "ip": "172.16.1.75",
     "model": "Basler"
   },
   "controller": {
-    "ip": "192.168.1.102"
+    "ip": "172.16.1.75"
   },
   "scanner": {
     "port": "COM3",

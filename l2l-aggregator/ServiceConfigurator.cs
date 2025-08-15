@@ -48,7 +48,6 @@ namespace l2l_aggregator
 
             // Регистрируем работу с api
             services.AddSingleton<DeviceCheckService>(); 
-            services.AddSingleton<ConfigurationLoaderService>(); 
             services.AddSingleton<PrintingService>();
             services.AddSingleton<IScannerPortResolver>(PlatformResolverFactory.CreateScannerResolver());
 
