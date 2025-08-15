@@ -91,6 +91,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Managers\" />
     <Folder Include="Resources\" />
   </ItemGroup>
 </Project>

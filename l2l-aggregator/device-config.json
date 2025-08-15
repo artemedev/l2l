@@ -1,6 +1,6 @@
 {
   "printer": {
-    "ip": "192.168.1.100",
+    "ip": "172.16.1.75",
     "model": "Zebra"
   },
   "camera": {
@@ -31,9 +31,9 @@
     "deviceName": "Aggregator Device"
   },
   "validation": {
-    "checkCamera": true,
+    "checkCamera": false,
     "checkPrinter": true,
-    "checkController": true,
+    "checkController": false,
     "checkScanner": true
   }
 }

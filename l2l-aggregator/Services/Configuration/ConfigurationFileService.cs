@@ -3,7 +3,9 @@ using l2l_aggregator.Services.Notification.Interface;
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
+
 
 namespace l2l_aggregator.Services.Configuration
 {
@@ -14,15 +16,18 @@ namespace l2l_aggregator.Services.Configuration
         private DeviceConfiguration? _cachedConfiguration;
         private readonly object _lock = new object();
 
+        // Семафор для синхронизации операций с файлом
+        private readonly SemaphoreSlim _fileSemaphore = new SemaphoreSlim(1, 1);
+
         public ConfigurationFileService(INotificationService notificationService)
         {
             _notificationService = notificationService;
-
             _configFilePath = Path.Combine(AppContext.BaseDirectory, "device-config.json");
         }
 
         public async Task<DeviceConfiguration> LoadConfigurationAsync()
         {
+            await _fileSemaphore.WaitAsync();
             try
             {
                 lock (_lock)
@@ -34,11 +39,11 @@ namespace l2l_aggregator.Services.Configuration
                 if (!File.Exists(_configFilePath))
                 {
                     var defaultConfig = new DeviceConfiguration();
-                    await SaveConfigurationAsync(defaultConfig);
+                    await SaveConfigurationInternalAsync(defaultConfig);
                     return defaultConfig;
                 }
 
-                var jsonContent = await File.ReadAllTextAsync(_configFilePath);
+                var jsonContent = await ReadFileWithRetryAsync(_configFilePath);
                 var options = new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true,
@@ -60,20 +65,18 @@ namespace l2l_aggregator.Services.Configuration
                 _notificationService.ShowMessage($"Ошибка загрузки конфигурации: {ex.Message}", NotificationType.Error);
                 return new DeviceConfiguration();
             }
+            finally
+            {
+                _fileSemaphore.Release();
+            }
         }
 
         public async Task SaveConfigurationAsync(DeviceConfiguration configuration)
         {
+            await _fileSemaphore.WaitAsync();
             try
             {
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    WriteIndented = true
-                };
-
-                var jsonContent = JsonSerializer.Serialize(configuration, options);
-                await File.WriteAllTextAsync(_configFilePath, jsonContent);
+                await SaveConfigurationInternalAsync(configuration);
 
                 lock (_lock)
                 {
@@ -85,6 +88,116 @@ namespace l2l_aggregator.Services.Configuration
                 _notificationService.ShowMessage($"Ошибка сохранения конфигурации: {ex.Message}", NotificationType.Error);
                 throw;
             }
+            finally
+            {
+                _fileSemaphore.Release();
+            }
+        }
+
+        private async Task SaveConfigurationInternalAsync(DeviceConfiguration configuration)
+        {
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                WriteIndented = true
+            };
+
+            var jsonContent = JsonSerializer.Serialize(configuration, options);
+            await WriteFileWithRetryAsync(_configFilePath, jsonContent);
+        }
+
+        private async Task<string> ReadFileWithRetryAsync(string filePath, int maxRetries = 3)
+        {
+            for (int attempt = 0; attempt < maxRetries; attempt++)
+            {
+                try
+                {
+                    // Используем FileShare.Read для возможности одновременного чтения
+                    using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    using var reader = new StreamReader(fileStream);
+                    return await reader.ReadToEndAsync();
+                }
+                catch (IOException ex) when (attempt < maxRetries - 1)
+                {
+                    // Если файл заблокирован, ждем и повторяем попытку
+                    await Task.Delay(100 * (attempt + 1)); // Увеличиваем задержку с каждой попыткой
+                    continue;
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+
+            throw new IOException($"Не удалось прочитать файл {filePath} после {maxRetries} попыток");
+        }
+
+        private async Task WriteFileWithRetryAsync(string filePath, string content, int maxRetries = 3)
+        {
+            for (int attempt = 0; attempt < maxRetries; attempt++)
+            {
+                try
+                {
+                    // Метод безопасной записи: сначала во временный файл, затем замена
+                    var tempFilePath = filePath + ".tmp";
+                    var backupFilePath = filePath + ".bak";
+
+                    // Записываем во временный файл
+                    using (var fileStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                    using (var writer = new StreamWriter(fileStream))
+                    {
+                        await writer.WriteAsync(content);
+                        await writer.FlushAsync();
+                    }
+
+                    // Создаем резервную копию существующего файла
+                    if (File.Exists(filePath))
+                    {
+                        if (File.Exists(backupFilePath))
+                            File.Delete(backupFilePath);
+                        File.Move(filePath, backupFilePath);
+                    }
+
+                    // Заменяем основной файл временным
+                    File.Move(tempFilePath, filePath);
+
+                    // Удаляем резервную копию при успешной записи
+                    if (File.Exists(backupFilePath))
+                        File.Delete(backupFilePath);
+
+                    return; // Успешная запись
+                }
+                catch (IOException ex) when (attempt < maxRetries - 1)
+                {
+                    // Очищаем временные файлы при ошибке
+                    try
+                    {
+                        var tempFilePath = filePath + ".tmp";
+                        if (File.Exists(tempFilePath))
+                            File.Delete(tempFilePath);
+                    }
+                    catch { /* Игнорируем ошибки очистки */ }
+
+                    // Если файл заблокирован, ждем и повторяем попытку
+                    await Task.Delay(100 * (attempt + 1));
+                    continue;
+                }
+                catch (Exception)
+                {
+                    // Очищаем временные файлы при критической ошибке
+                    try
+                    {
+                        var tempFilePath = filePath + ".tmp";
+                        if (File.Exists(tempFilePath))
+                            File.Delete(tempFilePath);
+                    }
+                    catch { /* Игнорируем ошибки очистки */ }
+
+                    throw;
+                }
+            }
+
+            throw new IOException($"Не удалось записать файл {filePath} после {maxRetries} попыток");
         }
 
         public async Task<string?> GetConfigValueAsync(string key)
@@ -206,6 +319,11 @@ namespace l2l_aggregator.Services.Configuration
             }
 
             await SaveConfigurationAsync(config);
+        }
+
+        public void Dispose()
+        {
+            _fileSemaphore?.Dispose();
         }
     }
 }
