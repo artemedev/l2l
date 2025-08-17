@@ -260,7 +260,7 @@ namespace l2l_aggregator.ViewModels
             }
             else
             {
-                _notificationService.ShowMessage("Ошибка: шаблон коробки отсутствует.", NotificationType.Warning);
+                _notificationService.ShowMessage("Ошибка: шаблон коробки отсутствует.", NotificationType.Error);
             }
         }
 
@@ -276,7 +276,7 @@ namespace l2l_aggregator.ViewModels
             }
             else
             {
-                _notificationService.ShowMessage("Ошибка: шаблон распознавания отсутствует.");
+                _notificationService.ShowMessage("Ошибка: шаблон распознавания отсутствует.", NotificationType.Error);
             }
 
             _stateService.UpdateScanAvailability();
@@ -288,7 +288,7 @@ namespace l2l_aggregator.ViewModels
             {
                 if (_sessionService.SelectedTaskInfo?.DOCID == null)
                 {
-                    _notificationService.ShowMessage("Ошибка: отсутствует информация о задании для загрузки отсканированных кодов.", NotificationType.Warning);
+                    _notificationService.ShowMessage("Ошибка: отсутствует информация о задании для загрузки отсканированных кодов.", NotificationType.Error);
                     return;
                 }
 

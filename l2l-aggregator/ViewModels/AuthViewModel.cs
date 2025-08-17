@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using l2l_aggregator.Models;
 using l2l_aggregator.Services;
+using l2l_aggregator.Services.AggregationService;
 using l2l_aggregator.Services.Notification.Interface;
 using System;
 using System.Collections.Generic;
@@ -245,14 +246,26 @@ namespace l2l_aggregator.ViewModels
             InfoMessage = "Загружаем детальную информацию о задаче...";
 
             // Загружаем детальную информацию о задаче
-            var jobInfo = await _databaseDataService.GetJobDetails(currentTask ?? 0);
+            ArmJobInfoRecord jobInfo = await _databaseDataService.GetJobDetails(currentTask ?? 0);
             if (jobInfo == null)
             {
                 _notificationService.ShowMessage("Не удалось загрузить детальную информацию о задаче.", NotificationType.Error);
+                
+            }
+            if (jobInfo.BOX_TEMPLATE == null)
+            {
+                _notificationService.ShowMessage("Ошибка: шаблон коробки отсутствует.", NotificationType.Error);
+            }
+            if (jobInfo.UN_TEMPLATE_FR == null)
+            {
+                _notificationService.ShowMessage("Ошибка: шаблон распознавания отсутствует.", NotificationType.Error);
                 return;
             }
-
-
+            if (jobInfo.DOCID == null)
+            {
+                _notificationService.ShowMessage("Ошибка: отсутствует информация о задании для загрузки отсканированных кодов.", NotificationType.Error);
+                return;
+            }
 
 
             // Загружаем данные SSCC

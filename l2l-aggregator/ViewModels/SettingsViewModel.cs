@@ -84,7 +84,7 @@ namespace l2l_aggregator.ViewModels
             _dmScanService = dmScanService;
             _printingService = printingService;
             _plcConnectionService = plcConnectionService;
-            _ = InitializeAsync();
+            Initialize();
         }
         // Метод для уведомления об изменении computed property
         partial void OnIsControllerConnectedChanged(bool value)
@@ -106,13 +106,13 @@ namespace l2l_aggregator.ViewModels
             }
         }
 
-        private async Task InitializeAsync()
+        private void Initialize()
         {
-            await LoadAvailableScannersAsync();
-            await LoadSettingsAsync();
+            LoadAvailableScanners();
+            LoadSettings();
         }
 
-        public async Task LoadAvailableScannersAsync()
+        public void LoadAvailableScanners()
         {
             AvailableScanners.Clear();
 
@@ -145,7 +145,7 @@ namespace l2l_aggregator.ViewModels
             }
         }
 
-        private async Task LoadSettingsAsync()
+        private void LoadSettings()
         {
             Camera = new CameraViewModel
             {
@@ -197,24 +197,6 @@ namespace l2l_aggregator.ViewModels
             // Передаём CameraIP или другие параметры
             _router.GoTo<CameraSettingsViewModel>();
         }
-        private void LoadCameras()
-        {
-
-        }
-
-
-        [RelayCommand]
-        private async void SaveSettings()
-        {
-            _sessionService.EnableVirtualKeyboard = EnableVirtualKeyboard;
-            InfoMessage = "Настройки успешно сохранены!";
-            _notificationService.ShowMessage(InfoMessage);
-
-        }
-
-
-        [RelayCommand]
-        private void GetArchive() { /* ... */ }
 
         //Контроллер - проверка соединения
         [RelayCommand]
@@ -417,17 +399,6 @@ namespace l2l_aggregator.ViewModels
 
 
 
-        //не нужное в данном проекте, возможно пригодится
-        [RelayCommand]
-        public void AddCamera()
-        {
-        }
-
-        [RelayCommand]
-        public void RemoveCamera(CameraViewModel camera)
-        {
-          
-        }
 
         // Метод для тестовой печати
         [RelayCommand]
@@ -530,6 +501,20 @@ namespace l2l_aggregator.ViewModels
             IsPrinterConnected = !string.IsNullOrWhiteSpace(PrinterIP) && !string.IsNullOrWhiteSpace(SelectedPrinterModel);
         }
 
+        //не нужное в данном проекте, возможно пригодится
+        [RelayCommand]
+        public void AddCamera()
+        {
+        }
 
+        [RelayCommand]
+        public void RemoveCamera(CameraViewModel camera)
+        {
+
+        }
+        private void LoadCameras()
+        {
+
+        }
     }
 }

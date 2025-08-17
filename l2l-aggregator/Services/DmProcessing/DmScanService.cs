@@ -63,7 +63,13 @@ namespace l2l_aggregator.Services.DmProcessing
         {
             return _recognWrapper.SetParams(parameters);
         }
-
+        /// <summary>
+        /// Получить заданные параметры 
+        /// </summary>
+        public recogn_params GetConfigureParams()
+        {
+            return _recognWrapper.GetParams();
+        }
         /// <summary>
         /// Остановить сканирование
         /// </summary>

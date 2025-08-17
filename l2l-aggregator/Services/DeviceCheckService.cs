@@ -64,7 +64,7 @@ namespace l2l_aggregator.Services
             if (!sessionService.CheckPrinter)
                 return (true, null);
 
-            if (string.IsNullOrWhiteSpace(sessionService.PrinterIP))
+            if (string.IsNullOrWhiteSpace(sessionService.PrinterIP) && string.IsNullOrWhiteSpace(sessionService.PrinterModel))
                 return (false, "IP принтера не задан!");
 
             try
@@ -88,7 +88,7 @@ namespace l2l_aggregator.Services
                 return (false, "IP контроллера не задан!");
 
 
-             try
+            try
             {
                 // Создать службу подключения PLC
                 var plcService = new PcPlcConnectionService(_logger); // Внедрение ILogger

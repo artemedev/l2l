@@ -45,20 +45,12 @@ namespace l2l_aggregator.Services.Printing
             }
         }
 
-       
+
         public async Task<bool> CheckConnectPrinterAsync(string printerIP, string printerModel)
         {
             try
             {
-                if (printerModel == "Zebra")
-                {
-                    return await EnsurePrinterConnectedAsync(printerIP);
-                }
-                else
-                {
-                    _notificationService.ShowMessage($"Модель принтера '{printerModel}' не поддерживается.");
-                    return false;
-                }
+                return await EnsurePrinterConnectedAsync(printerIP);
             }
             catch (Exception ex)
             {
@@ -528,6 +520,6 @@ namespace l2l_aggregator.Services.Printing
                 _disposed = true;
             }
         }
-       
+
     }
 }

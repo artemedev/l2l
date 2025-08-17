@@ -12,6 +12,7 @@ namespace l2l_aggregator.Converters
         {
             return value switch
             {
+                NotificationType.Success => new SolidColorBrush(Color.Parse("#4BB543")),
                 NotificationType.Info => new SolidColorBrush(Color.Parse("#DCEEFF")),
                 NotificationType.Warning => new SolidColorBrush(Color.Parse("#FFF3CD")),
                 NotificationType.Error => new SolidColorBrush(Color.Parse("#F8D7DA")),
