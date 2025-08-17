@@ -3,13 +3,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using l2l_aggregator.Models;
 using l2l_aggregator.Services;
-using l2l_aggregator.Services.AggregationService;
-using l2l_aggregator.Services.Database;
 using l2l_aggregator.Services.Notification.Interface;
-using Refit;
 using System;
 using System.Collections.Generic;
-using System.IO.Ports;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -124,7 +120,7 @@ namespace l2l_aggregator.ViewModels
                             _sessionService.User = response;
 
                             // Проверяем права администратора
-                            bool isAdmin = _databaseDataService.CheckAdminRole(response.USERID);
+                            bool isAdmin = await _databaseDataService.CheckAdminRole(response.USERID);
                             _sessionService.IsAdmin = isAdmin;
                             // Успешная авторизация
                             _notificationService.ShowMessage("Авторизация прошла успешно!");
@@ -134,7 +130,7 @@ namespace l2l_aggregator.ViewModels
                                 return;
                             }
 
-                            long? currentTask = _databaseDataService.GetCurrentJobId();
+                            long? currentTask = await _databaseDataService.GetCurrentJobId();
                             if (currentTask != 0 && currentTask != null)
                             {
                                 await GoAggregationAsync(currentTask);
@@ -182,7 +178,7 @@ namespace l2l_aggregator.ViewModels
                 InfoMessage = "Обнаружены изменения в конфигурации устройства. Выполняется перерегистрация...";
 
                 // Проверяем подключение к базе данных
-                bool isConnected = _databaseDataService.TestConnection();
+                bool isConnected = await _databaseDataService.TestConnection();
 
                 if (!isConnected)
                 {
@@ -192,7 +188,7 @@ namespace l2l_aggregator.ViewModels
                 }
 
                 // Выполняем перерегистрацию устройства
-                var deviceRegistered = _databaseDataService.RegisterDevice(currentRequest);
+                var deviceRegistered = await _databaseDataService.RegisterDevice(currentRequest);
 
                 if (deviceRegistered != null)
                 {
@@ -249,7 +245,7 @@ namespace l2l_aggregator.ViewModels
             InfoMessage = "Загружаем детальную информацию о задаче...";
 
             // Загружаем детальную информацию о задаче
-            var jobInfo = _databaseDataService.GetJobDetails(currentTask ?? 0);
+            var jobInfo = await _databaseDataService.GetJobDetails(currentTask ?? 0);
             if (jobInfo == null)
             {
                 _notificationService.ShowMessage("Не удалось загрузить детальную информацию о задаче.", NotificationType.Error);
@@ -260,7 +256,7 @@ namespace l2l_aggregator.ViewModels
 
 
             // Загружаем данные SSCC
-            LoadSsccData(currentTask ?? 0);
+            await LoadSsccData(currentTask ?? 0);
 
             // Проверяем, что все необходимые данные загружены
             if (_responseSscc == null)
@@ -269,7 +265,7 @@ namespace l2l_aggregator.ViewModels
                 return;
             }
             // Загружаем данные SGTIN
-            LoadSgtinDataAsync(currentTask ?? 0);
+            await LoadSgtinDataAsync(currentTask ?? 0);
 
             if (_responseSgtin == null)
             {
@@ -286,11 +282,11 @@ namespace l2l_aggregator.ViewModels
 
             _router.GoTo<AggregationViewModel>();
         }
-        private void LoadSsccData(long docId)
+        private async Task LoadSsccData(long docId)
         {
             try
             {
-                _responseSscc = _databaseDataService.GetSscc(docId);
+                _responseSscc = await _databaseDataService.GetSscc(docId);
                 if (_responseSscc != null)
                 {
                     // Сохраняем первую запись SSCC в сессию
@@ -310,11 +306,11 @@ namespace l2l_aggregator.ViewModels
             }
         }
 
-        private void LoadSgtinDataAsync(long docId)
+        private async Task LoadSgtinDataAsync(long docId)
         {
             try
             {
-                _responseSgtin = _databaseDataService.GetSgtin(docId);
+                _responseSgtin = await _databaseDataService.GetSgtin(docId);
                 if (_responseSgtin != null)
                 {
                     InfoMessage = "SGTIN данные загружены успешно.";

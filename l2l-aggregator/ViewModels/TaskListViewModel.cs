@@ -77,7 +77,7 @@ namespace l2l_aggregator.ViewModels
                 if (response != null)
                 {
                     Tasks.Clear();
-                    foreach (var rec in response.RECORDSET)
+                    foreach (var rec in response.Result.RECORDSET)
                     {
                         Tasks.Add(rec);
                     }
@@ -86,6 +86,14 @@ namespace l2l_aggregator.ViewModels
                     {
                         Tasks[i].IsLast = (i == Tasks.Count - 1);
                     }
+
+                    InfoMessage = $"Загружено {Tasks.Count} заданий";
+                    _notificationService.ShowMessage($"Загружено {Tasks.Count} заданий", NotificationType.Success);
+                }
+                else
+                {
+                    InfoMessage = "Задания не найдены";
+                    _notificationService.ShowMessage("Задания не найдены", NotificationType.Warning);
                 }
             }
             catch (Exception ex)

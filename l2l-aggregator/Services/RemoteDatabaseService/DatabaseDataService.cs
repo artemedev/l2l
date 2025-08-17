@@ -11,7 +11,7 @@ namespace l2l_aggregator.Services
     public class DatabaseDataService
     {
         private readonly RemoteDatabaseService _remoteDatabaseService;
-        //private readonly INotificationService _notificationService;
+        private readonly INotificationService _notificationService;
         private bool _isConnectionInitialized = false;
 
         public DatabaseDataService(
@@ -19,34 +19,34 @@ namespace l2l_aggregator.Services
             INotificationService notificationService)
         {
             _remoteDatabaseService = remoteDatabaseService;
-            //_notificationService = notificationService;
+            _notificationService = notificationService;
         }
 
         // Метод для инициализации подключения (вызывается один раз)
-        private bool EnsureConnection()
+        private async Task<bool> EnsureConnection()
         {
             if (!_isConnectionInitialized)
             {
-                _isConnectionInitialized = _remoteDatabaseService.InitializeConnection();
+                _isConnectionInitialized = await _remoteDatabaseService.InitializeConnection();
                 if (_isConnectionInitialized)
                 {
-                    //_notificationService.ShowMessage("Соединение с удаленной БД установлено", NotificationType.Success);
+                    _notificationService.ShowMessage("Соединение с удаленной БД установлено", NotificationType.Success);
                 }
             }
             return _isConnectionInitialized;
         }
 
         // Принудительная проверка соединения
-        public bool TestConnection()
+        public async Task<bool> TestConnection()
         {
             try
             {
                 _isConnectionInitialized = false; // Сбрасываем флаг для повторной проверки
-                return EnsureConnection();
+                return await EnsureConnection();
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка проверки подключения: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка проверки подключения: {ex.Message}", NotificationType.Error);
                 return false;
             }
         }
@@ -56,456 +56,455 @@ namespace l2l_aggregator.Services
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
-                    //_notificationService.ShowMessage("Нет подключения к удаленной БД", NotificationType.Error);
+                    _notificationService.ShowMessage("Нет подключения к удаленной БД", NotificationType.Error);
                     return null;
                 }
 
-                var response = _remoteDatabaseService.Login(login, password);
+                var response = await _remoteDatabaseService.Login(login, password);
 
                 if (response?.AUTH_OK == "1")
                 {
-                    //await _localDatabaseService.UserAuth.SaveUserAuthAsync(response);
-                    //_notificationService.ShowMessage($"Добро пожаловать, {response.USER_NAME}!", NotificationType.Success);
+                    _notificationService.ShowMessage($"Добро пожаловать, {response.USER_NAME}!", NotificationType.Success);
 
                     return response;
                 }
                 else
                 {
                     var errorMsg = response?.ERROR_TEXT ?? "Неверный логин или пароль";
-                    //_notificationService.ShowMessage(errorMsg, NotificationType.Error);
+                    _notificationService.ShowMessage(errorMsg, NotificationType.Error);
                 }
 
                 return null;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка входа: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка входа: {ex.Message}", NotificationType.Error);
                 return null;
             }
         }
 
         // Проверка прав администратора
-        public bool CheckAdminRole(string userId)
+        public async Task<bool> CheckAdminRole(string userId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return false;
                 }
 
                 if (long.TryParse(userId, out var userIdLong))
                 {
-                    return _remoteDatabaseService.CheckAdminRole(userIdLong);
+                    return await _remoteDatabaseService.CheckAdminRole(userIdLong);
                 }
 
                 return false;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка проверки прав администратора: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка проверки прав администратора: {ex.Message}", NotificationType.Error);
                 return false;
             }
         }
 
         //Регистрация устройства
-        public ArmDeviceRegistrationResponse? RegisterDevice(ArmDeviceRegistrationRequest data)
+        public async Task<ArmDeviceRegistrationResponse?> RegisterDevice(ArmDeviceRegistrationRequest data)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return null;
                 }
 
-                var response = _remoteDatabaseService.RegisterDevice(data);
+                var response = await _remoteDatabaseService.RegisterDevice(data);
                 if (response != null)
                 {
-                    //_notificationService.ShowMessage($"Устройство '{response.DEVICE_NAME}' зарегистрировано", NotificationType.Success);
+                    _notificationService.ShowMessage($"Устройство '{response.DEVICE_NAME}' зарегистрировано", NotificationType.Success);
                 }
 
                 return response;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка регистрации устройства: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка регистрации устройства: {ex.Message}", NotificationType.Error);
                 return null;
             }
         }
 
         // ---------------- JOB LIST ----------------
-        public ArmJobResponse? GetJobs(string userId)
+        public async Task<ArmJobResponse?> GetJobs(string userId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return null;
                 }
 
-                var response = _remoteDatabaseService.GetJobs(userId);
+                var response = await _remoteDatabaseService.GetJobs(userId);
                 if (response?.RECORDSET?.Any() == true)
                 {
-                    //_notificationService.ShowMessage($"Загружено {response.RECORDSET.Count} заданий", NotificationType.Info);
+                    _notificationService.ShowMessage($"Загружено {response.RECORDSET.Count} заданий", NotificationType.Info);
                 }
                 else
                 {
-                    //_notificationService.ShowMessage("Задания не найдены", NotificationType.Warning);
+                    _notificationService.ShowMessage("Задания не найдены", NotificationType.Warning);
                 }
 
                 return response;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка получения заданий: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка получения заданий: {ex.Message}", NotificationType.Error);
                 return null;
             }
         }
 
         // ---------------- JOB DETAILS ----------------
-        public ArmJobInfoRecord? GetJobDetails(long docId)
+        public async Task<ArmJobInfoRecord?> GetJobDetails(long docId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return null;
                 }
 
-                var response = _remoteDatabaseService.GetJobDetails(docId);
+                var response = await _remoteDatabaseService.GetJobDetails(docId);
                 if (response != null)
                 {
-                    //_notificationService.ShowMessage($"Задание {response.DOC_NUM} загружено", NotificationType.Success);
+                    _notificationService.ShowMessage($"Задание {response.DOC_NUM} загружено", NotificationType.Success);
                 }
 
                 return response;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка получения деталей задания: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка получения деталей задания: {ex.Message}", NotificationType.Error);
                 return null;
             }
         }
 
-        public long? GetCurrentJobId()
+        public async Task<long?> GetCurrentJobId()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return null;
                 }
 
-                return _remoteDatabaseService.GetCurrentJobId();
+                return await _remoteDatabaseService.GetCurrentJobId();
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка загрузки незавершенного задания: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка загрузки незавершенного задания: {ex.Message}", NotificationType.Error);
                 return null;
             }
         }
         // Закрытие задания
-        public bool CloseJob()
+        public async Task<bool> CloseJob()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return false;
                 }
 
-                var result = _remoteDatabaseService.CloseJob();
+                var result = await _remoteDatabaseService.CloseJob();
                 if (result)
                 {
-                    //_notificationService.ShowMessage("Задание успешно закрыто", NotificationType.Success);
+                    _notificationService.ShowMessage("Задание успешно закрыто", NotificationType.Success);
                 }
 
                 return result;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка закрытия задания: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка закрытия задания: {ex.Message}", NotificationType.Error);
                 return false;
             }
         }
 
         // ---------------- Получение Sgtin ----------------
-        public ArmJobSgtinResponse? GetSgtin(long docId)
+        public async Task<ArmJobSgtinResponse?> GetSgtin(long docId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return null;
                 }
 
-                var response = _remoteDatabaseService.GetSgtin(docId);
+                var response = await _remoteDatabaseService.GetSgtin(docId);
                 if (response?.RECORDSET?.Any() == true)
                 {
-                    //_notificationService.ShowMessage($"Загружено {response.RECORDSET.Count} SGTIN кодов", NotificationType.Info);
+                    _notificationService.ShowMessage($"Загружено {response.RECORDSET.Count} SGTIN кодов", NotificationType.Info);
                 }
 
                 return response;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка получения SGTIN: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка получения SGTIN: {ex.Message}", NotificationType.Error);
                 return null;
             }
         }
 
         // ---------------- Получение Sscc ----------------
-        public ArmJobSsccResponse? GetSscc(long docId)
+        public async Task<ArmJobSsccResponse?> GetSscc(long docId)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return null;
                 }
 
-                var response = _remoteDatabaseService.GetSscc(docId);
+                var response = await _remoteDatabaseService.GetSscc(docId);
                 if (response?.RECORDSET?.Any() == true)
                 {
-                    //_notificationService.ShowMessage($"Загружено {response.RECORDSET.Count} SSCC кодов", NotificationType.Info);
+                    _notificationService.ShowMessage($"Загружено {response.RECORDSET.Count} SSCC кодов", NotificationType.Info);
                 }
 
                 return response;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка получения SSCC: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка получения SSCC: {ex.Message}", NotificationType.Error);
                 return null;
             }
         }
 
 
         // ---------------- SESSION MANAGEMENT ----------------
-        public bool StartAggregationSession()
+        public async Task<bool> StartAggregationSession()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return false;
                 }
 
 
-                var result = _remoteDatabaseService.StartSession();
+                var result = await _remoteDatabaseService.StartSession();
                 if (result)
                 {
-                    //_notificationService.ShowMessage($"Сессия агрегации начата", NotificationType.Success);
+                    _notificationService.ShowMessage($"Сессия агрегации начата", NotificationType.Success);
                 }
 
                 return true;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка начала сессии агрегации: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка начала сессии агрегации: {ex.Message}", NotificationType.Error);
                 return false;
             }
         }
 
-        public bool CloseAggregationSession()
+        public async Task<bool> CloseAggregationSession()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return false;
                 }
 
-                var result = _remoteDatabaseService.CloseSession();
+                var result = await _remoteDatabaseService.CloseSession();
                 if (result)
                 {
-                    //_notificationService.ShowMessage("Сессия агрегации завершена", NotificationType.Success);
+                    _notificationService.ShowMessage("Сессия агрегации завершена", NotificationType.Success);
                 }
                 return result;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка закрытия сессии агрегации: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка закрытия сессии агрегации: {ex.Message}", NotificationType.Error);
                 return false;
             }
         }
 
         // ---------------- Получение счетчиков ARM ----------------
-        public ArmCountersResponse? GetArmCounters()
+        public async Task<ArmCountersResponse?> GetArmCounters()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return null;
                 }
 
-                var response = _remoteDatabaseService.GetArmCounters();
+                var response = await _remoteDatabaseService.GetArmCounters();
                 if (response?.RECORDSET?.Any() == true)
                 {
-                    //_notificationService.ShowMessage($"Загружено {response.RECORDSET.Count} счетчиков ARM", NotificationType.Info);
+                    _notificationService.ShowMessage($"Загружено {response.RECORDSET.Count} счетчиков ARM", NotificationType.Info);
                 }
 
                 return response;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка получения счетчиков ARM: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка получения счетчиков ARM: {ex.Message}", NotificationType.Error);
                 return null;
             }
         }
 
-        public bool LogAggregationCompletedBatch(List<(string UNID, string CHECK_BAR_CODE)> aggregationData)
+        public async Task<bool> LogAggregationCompletedBatch(List<(string UNID, string CHECK_BAR_CODE)> aggregationData)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return false;
                 }
 
-                var result = _remoteDatabaseService.LogAggregationBatch(aggregationData);
+                var result = await _remoteDatabaseService.LogAggregationBatch(aggregationData);
                 // Затем сохраняем в локальную БД (асинхронно, не блокируем основной процесс)
                 
                 if (result)
                 {
-                    //_notificationService.ShowMessage($"Batch агрегация успешно зарегистрирована ({aggregationData.Count} записей)", NotificationType.Success);
+                    _notificationService.ShowMessage($"Batch агрегация успешно зарегистрирована ({aggregationData.Count} записей)", NotificationType.Success);
                 }
 
                 return result;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка batch логирования агрегации: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка batch логирования агрегации: {ex.Message}", NotificationType.Error);
                 return false;
             }
         }
 
         // ---------------- Поиск кода SSCC ----------------
-        public ArmJobSsccRecord? FindSsccCode(string code)
+        public async Task<ArmJobSsccRecord?> FindSsccCode(string code)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return null;
                 }
 
-                return _remoteDatabaseService.FindSsccCode(code);
+                return await _remoteDatabaseService.FindSsccCode(code);
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка поиска SSCC кода: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка поиска SSCC кода: {ex.Message}", NotificationType.Error);
                 return null;
             }
         }
 
         // ---------------- Поиск кода UN (SGTIN) ----------------
-        public ArmJobSgtinRecord? FindUnCode(string code)
+        public async Task<ArmJobSgtinRecord?> FindUnCode(string code)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return null;
                 }
 
-                return _remoteDatabaseService.FindUnCode(code);
+                return await _remoteDatabaseService.FindUnCode(code);
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка поиска UN кода: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка поиска UN кода: {ex.Message}", NotificationType.Error);
                 return null;
             }
         }
         // ---------------- Получение агрегированных UN кодов ----------------
-        public List<string> GetAggregatedUnCodes()
+        public async Task<List<string>> GetAggregatedUnCodes()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return new List<string>();
                 }
 
-                var response = _remoteDatabaseService.GetAggregatedUnCodes();
+                var response = await _remoteDatabaseService.GetAggregatedUnCodes();
                 return response ?? new List<string>();
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка получения агрегированных кодов: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка получения агрегированных кодов: {ex.Message}", NotificationType.Error);
                 return new List<string>();
             }
         }
 
         // ---------------- Разагрегация коробки ----------------
-        public bool ClearBoxAggregation(string checkBarCode)
+        public async Task<bool> ClearBoxAggregation(string checkBarCode)
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return false;
                 }
 
-                var result = _remoteDatabaseService.ClearBoxAggregation(checkBarCode);
+                var result = await _remoteDatabaseService.ClearBoxAggregation(checkBarCode);
                 if (result)
                 {
-                    //_notificationService.ShowMessage("Разагрегация коробки выполнена успешно", NotificationType.Success);
+                    _notificationService.ShowMessage("Разагрегация коробки выполнена успешно", NotificationType.Success);
                 }
 
                 return result;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка разагрегации коробки: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка разагрегации коробки: {ex.Message}", NotificationType.Error);
                 return false;
             }
         }
         // ---------------- Получение количества агрегированных коробов ----------------
-        public int GetAggregatedBoxesCount()
+        public async Task<int> GetAggregatedBoxesCount()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return 0;
                 }
 
-                return _remoteDatabaseService.GetAggregatedBoxesCount();
+                return await _remoteDatabaseService.GetAggregatedBoxesCount();
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка получения количества агрегированных коробов: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка получения количества агрегированных коробов: {ex.Message}", NotificationType.Error);
                 return 0;
             }
         }
         // ---------------- Резервирование свободного короба ----------------
-        public ArmJobSsccRecord? ReserveFreeBox()
+        public async Task<ArmJobSsccRecord?> ReserveFreeBox()
         {
             try
             {
-                if (!EnsureConnection())
+                if (!await EnsureConnection())
                 {
                     return null;
                 }
 
-                var response = _remoteDatabaseService.ReserveFreeBox();
+                var response = await _remoteDatabaseService.ReserveFreeBox();
                 if (response != null)
                 {
-                    //_notificationService.ShowMessage($"Зарезервирован короб: {response.CHECK_BAR_CODE}", NotificationType.Success);
+                    _notificationService.ShowMessage($"Зарезервирован короб: {response.CHECK_BAR_CODE}", NotificationType.Success);
                 }
                 else
                 {
-                    //_notificationService.ShowMessage("Нет доступных свободных коробов", NotificationType.Warning);
+                    _notificationService.ShowMessage("Нет доступных свободных коробов", NotificationType.Warning);
                 }
 
                 return response;
             }
             catch (Exception ex)
             {
-                //_notificationService.ShowMessage($"Ошибка резервирования свободного короба: {ex.Message}", NotificationType.Error);
+                _notificationService.ShowMessage($"Ошибка резервирования свободного короба: {ex.Message}", NotificationType.Error);
                 return null;
             }
         }

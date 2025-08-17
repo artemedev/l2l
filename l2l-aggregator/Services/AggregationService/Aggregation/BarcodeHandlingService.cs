@@ -38,7 +38,7 @@ namespace l2l_aggregator.Services.AggregationService
         {
             try
             {
-                var ssccRecord = _databaseDataService.FindSsccCode(barcode);
+                var ssccRecord = await _databaseDataService.FindSsccCode(barcode);
                 if (ssccRecord != null)
                 {
                     var infoText = _textGenerationService.BuildSsccInfo(ssccRecord);
@@ -51,7 +51,7 @@ namespace l2l_aggregator.Services.AggregationService
                 var newGS = gS1Parser.ParseGTIN(barcode);
                 var parsedData = newGS.SerialNumber;
 
-                var unRecord = _databaseDataService.FindUnCode(parsedData);
+                var unRecord = await _databaseDataService.FindUnCode(parsedData);
                 if (unRecord != null)
                 {
                     var infoText = _textGenerationService.BuildUnInfo(unRecord);
@@ -152,13 +152,13 @@ namespace l2l_aggregator.Services.AggregationService
             _notificationService.ShowMessage($"Коробка с ШК {barcode} готова для агрегации", NotificationType.Success);
 
             // Сохраняем агрегацию в ОТСКАНИРОВАННУЮ коробку
-            if (SaveAllDmCells())
+            if (SaveAllDmCells().Result)
             {
                 ProcessSuccessfulAggregation();
             }
         }
 
-        private bool SaveAllDmCells()
+        private async Task<bool> SaveAllDmCells()
         {
             try
             {
@@ -181,7 +181,7 @@ namespace l2l_aggregator.Services.AggregationService
 
                 if (aggregationData.Count > 0)
                 {
-                    var success = _databaseDataService.LogAggregationCompletedBatch(aggregationData);
+                    var success = await _databaseDataService.LogAggregationCompletedBatch(aggregationData);
 
                     if (success)
                     {
@@ -245,7 +245,7 @@ namespace l2l_aggregator.Services.AggregationService
 
         private async Task ExecuteDisaggregationAsync(string barcode, ArmJobSsccRecord boxRecord)
         {
-            var success = _databaseDataService.ClearBoxAggregation(boxRecord.CHECK_BAR_CODE);
+            var success = await _databaseDataService.ClearBoxAggregation(boxRecord.CHECK_BAR_CODE);
 
             if (success)
             {

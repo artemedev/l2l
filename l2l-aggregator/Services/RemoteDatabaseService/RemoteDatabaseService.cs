@@ -22,8 +22,8 @@ namespace l2l_aggregator.Services.Database
         private readonly string _connectionString;
         private IConfiguration _configuration;
 
-        // Мьютекс для синхронизации операций с базой данных
-        private readonly Mutex _dbMutex = new Mutex();
+        // Семафор для синхронизации операций с базой данных
+        private readonly SemaphoreSlim _dbSemaphore = new SemaphoreSlim(1, 1);
 
         public RemoteDatabaseService(IConfiguration configuration, INotificationService notificationService)
         {
@@ -32,12 +32,12 @@ namespace l2l_aggregator.Services.Database
             _connectionString = _configuration.GetConnectionString("FirebirdDatabase");
         }
 
-        public bool InitializeConnection()
+        public async Task<bool> InitializeConnection()
         {
             try
             {
                 //_notificationService.ShowMessage($"Подключение к БД", NotificationType.Info);
-                return TestConnection();
+                return await TestConnection();
             }
             catch (Exception ex)
             {
@@ -46,7 +46,7 @@ namespace l2l_aggregator.Services.Database
             }
         }
 
-        public bool TestConnection()
+        public async Task<bool> TestConnection()
         {
             if (string.IsNullOrWhiteSpace(_connectionString))
                 return false;
@@ -55,7 +55,7 @@ namespace l2l_aggregator.Services.Database
             {
                 using (FbConnection connection = new FbConnection(_connectionString))
                 {
-                    connection.Open();
+                    await connection.OpenAsync();
                 }
                 return true;
             }
@@ -67,79 +67,79 @@ namespace l2l_aggregator.Services.Database
         }
 
         // Метод для принудительной синхронизации БД
-        private void EnsureDatabaseSync(FbConnection connection)
+        private async Task EnsureDatabaseSync(FbConnection connection)
         {
             try
             {
                 // Выполняем простой запрос для убеждения что все изменения применены
                 using var syncTransaction = connection.BeginTransaction();
-                connection.QueryFirstOrDefault("SELECT 1 FROM RDB$DATABASE", transaction: syncTransaction);
+                await connection.QueryFirstOrDefaultAsync("SELECT 1 FROM RDB$DATABASE", transaction: syncTransaction);
                 syncTransaction.Commit();
 
                 // Небольшая пауза для гарантии
-                Thread.Sleep(10);
+                await Task.Delay(10);
             }
             catch
             {
                 // Если синхронизация не удалась, добавляем паузу
-                Thread.Sleep(50);
+                await Task.Delay(50);
             }
         }
 
-        private T WithConnection<T>(Func<FbConnection, T> action)
+        private async Task<T> WithConnectionAsync<T>(Func<FbConnection, Task<T>> action)
         {
-            _dbMutex.WaitOne();
+            await _dbSemaphore.WaitAsync();
             try
             {
                 using var connection = new FbConnection(_connectionString);
-                connection.Open();
-                var result = action(connection);
+                await connection.OpenAsync();
+                var result = await action(connection);
 
-                // Принудительная синхронизация перед освобождением мьютекса
-                EnsureDatabaseSync(connection);
+                // Принудительная синхронизация перед освобождением семафора
+                await EnsureDatabaseSync(connection);
 
                 connection.Close();
                 return result;
             }
             finally
             {
-                _dbMutex.ReleaseMutex();
+                _dbSemaphore.Release();
             }
         }
 
-        private void WithConnection(Action<FbConnection> action)
+        private async Task WithConnection(Func<FbConnection, Task> action)
         {
-            _dbMutex.WaitOne();
+            await _dbSemaphore.WaitAsync();
             try
             {
                 using var connection = new FbConnection(_connectionString);
-                connection.Open();
-                action(connection);
+                await connection.OpenAsync();
+                await action(connection);
 
-                // Принудительная синхронизация перед освобождением мьютекса
-                EnsureDatabaseSync(connection);
+                // Принудительная синхронизация перед освобождением семафора
+                await EnsureDatabaseSync(connection);
 
                 connection.Close();
             }
             finally
             {
-                _dbMutex.ReleaseMutex();
+                _dbSemaphore.Release();
             }
         }
 
         // ---------------- AUTH ----------------
-        public UserAuthResponse? Login(string login, string password)
+        public async Task<UserAuthResponse?> Login(string login, string password)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = "SELECT * FROM MARK_ARM_USER_AUTH(@USER_IDENT, @USER_PASSWD)";
 
-                        var result = conn.QueryFirstOrDefault(sql, new
+                        var result = await conn.QueryFirstOrDefaultAsync(sql, new
                         {
                             USER_IDENT = login,
                             USER_PASSWD = password
@@ -181,18 +181,18 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Проверка прав администратора ----------------
-        public bool CheckAdminRole(long userId)
+        public async Task<bool> CheckAdminRole(long userId)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = "SELECT * FROM ACL_CHECK_ADMIN_ROLE(@USERID)";
 
-                        var result = conn.QueryFirstOrDefault(sql, new { USERID = userId }, transaction);
+                        var result = await conn.QueryFirstOrDefaultAsync(sql, new { USERID = userId }, transaction);
 
                         var isAdmin = result?.RES == 1;
                         transaction.Commit();
@@ -212,11 +212,11 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Регистрация устройства ----------------
-        public ArmDeviceRegistrationResponse? RegisterDevice(ArmDeviceRegistrationRequest data)
+        public async Task<ArmDeviceRegistrationResponse?> RegisterDevice(ArmDeviceRegistrationRequest data)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
@@ -226,7 +226,7 @@ namespace l2l_aggregator.Services.Database
                         @KERNEL_VERSION, @HARDWARE_VERSION, @SOFTWARE_VERSION, 
                         @FIRMWARE_VERSION, @DEVICE_TYPE)";
 
-                        var result = conn.QueryFirstOrDefault(sql, new
+                        var result = await conn.QueryFirstOrDefaultAsync(sql, new
                         {
                             NAME = data.NAME,
                             MAC_ADDRESS = data.MAC_ADDRESS,
@@ -272,15 +272,15 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Загрузка списка задач ----------------
-        public ArmJobResponse? GetJobs(string userId)
+        public async Task<ArmJobResponse?> GetJobs(string userId)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     var sql = "SELECT * FROM MARK_ARM_JOB_GET";
 
-                    var records = conn.Query(sql);
+                    var records = await conn.QueryAsync(sql);
 
                     var armJobRecords = records.Select(r => new ArmJobRecord
                     {
@@ -324,18 +324,18 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Загрузка задания в бд ----------------
-        public bool LoadJob(long jobId)
+        public async Task<bool> LoadJob(long jobId)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = "EXECUTE PROCEDURE ARM_JOB_LOAD(@JOBID)";
 
-                        var result = conn.QueryFirstOrDefault<int>(sql, new { JOBID = jobId }, transaction);
+                        var result = await conn.QueryFirstOrDefaultAsync<int>(sql, new { JOBID = jobId }, transaction);
 
                         transaction.Commit();
                         return result == 1;
@@ -354,22 +354,22 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Загрузка задания ----------------
-        public ArmJobInfoRecord? GetJobDetails(long docId)
+        public async Task<ArmJobInfoRecord?> GetJobDetails(long docId)
         {
             try
             {
                 // Проверяем, есть ли уже загруженное задание
-                var currentJobId = GetCurrentJobId();
+                var currentJobId = await GetCurrentJobId();
 
                 //если выбранное задание и задание которое загруженно не равны то закрываем предыдущее задание и загружаем новое
                 // Если текущее задание не совпадает с запрашиваемым, загружаем новое
                 if (currentJobId != docId)
                 {
-                    CloseJob();
-                    LoadJob(docId);
+                    await CloseJob();
+                    await LoadJob(docId);
                 }
 
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
@@ -377,7 +377,7 @@ namespace l2l_aggregator.Services.Database
                         // Теперь получаем данные из таблицы ARM_TASK, куда они загружены после ARM_JOB_LOAD
                         var sql = @"SELECT * FROM ARM_TASK WHERE DOCID = @DOCID";
 
-                        var record = conn.QueryFirstOrDefault(sql, new { DOCID = docId }, transaction);
+                        var record = await conn.QueryFirstOrDefaultAsync(sql, new { DOCID = docId }, transaction);
 
                         if (record != null)
                         {
@@ -479,18 +479,18 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Проверка есть ли текущее загруженное задание ----------------
-        public long? GetCurrentJobId()
+        public async Task<long?> GetCurrentJobId()
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = "SELECT * FROM JOBID_GET";
 
-                        var result = conn.QueryFirstOrDefault(sql, transaction: transaction);
+                        var result = await conn.QueryFirstOrDefaultAsync(sql, transaction: transaction);
 
                         var jobId = result?.JOBID as long?;
                         transaction.Commit();
@@ -511,18 +511,18 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Закрытие задания ----------------
-        public bool CloseJob()
+        public async Task<bool> CloseJob()
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = "EXECUTE PROCEDURE ARM_JOB_CLOSE";
 
-                        conn.Execute(sql, transaction: transaction);
+                        await conn.ExecuteAsync(sql, transaction: transaction);
 
                         transaction.Commit();
                         return true;
@@ -541,18 +541,18 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Получение Sgtin ----------------
-        public ArmJobSgtinResponse? GetSgtin(long docId)
+        public async Task<ArmJobSgtinResponse?> GetSgtin(long docId)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = @"SELECT * FROM MARK_UN_CODE";
 
-                        var records = conn.Query(sql, transaction: transaction);
+                        var records = await conn.QueryAsync(sql, transaction: transaction);
 
                         var sgtinRecords = records.Select(r => new ArmJobSgtinRecord
                         {
@@ -586,18 +586,18 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Получение Sscc ----------------
-        public ArmJobSsccResponse? GetSscc(long docId)
+        public async Task<ArmJobSsccResponse?> GetSscc(long docId)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = @"SELECT * FROM MARK_SSCC_CODE";
 
-                        var records = conn.Query(sql, transaction: transaction);
+                        var records = await conn.QueryAsync(sql, transaction: transaction);
 
                         var ssccRecords = records.Select(r => new ArmJobSsccRecord
                         {
@@ -632,18 +632,18 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- SESSION MANAGEMENT ----------------
-        public bool StartSession()
+        public async Task<bool> StartSession()
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = @"EXECUTE PROCEDURE MARK_ARM_SESSION_START";
 
-                        conn.Execute(sql, transaction: transaction);
+                        await conn.ExecuteAsync(sql, transaction: transaction);
 
                         transaction.Commit();
                         return true;
@@ -662,18 +662,18 @@ namespace l2l_aggregator.Services.Database
             }
         }
 
-        public bool CloseSession()
+        public async Task<bool> CloseSession()
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = @"EXECUTE PROCEDURE MARK_ARM_SESSION_CLOSE";
 
-                        conn.Execute(sql, transaction: transaction);
+                        await conn.ExecuteAsync(sql, transaction: transaction);
 
                         transaction.Commit();
                         return true;
@@ -692,14 +692,14 @@ namespace l2l_aggregator.Services.Database
         }
 
         //  ---------------- Логирование агрегации ----------------
-        public bool LogAggregationBatch(List<(string UNID, string CHECK_BAR_CODE)> aggregationData)
+        public async Task<bool> LogAggregationBatch(List<(string UNID, string CHECK_BAR_CODE)> aggregationData)
         {
             try
             {
                 if (aggregationData.Count == 0)
                     return true;
 
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
@@ -719,7 +719,7 @@ namespace l2l_aggregator.Services.Database
                             // Выполняем батч каждые 1000 записей
                             if (i >= 1000)
                             {
-                                var result = cmd.ExecuteNonQuery();
+                                var result = await cmd.ExecuteNonQueryAsync();
                                 cmd.BatchParameters.Clear();
                                 i = 0;
 
@@ -739,7 +739,7 @@ namespace l2l_aggregator.Services.Database
                         // Выполняем оставшиеся записи
                         if (i > 0)
                         {
-                            var result = cmd.ExecuteNonQuery();
+                            var result = await cmd.ExecuteNonQueryAsync();
                             if (!result.AllSuccess)
                             {
                                 foreach (var itemRes in result)
@@ -767,7 +767,7 @@ namespace l2l_aggregator.Services.Database
                 throw;
             }
         }
-        
+
 
         // Вспомогательный метод для конвертации в byte[]
         private byte[]? ConvertToByteArray(object? value)
@@ -786,18 +786,18 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Получение счетчиков ARM ----------------
-        public ArmCountersResponse? GetArmCounters()
+        public async Task<ArmCountersResponse?> GetArmCounters()
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = @"SELECT * FROM ARM_COUNTERS_SHOW";
 
-                        var records = conn.Query(sql, transaction: transaction);
+                        var records = await conn.QueryAsync(sql, transaction: transaction);
 
                         var armCountersRecords = records.Select(r => new ArmCountersRecord
                         {
@@ -827,18 +827,18 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Поиск кода SSCC ----------------
-        public ArmJobSsccRecord? FindSsccCode(string code)
+        public async Task<ArmJobSsccRecord?> FindSsccCode(string code)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = @"SELECT * FROM MARK_SSCC_CODE WHERE CHECK_BAR_CODE = @CODE";
 
-                        var record = conn.QueryFirstOrDefault(sql, new { CODE = code }, transaction: transaction);
+                        var record = await conn.QueryFirstOrDefaultAsync(sql, new { CODE = code }, transaction: transaction);
 
                         if (record != null)
                         {
@@ -878,11 +878,11 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Поиск кода UN (SGTIN) ----------------
-        public ArmJobSgtinRecord? FindUnCode(string code)
+        public async Task<ArmJobSgtinRecord?> FindUnCode(string code)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
@@ -890,7 +890,7 @@ namespace l2l_aggregator.Services.Database
                         var sql = @"SELECT * FROM MARK_UN_CODE 
                            WHERE UN_CODE = @CODE";
 
-                        var record = conn.QueryFirstOrDefault(sql, new { CODE = code }, transaction: transaction);
+                        var record = await conn.QueryFirstOrDefaultAsync(sql, new { CODE = code }, transaction: transaction);
 
                         if (record != null)
                         {
@@ -927,12 +927,13 @@ namespace l2l_aggregator.Services.Database
                 throw;
             }
         }
+
         // ---------------- Получение агрегированных UN кодов ----------------
-        public List<string>? GetAggregatedUnCodes()
+        public async Task<List<string>?> GetAggregatedUnCodes()
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
@@ -942,7 +943,7 @@ namespace l2l_aggregator.Services.Database
                            AND PARENT_SSCCID <> 0
                            AND UN_CODE IS NOT NULL";
 
-                        var codes = conn.Query<string>(sql, transaction: transaction)
+                        var codes = (await conn.QueryAsync<string>(sql, transaction: transaction))
                                        .Where(code => !string.IsNullOrWhiteSpace(code))
                                        .ToList();
 
@@ -962,20 +963,19 @@ namespace l2l_aggregator.Services.Database
             }
         }
 
-
         // ---------------- Разагрегация коробки ----------------
-        public bool ClearBoxAggregation(string checkBarCode)
+        public async Task<bool> ClearBoxAggregation(string checkBarCode)
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = "EXECUTE PROCEDURE ARM_SSCC_BOX_CLEAR(@CHECK_BAR_CODE)";
 
-                        conn.Execute(sql, new { CHECK_BAR_CODE = checkBarCode }, transaction: transaction);
+                        await conn.ExecuteAsync(sql, new { CHECK_BAR_CODE = checkBarCode }, transaction: transaction);
 
                         transaction.Commit();
                         return true;
@@ -992,19 +992,20 @@ namespace l2l_aggregator.Services.Database
                 throw;
             }
         }
+
         // ---------------- Получение количества агрегированных коробов ----------------
-        public int GetAggregatedBoxesCount()
+        public async Task<int> GetAggregatedBoxesCount()
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = @"SELECT COUNT(*) FROM MARK_SSCC_CODE_SHOW(NULL) sc WHERE sc.QTY > 0";
 
-                        var count = conn.QuerySingle<int>(sql, transaction: transaction);
+                        var count = await conn.QuerySingleAsync<int>(sql, transaction: transaction);
 
                         transaction.Commit();
                         return count;
@@ -1021,19 +1022,20 @@ namespace l2l_aggregator.Services.Database
                 throw;
             }
         }
+
         // ---------------- Свободный короб ----------------
-        public ArmJobSsccRecord? ReserveFreeBox()
+        public async Task<ArmJobSsccRecord?> ReserveFreeBox()
         {
             try
             {
-                return WithConnection(conn =>
+                return await WithConnectionAsync(async conn =>
                 {
                     using var transaction = conn.BeginTransaction();
                     try
                     {
                         var sql = @"SELECT * FROM ARM_SSCC_CODE_RESERVE(0)";
 
-                        var record = conn.QueryFirstOrDefault(sql, transaction: transaction);
+                        var record = await conn.QueryFirstOrDefaultAsync(sql, transaction: transaction);
 
                         if (record != null)
                         {
@@ -1071,10 +1073,11 @@ namespace l2l_aggregator.Services.Database
                 throw;
             }
         }
+
         // Освобождение ресурсов
         public void Dispose()
         {
-            _dbMutex?.Dispose();
+            _dbSemaphore?.Dispose();
         }
     }
 }

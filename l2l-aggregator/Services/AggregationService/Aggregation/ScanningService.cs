@@ -6,6 +6,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace l2l_aggregator.Services.AggregationService
@@ -94,6 +95,7 @@ namespace l2l_aggregator.Services.AggregationService
                 try
                 {
                     _dmScanService.StartScan(currentTemplate);
+                    Thread.Sleep(10000);
                     _lastUsedTemplateJson = currentTemplate;
                     _notificationService.ShowMessage("Шаблон распознавания успешно настроен", NotificationType.Success);
                     _templateOk = true;

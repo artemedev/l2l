@@ -282,7 +282,7 @@ namespace l2l_aggregator.ViewModels
             _stateService.UpdateScanAvailability();
         }
 
-        private void InitializeScannedCodes()
+        private async void InitializeScannedCodes()
         {
             try
             {
@@ -292,7 +292,7 @@ namespace l2l_aggregator.ViewModels
                     return;
                 }
 
-                var aggregatedCodes = _databaseDataService.GetAggregatedUnCodes();
+                var aggregatedCodes = await _databaseDataService.GetAggregatedUnCodes();
 
                 if (aggregatedCodes?.Any() == true)
                 {
@@ -800,11 +800,11 @@ namespace l2l_aggregator.ViewModels
             _router.GoTo<TaskListViewModel>();
         }
 
-        private void UpdateScannedCodesAfterDisaggregation()
+        private async void UpdateScannedCodesAfterDisaggregation()
         {
             try
             {
-                var aggregatedCodes = _databaseDataService.GetAggregatedUnCodes();
+                var aggregatedCodes = await _databaseDataService.GetAggregatedUnCodes();
 
                 if (aggregatedCodes?.Any() == true)
                 {
@@ -834,11 +834,11 @@ namespace l2l_aggregator.ViewModels
             }
         }
 
-        private void UpdateDisaggregationAvailability()
+        private async void UpdateDisaggregationAvailability()
         {
             try
             {
-                var countersResponse = _databaseDataService.GetArmCounters();
+                var countersResponse = await _databaseDataService.GetArmCounters();
 
                 if (countersResponse?.RECORDSET != null)
                 {
