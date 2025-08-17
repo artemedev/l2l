@@ -39,11 +39,16 @@ namespace l2l_aggregator.ViewModels
         private readonly INotificationService _notificationService;
         private readonly DatabaseDataService _databaseDataService;
         private readonly DeviceInfoService _deviceInfoService;
+        private readonly AggregationValidationService _validationService;
+        private readonly AggregationLoadService _aggregationLoadService;
+
         public AuthViewModel(HistoryRouter<ViewModelBase> router,
                             INotificationService notificationService,
                             DatabaseDataService databaseDataService,
                             DeviceInfoService deviceInfoService,
                             DeviceCheckService deviceCheckService,
+                            AggregationValidationService validationService,
+                            AggregationLoadService aggregationLoadService,
                             SessionService sessionService)
         {
             _router = router;
@@ -52,6 +57,9 @@ namespace l2l_aggregator.ViewModels
             _databaseDataService = databaseDataService;
             _deviceInfoService = deviceInfoService;
             _deviceCheckService = deviceCheckService;
+            _validationService = validationService;
+            _aggregationLoadService = aggregationLoadService;
+
             // Тестовые/заготовленные значения
             EnableVirtualKeyboard = _sessionService.EnableVirtualKeyboard;
 #if DEBUG
@@ -134,7 +142,11 @@ namespace l2l_aggregator.ViewModels
                             long? currentTask = await _databaseDataService.GetCurrentJobId();
                             if (currentTask != 0 && currentTask != null)
                             {
-                                await GoAggregationAsync(currentTask);
+                                bool loadSuccess = await _aggregationLoadService.LoadAggregation(currentTask);
+                                if (loadSuccess)
+                                {
+                                    _router.GoTo<AggregationViewModel>();
+                                }
                                 return;
                             }
                             else
@@ -219,128 +231,7 @@ namespace l2l_aggregator.ViewModels
             }
         }
 
-        public async Task GoAggregationAsync(long? currentTask)
-        {
-            if (currentTask == null && currentTask == 0)
-            {
-                return;
-            }
-
-            var results = new List<(bool Success, string Message)>
-            {
-                await _deviceCheckService.CheckCameraAsync(_sessionService),
-                await _deviceCheckService.CheckPrinterAsync(_sessionService),
-                await _deviceCheckService.CheckControllerAsync(_sessionService),
-                await _deviceCheckService.CheckScannerAsync(_sessionService)
-            };
-
-            var errors = results.Where(r => !r.Success).Select(r => r.Message).ToList();
-            if (errors.Any())
-            {
-                foreach (var msg in errors)
-                    _notificationService.ShowMessage(msg);
-                return;
-            }
-
-
-            InfoMessage = "Загружаем детальную информацию о задаче...";
-
-            // Загружаем детальную информацию о задаче
-            ArmJobInfoRecord jobInfo = await _databaseDataService.GetJobDetails(currentTask ?? 0);
-            if (jobInfo == null)
-            {
-                _notificationService.ShowMessage("Не удалось загрузить детальную информацию о задаче.", NotificationType.Error);
-                
-            }
-            if (jobInfo.BOX_TEMPLATE == null)
-            {
-                _notificationService.ShowMessage("Ошибка: шаблон коробки отсутствует.", NotificationType.Error);
-            }
-            if (jobInfo.UN_TEMPLATE_FR == null)
-            {
-                _notificationService.ShowMessage("Ошибка: шаблон распознавания отсутствует.", NotificationType.Error);
-                return;
-            }
-            if (jobInfo.DOCID == null)
-            {
-                _notificationService.ShowMessage("Ошибка: отсутствует информация о задании для загрузки отсканированных кодов.", NotificationType.Error);
-                return;
-            }
-
-
-            // Загружаем данные SSCC
-            await LoadSsccData(currentTask ?? 0);
-
-            // Проверяем, что все необходимые данные загружены
-            if (_responseSscc == null)
-            {
-                _notificationService.ShowMessage("SSCC данные не загружены. Невозможно начать агрегацию.", NotificationType.Error);
-                return;
-            }
-            // Загружаем данные SGTIN
-            await LoadSgtinDataAsync(currentTask ?? 0);
-
-            if (_responseSgtin == null)
-            {
-                _notificationService.ShowMessage("SGTIN данные не загружены. Невозможно начать агрегацию.", NotificationType.Error);
-                return;
-            }
-            // Сохраняем детальную информацию в сессию
-            _sessionService.SelectedTaskInfo = jobInfo;
-
-            // Сохраняем данные в сессию для использования в AggregationViewModel
-            _sessionService.CachedSsccResponse = _responseSscc;
-            _sessionService.CachedSgtinResponse = _responseSgtin;
-            _notificationService.ShowMessage("Обнаружена незавершённая агрегация. Продолжаем...");
-
-            _router.GoTo<AggregationViewModel>();
-        }
-        private async Task LoadSsccData(long docId)
-        {
-            try
-            {
-                _responseSscc = await _databaseDataService.GetSscc(docId);
-                if (_responseSscc != null)
-                {
-                    // Сохраняем первую запись SSCC в сессию
-                    _sessionService.SelectedTaskSscc = _responseSscc.RECORDSET.FirstOrDefault();
-                    InfoMessage = "SSCC данные загружены успешно.";
-                }
-                else
-                {
-                    InfoMessage = "Не удалось загрузить SSCC данные.";
-                    _notificationService.ShowMessage(InfoMessage, NotificationType.Warning);
-                }
-            }
-            catch (Exception ex)
-            {
-                InfoMessage = $"Ошибка загрузки SSCC данных: {ex.Message}";
-                _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
-            }
-        }
-
-        private async Task LoadSgtinDataAsync(long docId)
-        {
-            try
-            {
-                _responseSgtin = await _databaseDataService.GetSgtin(docId);
-                if (_responseSgtin != null)
-                {
-                    InfoMessage = "SGTIN данные загружены успешно.";
-                }
-                else
-                {
-                    InfoMessage = "Не удалось загрузить SGTIN данные.";
-                    _notificationService.ShowMessage(InfoMessage, NotificationType.Warning);
-                }
-            }
-            catch (Exception ex)
-            {
-                InfoMessage = $"Ошибка загрузки SGTIN данных: {ex.Message}";
-                _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
-            }
-        }
-        // Если нужна команда для переключения (альтернативный подход)
+        //// Если нужна команда для переключения (альтернативный подход)
         [RelayCommand]
         private void TogglePasswordVisibility()
         {

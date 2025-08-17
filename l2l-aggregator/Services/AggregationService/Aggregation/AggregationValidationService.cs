@@ -1,4 +1,5 @@
 ﻿using l2l_aggregator.Models;
+using MD.Aggregation.Marking.Job;
 using System.Linq;
 
 namespace l2l_aggregator.Services.AggregationService
@@ -18,84 +19,48 @@ namespace l2l_aggregator.Services.AggregationService
             _sessionService = sessionService;
         }
 
+        public ValidationResult AllTaskValidate()
+        {
+            var taskValidation = ValidateTaskInfo();
+            if (!taskValidation.IsValid)
+                return taskValidation;
+
+            var layerValidation = ValidateLayerParameters();
+            if (!layerValidation.IsValid)
+                return layerValidation;
+
+            var positionValidation = ValidatePositioningParameters();
+            if (!positionValidation.IsValid)
+                return positionValidation;
+            
+            return ValidationResult.Success();
+        }
+        
         public ValidationResult ValidateTaskInfo()
         {
             if (_sessionService.SelectedTaskInfo == null)
                 return ValidationResult.Error("Отсутствует информация о задании.");
 
-            return ValidationResult.Success();
-        }
-
-        public ValidationResult ValidateSessionData()
-        {
-            var taskValidation = ValidateTaskInfo();
-            if (!taskValidation.IsValid)
-                return taskValidation;
-
-            if (_sessionService.CachedSsccResponse?.RECORDSET == null || !_sessionService.CachedSsccResponse.RECORDSET.Any())
-                return ValidationResult.Error("Данные SSCC отсутствуют.");
-
-            return ValidationResult.Success();
-        }
-
-        public ValidationResult ValidateBoxLabelPrinting(byte[] frxBoxBytes)
-        {
-            if (frxBoxBytes == null || frxBoxBytes.Length == 0)
+            if (_sessionService.SelectedTaskInfo.BOX_TEMPLATE == null || _sessionService.SelectedTaskInfo.BOX_TEMPLATE.Length == 0)
             {
-                return ValidationResult.Error("Шаблон коробки не загружен.");
+                return ValidationResult.Error("Ошибка: шаблон коробки отсутствует.");
             }
 
-            if (_sessionService.CachedSsccResponse == null)
+            if (_sessionService.SelectedTaskInfo.UN_TEMPLATE_FR == null || _sessionService.SelectedTaskInfo.UN_TEMPLATE_FR.Length == 0)
             {
-                return ValidationResult.Error("SSCC данные не загружены.");
+                return ValidationResult.Error("Ошибка: шаблон распознавания отсутствует.");
             }
 
-            return ValidationResult.Success();
-        }
-
-        public ValidationResult ValidateScanningParameters()
-        {
-            var taskValidation = ValidateTaskInfo();
-            if (!taskValidation.IsValid)
-                return taskValidation;
-
-            if (string.IsNullOrWhiteSpace(_sessionService.CameraIP))
-                return ValidationResult.Error("IP камеры не задан.");
-
-            if (string.IsNullOrWhiteSpace(_sessionService.CameraModel))
-                return ValidationResult.Error("Модель камеры не задана.");
-
-            return ValidationResult.Success();
-        }
-
-        public ValidationResult ValidateControllerConnection()
-        {
-            if (!_sessionService.CheckController)
-                return ValidationResult.Success();
-
-            if (string.IsNullOrWhiteSpace(_sessionService.ControllerIP))
-                return ValidationResult.Error("IP контроллера не задан.");
-
-            return ValidationResult.Success();
-        }
-
-        public ValidationResult ValidateAggregationCompletion()
-        {
-            var taskValidation = ValidateTaskInfo();
-            if (!taskValidation.IsValid)
-                return taskValidation;
-
-            if (_sessionService.CurrentBoxDmCodes == null || !_sessionService.CurrentBoxDmCodes.Any())
-                return ValidationResult.Error("Нет кодов для агрегации.");
+            if ((_sessionService.SelectedTaskInfo.DOCID ?? 0) == 0)
+            {
+                return ValidationResult.Error("Ошибка: отсутствует информация о задании для загрузки отсканированных кодов.");
+            }
 
             return ValidationResult.Success();
         }
 
         public ValidationResult ValidateLayerParameters()
         {
-            var taskValidation = ValidateTaskInfo();
-            if (!taskValidation.IsValid)
-                return taskValidation;
 
             var inBoxQty = _sessionService.SelectedTaskInfo.IN_BOX_QTY ?? 0;
             var layersQty = _sessionService.SelectedTaskInfo.LAYERS_QTY ?? 0;
@@ -105,27 +70,30 @@ namespace l2l_aggregator.Services.AggregationService
 
             if (inBoxQty <= 0)
                 return ValidationResult.Error("Некорректное количество пачек в коробке (IN_BOX_QTY).");
+            // Проверяем, что количество пачек нацело делится на количество слоев
+            if (inBoxQty % layersQty != 0)
+                return ValidationResult.Error($"Количество пачек в коробке ({inBoxQty}) должно нацело делиться на количество слоев ({layersQty}).");
+
+            // Проверяем, что результат деления больше 0
+            var packsPerLayer = inBoxQty / layersQty;
+            if (packsPerLayer <= 0)
+                return ValidationResult.Error($"Количество пачек в слое должно быть больше 0. Текущее значение: {packsPerLayer}.");
+
 
             return ValidationResult.Success();
         }
-
         public ValidationResult ValidatePositioningParameters()
         {
-            var taskValidation = ValidateTaskInfo();
-            if (!taskValidation.IsValid)
-                return taskValidation;
 
             var packHeight = _sessionService.SelectedTaskInfo.PACK_HEIGHT ?? 0;
-            var layersQty = _sessionService.SelectedTaskInfo.LAYERS_QTY ?? 0;
 
             if (packHeight == 0)
                 return ValidationResult.Error("Не задана высота слоя (PACK_HEIGHT).");
 
-            if (layersQty == 0)
-                return ValidationResult.Error("Не задано количество слоёв (LAYERS_QTY).");
-
             return ValidationResult.Success();
         }
+
+        //-----------
 
         public bool ShouldPrintFullBox(AggregationMetrics metrics, int numberOfLayers)
         {
@@ -140,5 +108,18 @@ namespace l2l_aggregator.Services.AggregationService
                    metrics.TotalCells > 0 &&
                    metrics.ValidCount < numberOfLayers;
         }
+
+        public ValidationResult ValidateSessionData()
+        {
+            var taskValidation = ValidateTaskInfo();
+            if (!taskValidation.IsValid)
+                return taskValidation;
+
+            if (_sessionService.CachedSsccResponse?.RECORDSET == null || !_sessionService.CachedSsccResponse.RECORDSET.Any())
+                return ValidationResult.Error("Данные SSCC отсутствуют.");
+
+            return ValidationResult.Success();
+        }
+
     }
 }

@@ -30,7 +30,7 @@ namespace l2l_aggregator.Services
             if (!session.CheckCamera)
                 return (true, null);
 
-            if (string.IsNullOrWhiteSpace(session.CameraIP))
+            if (string.IsNullOrWhiteSpace(session.CameraIP) && string.IsNullOrWhiteSpace(session.CameraModel))
                 return (false, "IP камеры не задан!");
 
             try

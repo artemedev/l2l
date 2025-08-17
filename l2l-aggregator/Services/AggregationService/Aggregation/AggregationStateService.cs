@@ -209,12 +209,6 @@ namespace l2l_aggregator.Services.AggregationService
 
         public void InitializeNumberOfLayers()
         {
-            if (_sessionService.SelectedTaskInfo == null)
-            {
-                _notificationService.ShowMessage("Отсутствует информация о задании.", NotificationType.Error);
-                return;
-            }
-
             var inBoxQty = _sessionService.SelectedTaskInfo.IN_BOX_QTY ?? 0;
             var layersQty = _sessionService.SelectedTaskInfo.LAYERS_QTY ?? 0;
 

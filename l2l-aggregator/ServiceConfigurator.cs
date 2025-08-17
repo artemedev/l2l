@@ -59,13 +59,14 @@ namespace l2l_aggregator
 
             services.AddSingleton<IDialogService, DialogService>();
 
-            // Регистрация новых сервисов агрегации
+            // Регистрация сервисов агрегации
             services.AddTransient<AggregationStateService>();
             services.AddTransient<ScanningService>();
             services.AddTransient<TextGenerationService>();
             services.AddTransient<BarcodeHandlingService>();
             services.AddTransient<CellProcessingService>();
             services.AddTransient<AggregationValidationService>();
+            services.AddScoped<AggregationLoadService>();
         }
     }
 }

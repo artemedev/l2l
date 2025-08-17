@@ -48,7 +48,6 @@ namespace l2l_aggregator.ViewModels
 
         private readonly ILogger<PcPlcConnectionService> _logger;
         private PcPlcConnectionService? _plcConnection;
-        private byte[]? _frxBoxBytes;
         private string? _previousAggregationSummaryText;
         private ScanResult? _lastScanResult;
 
@@ -204,6 +203,9 @@ namespace l2l_aggregator.ViewModels
             HistoryRouter<ViewModelBase> router,
             PrintingService printingService,
             ILogger<PcPlcConnectionService> logger,
+            AggregationStateService stateService,
+            TextGenerationService textGenerationService,
+            AggregationValidationService validationService,
             IDialogService dialogService)
         {
             _sessionService = sessionService;
@@ -218,9 +220,9 @@ namespace l2l_aggregator.ViewModels
             _databaseDataService = databaseDataService;
 
             // Initialize services
-            _stateService = new AggregationStateService(sessionService, notificationService);
-            _textGenerationService = new TextGenerationService(sessionService);
-            _validationService = new AggregationValidationService(sessionService);
+            _stateService = stateService;
+            _textGenerationService = textGenerationService;
+            _validationService = validationService;
             _scanningService = new ScanningService(dmScanService, imageProcessingService, templateService, notificationService, sessionService);
             _cellProcessingService = new CellProcessingService(imageProcessingService, _textGenerationService);
             _barcodeHandlingService = new BarcodeHandlingService(sessionService, databaseDataService, notificationService, _textGenerationService, dialogService);
@@ -242,81 +244,27 @@ namespace l2l_aggregator.ViewModels
 
         private async void InitializeAsync()
         {
-            InitializeBoxTemplate();
+
             InitializeTemplate();
-            InitializeScannedCodes();
             await InitializeControllerPingAsync();
-            InitializeSession();
 
             _stateService.Initialize();
             InitializeInfoAndUI();
         }
 
-        private void InitializeBoxTemplate()
-        {
-            if (_sessionService.SelectedTaskInfo?.BOX_TEMPLATE != null)
-            {
-                _frxBoxBytes = _sessionService.SelectedTaskInfo.BOX_TEMPLATE;
-            }
-            else
-            {
-                _notificationService.ShowMessage("Ошибка: шаблон коробки отсутствует.", NotificationType.Error);
-            }
-        }
+
 
         private void InitializeTemplate()
         {
             TemplateFields.Clear();
 
-            if (_sessionService.SelectedTaskInfo?.UN_TEMPLATE_FR != null)
-            {
-                var loadedFields = _templateService.LoadTemplate(_sessionService.SelectedTaskInfo.UN_TEMPLATE_FR);
-                foreach (var f in loadedFields)
-                    TemplateFields.Add(f);
-            }
-            else
-            {
-                _notificationService.ShowMessage("Ошибка: шаблон распознавания отсутствует.", NotificationType.Error);
-            }
+            var loadedFields = _templateService.LoadTemplate(_sessionService.SelectedTaskInfo.UN_TEMPLATE_FR);
+            foreach (var f in loadedFields)
+                TemplateFields.Add(f);
 
             _stateService.UpdateScanAvailability();
         }
 
-        private async void InitializeScannedCodes()
-        {
-            try
-            {
-                if (_sessionService.SelectedTaskInfo?.DOCID == null)
-                {
-                    _notificationService.ShowMessage("Ошибка: отсутствует информация о задании для загрузки отсканированных кодов.", NotificationType.Error);
-                    return;
-                }
-
-                var aggregatedCodes = await _databaseDataService.GetAggregatedUnCodes();
-
-                if (aggregatedCodes?.Any() == true)
-                {
-                    _sessionService.ClearScannedCodes();
-
-                    foreach (var code in aggregatedCodes.Where(c => !string.IsNullOrWhiteSpace(c)))
-                    {
-                        _sessionService.AllScannedDmCodes.Add(code);
-                    }
-
-                    _notificationService.ShowMessage($"Загружено {aggregatedCodes.Count} ранее отсканированных кодов", NotificationType.Info);
-                }
-                else
-                {
-                    _sessionService.ClearScannedCodes();
-                    _notificationService.ShowMessage("Начинаем новую агрегацию - ранее отсканированных кодов не найдено", NotificationType.Info);
-                }
-            }
-            catch (Exception ex)
-            {
-                _notificationService.ShowMessage($"Ошибка загрузки отсканированных кодов: {ex.Message}", NotificationType.Error);
-                _sessionService.ClearScannedCodes();
-            }
-        }
 
         private async Task InitializeControllerPingAsync()
         {
@@ -350,14 +298,7 @@ namespace l2l_aggregator.ViewModels
             }
         }
 
-        private void InitializeSession()
-        {
-            var validation = _validationService.ValidateTaskInfo();
-            if (!validation.IsValid)
-            {
-                _notificationService.ShowMessage(validation.ErrorMessage, NotificationType.Error);
-            }
-        }
+
 
         #endregion
 
@@ -440,12 +381,6 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task ScanSoftware()
         {
-            var validation = _validationService.ValidateScanningParameters();
-            if (!validation.IsValid)
-            {
-                _notificationService.ShowMessage(validation.ErrorMessage, NotificationType.Error);
-                return;
-            }
 
             try
             {
@@ -472,12 +407,6 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task ScanHardware()
         {
-            var validation = _validationService.ValidateScanningParameters();
-            if (!validation.IsValid)
-            {
-                _notificationService.ShowMessage(validation.ErrorMessage, NotificationType.Error);
-                return;
-            }
 
             if (!await _scanningService.MoveCameraToCurrentLayerAsync(CurrentLayer, _plcConnection))
                 return;
@@ -499,13 +428,6 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task PrintBoxLabel()
         {
-            var validation = _validationService.ValidateBoxLabelPrinting(_frxBoxBytes);
-            if (!validation.IsValid)
-            {
-                _notificationService.ShowMessage(validation.ErrorMessage, NotificationType.Error);
-                return;
-            }
-
             var metrics = _stateService.CalculateMetrics(DMCells);
 
             if (_validationService.ShouldPrintFullBox(metrics, _stateService.NumberOfLayers))
@@ -757,15 +679,8 @@ namespace l2l_aggregator.ViewModels
 
         private async Task PrintBoxLabelInternal()
         {
-            if (_sessionService.SelectedTaskSscc != null && _frxBoxBytes != null)
-            {
-                _printingService.PrintReport(_frxBoxBytes, true);
-                _notificationService.ShowMessage($"Этикетка короба {_sessionService.SelectedTaskSscc.CHECK_BAR_CODE} отправлена на печать", NotificationType.Success);
-            }
-            else
-            {
-                _notificationService.ShowMessage("Не удалось получить данные короба для печати этикетки.", NotificationType.Error);
-            }
+            _printingService.PrintReport(_sessionService.SelectedTaskInfo.BOX_TEMPLATE, true);
+            _notificationService.ShowMessage($"Этикетка короба {_sessionService.SelectedTaskSscc.CHECK_BAR_CODE} отправлена на печать", NotificationType.Success);
         }
 
         private async Task HandlePartialBoxPrinting()

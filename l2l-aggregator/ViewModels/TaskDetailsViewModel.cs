@@ -26,27 +26,19 @@ namespace l2l_aggregator.ViewModels
 
         private readonly HistoryRouter<ViewModelBase> _router;
         private readonly SessionService _sessionService;
-        private readonly INotificationService _notificationService;
-        private readonly DeviceCheckService _deviceCheckService;
-        private readonly DatabaseDataService _databaseDataService;
+        private readonly AggregationLoadService _aggregationLoadService;
 
 
-        public TaskDetailsViewModel(HistoryRouter<ViewModelBase> router, 
-            DatabaseDataService databaseDataService,
-            SessionService sessionService, 
-            INotificationService notificationService, 
-            DeviceCheckService deviceCheckService)
+        public TaskDetailsViewModel(HistoryRouter<ViewModelBase> router,
+            SessionService sessionService,
+            INotificationService notificationService,
+            AggregationLoadService aggregationLoadService)
         {
             _router = router;
             _sessionService = sessionService;
-            _notificationService = notificationService;
-            _deviceCheckService = deviceCheckService;
-            _databaseDataService = databaseDataService;
+            _aggregationLoadService = aggregationLoadService;
             Task = _sessionService.SelectedTask;
         }
-
-
-       
 
         [RelayCommand]
         public void GoBack()
@@ -59,107 +51,14 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task GoAggregationAsync()
         {
-
-
-            var results = new List<(bool Success, string Message)>
+            if (Task.DOCID != 0 && Task.DOCID != null)
             {
-                await _deviceCheckService.CheckCameraAsync(_sessionService),
-                await _deviceCheckService.CheckPrinterAsync(_sessionService),
-                await _deviceCheckService.CheckControllerAsync(_sessionService),
-                await _deviceCheckService.CheckScannerAsync(_sessionService)
-            };
-
-            var errors = results.Where(r => !r.Success).Select(r => r.Message).ToList();
-            if (errors.Any())
-            {
-                foreach (var msg in errors)
-                    _notificationService.ShowMessage(msg);
-                return;
-            }
-
-
-            InfoMessage = "Загружаем детальную информацию о задаче...";
-
-            // Загружаем детальную информацию о задаче
-            var jobInfo = await _databaseDataService.GetJobDetails(Task.DOCID);
-            if (jobInfo == null)
-            {
-                _notificationService.ShowMessage("Не удалось загрузить детальную информацию о задаче.", NotificationType.Error);
-                return;
-            }
-
-
-
-
-            // Загружаем данные SSCC
-            await LoadSsccData(Task.DOCID);
-
-            // Проверяем, что все необходимые данные загружены
-            if (_responseSscc == null)
-            {
-                _notificationService.ShowMessage("SSCC данные не загружены. Невозможно начать агрегацию.", NotificationType.Error);
-                return;
-            }
-            // Загружаем данные SGTIN
-            await LoadSgtinData(Task.DOCID);
-
-            if (_responseSgtin == null)
-            {
-                _notificationService.ShowMessage("SGTIN данные не загружены. Невозможно начать агрегацию.", NotificationType.Error);
-                return;
-            }
-            // Сохраняем детальную информацию в сессию
-            _sessionService.SelectedTaskInfo = jobInfo;
-
-            // Сохраняем данные в сессию для использования в AggregationViewModel
-            _sessionService.CachedSsccResponse = _responseSscc;
-            _sessionService.CachedSgtinResponse = _responseSgtin;
-
-            _router.GoTo<AggregationViewModel>();
-        }
-        private async Task LoadSsccData(long docId)
-        {
-            try
-            {
-                _responseSscc = await _databaseDataService.GetSscc(docId);
-                if (_responseSscc != null)
+                bool loadSuccess = await _aggregationLoadService.LoadAggregation(Task.DOCID);
+                if (loadSuccess)
                 {
-                    // Сохраняем первую запись SSCC в сессию
-                    _sessionService.SelectedTaskSscc = _responseSscc.RECORDSET.FirstOrDefault();
-                    InfoMessage = "SSCC данные загружены успешно.";
+                    _router.GoTo<AggregationViewModel>();
                 }
-                else
-                {
-                    InfoMessage = "Не удалось загрузить SSCC данные.";
-                    _notificationService.ShowMessage(InfoMessage, NotificationType.Warning);
-                }
-            }
-            catch (Exception ex)
-            {
-                InfoMessage = $"Ошибка загрузки SSCC данных: {ex.Message}";
-                _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
-            }
-        }
-
-        private async Task LoadSgtinData(long docId)
-        {
-            try
-            {
-                _responseSgtin = await _databaseDataService.GetSgtin(docId);
-                if (_responseSgtin != null)
-                {
-                    InfoMessage = "SGTIN данные загружены успешно.";
-                }
-                else
-                {
-                    InfoMessage = "Не удалось загрузить SGTIN данные.";
-                    _notificationService.ShowMessage(InfoMessage, NotificationType.Warning);
-                }
-            }
-            catch (Exception ex)
-            {
-                InfoMessage = $"Ошибка загрузки SGTIN данных: {ex.Message}";
-                _notificationService.ShowMessage(InfoMessage, NotificationType.Error);
+                return;
             }
         }
     }
