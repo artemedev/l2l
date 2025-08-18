@@ -134,26 +134,26 @@ namespace l2l_aggregator.Services.AggregationService
             }
         }
 
-        public async Task<ScanResult?> PerformHardwareScanAsync(Avalonia.Size imageSize)
-        {
-            if (!_templateOk)
-            {
-                _notificationService.ShowMessage("Шаблон не отправлен. Сначала выполните отправку шаблона.");
-                return null;
-            }
+        //public async Task<ScanResult?> PerformHardwareScanAsync(Avalonia.Size imageSize)
+        //{
+        //    if (!_templateOk)
+        //    {
+        //        _notificationService.ShowMessage("Шаблон не отправлен. Сначала выполните отправку шаблона.");
+        //        return null;
+        //    }
 
-            try
-            {
-                var dmrData = await _dmScanService.WaitForResultAsync();
+        //    try
+        //    {
+        //        var dmrData = await _dmScanService.WaitForResultAsync();
 
-                return await ProcessScanResult(dmrData, imageSize);
-            }
-            catch (Exception ex)
-            {
-                _notificationService.ShowMessage($"Ошибка распознавания: {ex.Message}");
-                return null;
-            }
-        }
+        //        return await ProcessScanResult(dmrData, imageSize);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _notificationService.ShowMessage($"Ошибка распознавания: {ex.Message}");
+        //        return null;
+        //    }
+        //}
 
         public async Task<bool> MoveCameraToCurrentLayerAsync(
             int currentLayer,

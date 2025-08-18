@@ -122,7 +122,7 @@
 								RelativeSource={RelativeSource AncestorType=UserControl}, 
 								Converter={StaticResource ResponsiveFontSizeConverter}, 
 								ConverterParameter='0.017;8;36'}"/>
-			<!-- Новая кнопка режима информации -->
+			<!-- Режима информации -->
 			<ToggleButton Grid.Row="4"
 						  IsChecked="{Binding IsInfoMode, Mode=TwoWay}"
 						  Content="{Binding InfoModeButtonText}"

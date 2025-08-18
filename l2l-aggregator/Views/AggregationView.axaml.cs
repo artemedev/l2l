@@ -1,10 +1,7 @@
 ﻿using Avalonia;
-using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
-using Avalonia.Media.Transformation;
-using Avalonia.Styling;
 using l2l_aggregator.ViewModels;
 using l2l_aggregator.ViewModels.VisualElements;
 using System;
@@ -91,12 +88,12 @@ public partial class AggregationView : UserControl
         }
     }
 
-    public void OnRawScanReceived(string scannedData)
-    {
-        // Найдём активную ViewModel
-        if (DataContext is AggregationViewModel vm)
-        {
-            vm.HandleScannedBarcode(scannedData);
-        }
-    }
+    //public void OnRawScanReceived(string scannedData)
+    //{
+    //    // Найдём активную ViewModel
+    //    if (DataContext is AggregationViewModel vm)
+    //    {
+    //        vm.HandleScannedBarcode(scannedData);
+    //    }
+    //}
 }

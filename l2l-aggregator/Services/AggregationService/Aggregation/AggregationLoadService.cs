@@ -92,7 +92,7 @@ namespace l2l_aggregator.Services
             try
             {
                 _sessionService.CachedSsccResponse = await _databaseDataService.GetSscc(docId);
-                if (_sessionService.CachedSsccResponse?.RECORDSET == null || !_sessionService.CachedSsccResponse.RECORDSET.Any())
+                if (_sessionService.CachedSsccResponse.RECORDSET.Any())
                 {
                     // Сохраняем первую запись SSCC в сессию
                     _sessionService.SelectedTaskSscc = _sessionService.CachedSsccResponse.RECORDSET.FirstOrDefault();
@@ -120,7 +120,7 @@ namespace l2l_aggregator.Services
             try
             {
                 _sessionService.CachedSgtinResponse = await _databaseDataService.GetSgtin(docId);
-                if (_sessionService.CachedSgtinResponse?.RECORDSET == null || !_sessionService.CachedSgtinResponse.RECORDSET.Any())
+                if (_sessionService.CachedSgtinResponse.RECORDSET.Any())
                     {
                     var infoMessage = "SGTIN данные загружены успешно.";
                     _notificationService.ShowMessage(infoMessage, NotificationType.Success);

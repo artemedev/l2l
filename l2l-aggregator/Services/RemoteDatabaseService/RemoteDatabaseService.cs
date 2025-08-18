@@ -994,6 +994,7 @@ namespace l2l_aggregator.Services.Database
         }
 
         // ---------------- Получение количества агрегированных коробов ----------------
+
         public async Task<int> GetAggregatedBoxesCount()
         {
             try

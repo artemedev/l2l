@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace l2l_aggregator.Services.AggregationService
 {
@@ -53,6 +54,8 @@ namespace l2l_aggregator.Services.AggregationService
         private readonly INotificationService _notificationService;
 
         public event PropertyChangedEventHandler? PropertyChanged;
+        private readonly DatabaseDataService _databaseDataService;
+
 
         private AggregationStep _currentStepIndex = AggregationStep.PackAggregation;
         private AggregationStep _previousStepIndex = AggregationStep.PackAggregation;
@@ -80,10 +83,15 @@ namespace l2l_aggregator.Services.AggregationService
         private string _normalModeInfoLayerText = "";
         private string _normalModeAggregationSummaryText = "";
 
-        public AggregationStateService(SessionService sessionService, INotificationService notificationService)
+        public AggregationStateService(
+            SessionService sessionService, 
+            DatabaseDataService databaseDataService, 
+            INotificationService notificationService)
         {
             _sessionService = sessionService;
             _notificationService = notificationService;
+            _databaseDataService = databaseDataService;
+
         }
 
         #region Properties
@@ -204,7 +212,7 @@ namespace l2l_aggregator.Services.AggregationService
         public void Initialize()
         {
             InitializeNumberOfLayers();
-            InitializeCurrentBoxFromCounters();
+            GetCurrentBox();
         }
 
         public void InitializeNumberOfLayers()
@@ -223,27 +231,25 @@ namespace l2l_aggregator.Services.AggregationService
             }
         }
 
-        public void InitializeCurrentBoxFromCounters()
-        {
-            try
-            {
-                // Здесь должна быть логика получения количества агрегированных коробов
-                // CurrentBox = количество агрегированных коробов + 1
-                CurrentBox = 1; // Placeholder
-            }
-            catch (Exception ex)
-            {
-                CurrentBox = 1;
-                _notificationService.ShowMessage($"Ошибка инициализации CurrentBox: {ex.Message}", NotificationType.Error);
-            }
-        }
+        //public void InitializeCurrentBoxFromCounters()
+        //{
+        //    try
+        //    {
+        //        var aggregatedBoxesCount = _databaseDataService.GetAggregatedBoxesCount().Result;
+        //        CurrentBox = aggregatedBoxesCount + 1; 
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _notificationService.ShowMessage($"Ошибка получения значения текущей коробки: {ex.Message}", NotificationType.Error);
+        //    }
+        //}
 
-        public void UpdateCurrentBox()
+        public async Task GetCurrentBox()
         {
             try
             {
                 // Логика обновления CurrentBox после агрегации
-                var aggregatedBoxesCount = 0; // Placeholder - должен быть вызов к БД
+                var aggregatedBoxesCount = await _databaseDataService.GetAggregatedBoxesCount();
                 CurrentBox = aggregatedBoxesCount + 1;
             }
             catch (Exception ex)

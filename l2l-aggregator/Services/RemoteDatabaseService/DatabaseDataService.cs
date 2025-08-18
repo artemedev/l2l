@@ -480,6 +480,7 @@ namespace l2l_aggregator.Services
                 return 0;
             }
         }
+
         // ---------------- Резервирование свободного короба ----------------
         public async Task<ArmJobSsccRecord?> ReserveFreeBox()
         {
