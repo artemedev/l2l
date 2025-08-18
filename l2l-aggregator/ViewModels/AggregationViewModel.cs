@@ -78,6 +78,9 @@ namespace l2l_aggregator.ViewModels
         // Controller properties
         [ObservableProperty] private bool isControllerAvailable = true;
 
+        // Observable Properties for mode handling (handled manually)
+        private bool isInfoMode = false;
+        private bool isDisaggregationMode = false;
 
         // Debug mode
 #if DEBUG
@@ -117,14 +120,39 @@ namespace l2l_aggregator.ViewModels
         [ObservableProperty] private bool isAutoPrintEnabled = true;
 
         // Доступ к кнопоке "Режим информации"
-        [ObservableProperty] private bool isInfoMode = false;
+        public bool IsInfoMode
+        {
+            get => isInfoMode;
+            set
+            {
+                if (SetProperty(ref isInfoMode, value))
+                {
+                    OnPropertyChanged(nameof(InfoModeButtonText));
+                    HandleInfoModeChange(value);
+                }
+            }
+        }
 
         // ToggleButton "Режим разагрегации"
-        [ObservableProperty] private bool isDisaggregationMode = false;
+        public bool IsDisaggregationMode
+        {
+            get => isDisaggregationMode;
+            set
+            {
+                if (SetProperty(ref isDisaggregationMode, value))
+                {
+                    OnPropertyChanged(nameof(DisaggregationModeButtonText));
+                    HandleDisaggregationModeChange(value);
+                }
+            }
+        }
 
         // Доступ к кнопоке "Режим разагрегации"
         [ObservableProperty] private bool canDisaggregation = false;
-       
+
+        //переменная для колличества слоёв всего
+        private int numberOfLayers;
+
 
         public string InfoModeButtonText => IsInfoMode ? "Выйти из режима" : "Режим информации";
         public string DisaggregationModeButtonText => IsDisaggregationMode ? "Выйти из режима" : "Режим очистки короба";
@@ -187,10 +215,10 @@ namespace l2l_aggregator.ViewModels
 
             InitializeTemplate();
             _stateService.UpdateScanAvailability();
-
+            InitializeNumberOfLayers();
+            await GetCurrentBox();
             await InitializeControllerPingAsync();
 
-            _stateService.Initialize();
             InitializeInfoAndUI();
         }
 
@@ -205,7 +233,26 @@ namespace l2l_aggregator.ViewModels
                 TemplateFields.Add(f);
 
         }
-
+        //Правильно
+        public void InitializeNumberOfLayers()
+        {
+            var inBoxQty = _sessionService.SelectedTaskInfo.IN_BOX_QTY ?? 0;
+            var layersQty = _sessionService.SelectedTaskInfo.LAYERS_QTY ?? 0;
+            numberOfLayers = inBoxQty / layersQty;
+        }
+        public async Task GetCurrentBox()
+        {
+            try
+            {
+                // Логика обновления CurrentBox после агрегации
+                var aggregatedBoxesCount = await _databaseDataService.GetAggregatedBoxesCount();
+                CurrentBox = aggregatedBoxesCount + 1;
+            }
+            catch (Exception ex)
+            {
+                _notificationService.ShowMessage($"Ошибка обновления CurrentBox: {ex.Message}", NotificationType.Error);
+            }
+        }
 
         private async Task InitializeControllerPingAsync()
         {
@@ -254,35 +301,35 @@ namespace l2l_aggregator.ViewModels
             _barcodeHandlingService.DisaggregationCompleted += OnDisaggregationCompleted;
         }
 
-        //private void OnStateServicePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-        //{
-        //    // Notify property changes for bound properties
-        //    switch (e.PropertyName)
-        //    {
-        //        case nameof(AggregationStateService.CurrentLayer):
-        //            OnPropertyChanged(nameof(CurrentLayer));
-        //            break;
-        //        case nameof(AggregationStateService.CurrentBox):
-        //            OnPropertyChanged(nameof(CurrentBox));
-        //            break;
-        //        case nameof(AggregationStateService.CanScan):
-        //            OnPropertyChanged(nameof(CanScan));
-        //            break;
-        //        case nameof(AggregationStateService.IsInfoMode):
-        //            // Обновляем локальное поле без вызова HandleInfoModeChange
-        //            isInfoMode = _stateService.IsInfoMode;
-        //            OnPropertyChanged(nameof(IsInfoMode));
-        //            OnPropertyChanged(nameof(InfoModeButtonText));
-        //            break;
-        //        case nameof(AggregationStateService.IsDisaggregationMode):
-        //            // Обновляем локальное поле без вызова HandleDisaggregationModeChange
-        //            isDisaggregationMode = _stateService.IsDisaggregationMode;
-        //            OnPropertyChanged(nameof(IsDisaggregationMode));
-        //            OnPropertyChanged(nameof(DisaggregationModeButtonText));
-        //            break;
-        //            // Add other property notifications as needed
-        //    }
-        //}
+        private void OnStateServicePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            // Notify property changes for bound properties
+            switch (e.PropertyName)
+            {
+                case nameof(AggregationStateService.CurrentLayer):
+                    OnPropertyChanged(nameof(CurrentLayer));
+                    break;
+                case nameof(AggregationStateService.CurrentBox):
+                    OnPropertyChanged(nameof(CurrentBox));
+                    break;
+                case nameof(AggregationStateService.CanScan):
+                    OnPropertyChanged(nameof(CanScan));
+                    break;
+                case nameof(AggregationStateService.IsInfoMode):
+                    // Обновляем локальное поле без вызова HandleInfoModeChange
+                    isInfoMode = _stateService.IsInfoMode;
+                    OnPropertyChanged(nameof(IsInfoMode));
+                    OnPropertyChanged(nameof(InfoModeButtonText));
+                    break;
+                case nameof(AggregationStateService.IsDisaggregationMode):
+                    // Обновляем локальное поле без вызова HandleDisaggregationModeChange
+                    isDisaggregationMode = _stateService.IsDisaggregationMode;
+                    OnPropertyChanged(nameof(IsDisaggregationMode));
+                    OnPropertyChanged(nameof(DisaggregationModeButtonText));
+                    break;
+                    // Add other property notifications as needed
+            }
+        }
 
         private void OnInfoModeTextUpdated(string text)
         {
@@ -294,11 +341,11 @@ namespace l2l_aggregator.ViewModels
             AggregationSummaryText = text;
         }
 
-        private void OnBoxAggregationCompleted()
+        private async void OnBoxAggregationCompleted()
         {
             CanPrintBoxLabel = false;
             CanScan = true;
-            _stateService.GetCurrentBox();
+            await GetCurrentBox();
             CurrentLayer = 1;
             _stateService.CurrentStepIndex = AggregationStep.PackAggregation;
 
@@ -369,13 +416,13 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task PrintBoxLabel()
         {
-            var metrics = _stateService.CalculateMetrics(DMCells);
+            AggregationMetrics metrics = _validationService.CalculateMetrics(DMCells);
 
-            if (_validationService.ShouldPrintFullBox(metrics, _stateService.NumberOfLayers))
+            if (_validationService.ShouldPrintFullBox(metrics, numberOfLayers))
             {
                 await PrintBoxLabelInternal();
             }
-            else if (_validationService.ShouldShowPartialBoxConfirmation(metrics, _stateService.NumberOfLayers))
+            else if (_validationService.ShouldShowPartialBoxConfirmation(metrics, numberOfLayers))
             {
                 await HandlePartialBoxPrinting();
             }
@@ -456,7 +503,7 @@ namespace l2l_aggregator.ViewModels
         #endregion
 
         #region Private Methods
-
+       
         private async Task StartScanningSoftwareAsync()
         {
             var scanResult = await _scanningService.PerformSoftwareScanAsync(CurrentLayer, ImageSize);
@@ -464,7 +511,7 @@ namespace l2l_aggregator.ViewModels
 
             await ProcessScanResult(scanResult);
         }
-
+        
         //private async Task StartScanningHardwareAsync()
         //{
         //    var scanResult = await _scanningService.PerformHardwareScanAsync(ImageSize);
@@ -564,11 +611,11 @@ namespace l2l_aggregator.ViewModels
 
         private async Task UpdateAggregationInfoAndUI()
         {
-            var metrics = _stateService.CalculateMetrics(DMCells);
-            var duplicateInfo = _stateService.BuildDuplicateInfo(metrics);
+            AggregationMetrics metrics = _validationService.CalculateMetrics(DMCells);
+            var duplicateInfo = _validationService.BuildDuplicateInfo(metrics);
 
-            InfoLayerText = _textGenerationService.BuildInfoLayerText(CurrentLayer, _sessionService.SelectedTaskInfo?.LAYERS_QTY ?? 0, metrics.ValidCount, _stateService.NumberOfLayers);
-            AggregationSummaryText = _textGenerationService.BuildAggregationSummary(metrics, duplicateInfo, CurrentBox, CurrentLayer, _stateService.NumberOfLayers);
+            InfoLayerText = _textGenerationService.BuildInfoLayerText(CurrentLayer, _sessionService.SelectedTaskInfo?.LAYERS_QTY ?? 0, metrics.ValidCount, numberOfLayers);
+            AggregationSummaryText = _textGenerationService.BuildAggregationSummary(metrics, duplicateInfo, CurrentBox, CurrentLayer, numberOfLayers);
 
             CanScan = true;
             CanOpenTemplateSettings = true;
@@ -576,15 +623,15 @@ namespace l2l_aggregator.ViewModels
             var validCodes = DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data))
                                    .Select(c => c.Dm_data.Data).ToList();
 
-            if (_stateService.IsLastLayerCompleted(metrics))
+            if (_validationService.IsLastLayerCompleted(metrics, CurrentLayer))
             {
                 await HandleLastLayerCompletion(validCodes);
             }
-            else if (_stateService.IsLayerCompleted(metrics))
+            else if (_validationService.IsLayerCompleted(metrics, numberOfLayers, CurrentLayer))
             {
                 await HandleLayerCompletion(validCodes);
             }
-            else if (_stateService.HasValidCodes(metrics))
+            else if (_validationService.HasValidCodes(metrics, CurrentLayer))
             {
                 HandlePartialLayerCompletion(validCodes);
             }
@@ -598,7 +645,7 @@ namespace l2l_aggregator.ViewModels
             CanPrintBoxLabel = true;
             _stateService.CurrentStepIndex = AggregationStep.BoxAggregation;
 
-            if (IsAutoPrintEnabled && validCodes.Count == _stateService.NumberOfLayers)
+            if (IsAutoPrintEnabled && validCodes.Count == numberOfLayers)
             {
                 await PrintBoxLabel();
             }
@@ -679,9 +726,9 @@ namespace l2l_aggregator.ViewModels
                     _notificationService.ShowMessage("Все коды разагрегированы", NotificationType.Info);
                 }
 
-                _stateService.GetCurrentBox();
+                await GetCurrentBox();
 
-                InfoLayerText = _textGenerationService.BuildInfoLayerText(CurrentLayer, _sessionService.SelectedTaskInfo?.LAYERS_QTY ?? 0, 0, _stateService.NumberOfLayers);
+                InfoLayerText = _textGenerationService.BuildInfoLayerText(CurrentLayer, _sessionService.SelectedTaskInfo?.LAYERS_QTY ?? 0, 0, numberOfLayers);
                 AggregationSummaryText = _textGenerationService.BuildInitialAggregationSummary(CurrentBox, CurrentLayer);
             }
             catch (Exception ex)
@@ -715,7 +762,7 @@ namespace l2l_aggregator.ViewModels
                 _notificationService.ShowMessage($"Ошибка проверки доступности очистки короба: {ex.Message}", NotificationType.Error);
             }
         }
-
+        //правильно работает _textGenerationService отвечает правильно за эту часть
         private void InitializeInfoAndUI()
         {
             bool isNewAggregation = CurrentBox == 1 && CurrentLayer == 1 && !_sessionService.AllScannedDmCodes.Any();
@@ -749,49 +796,49 @@ namespace l2l_aggregator.ViewModels
             }
         }
 
-        //private void HandleInfoModeChange(bool value)
-        //{
-        //    if (value)
-        //    {
-        //        if (IsDisaggregationMode)
-        //        {
-        //            isDisaggregationMode = false;
-        //            OnPropertyChanged(nameof(IsDisaggregationMode));
-        //            OnPropertyChanged(nameof(DisaggregationModeButtonText));
-        //        }
-        //        _stateService.EnterInfoMode();
-        //        InfoLayerText = _textGenerationService.GetInfoModeText();
-        //        AggregationSummaryText = _textGenerationService.GetInfoModeMessage();
-        //        _notificationService.ShowMessage("Активирован режим информации", NotificationType.Info);
-        //    }
-        //    else
-        //    {
-        //        _stateService.ExitInfoMode();
-        //        _notificationService.ShowMessage("Режим информации деактивирован", NotificationType.Info);
-        //    }
-        //}
+        private void HandleInfoModeChange(bool value)
+        {
+            if (value)
+            {
+                if (IsDisaggregationMode)
+                {
+                    isDisaggregationMode = false;
+                    OnPropertyChanged(nameof(IsDisaggregationMode));
+                    OnPropertyChanged(nameof(DisaggregationModeButtonText));
+                }
+                _stateService.EnterInfoMode();
+                InfoLayerText = _textGenerationService.GetInfoModeText();
+                AggregationSummaryText = _textGenerationService.GetInfoModeMessage();
+                _notificationService.ShowMessage("Активирован режим информации", NotificationType.Info);
+            }
+            else
+            {
+                _stateService.ExitInfoMode();
+                _notificationService.ShowMessage("Режим информации деактивирован", NotificationType.Info);
+            }
+        }
 
-        //private void HandleDisaggregationModeChange(bool value)
-        //{
-        //    if (value)
-        //    {
-        //        if (IsInfoMode)
-        //        {
-        //            isInfoMode = false;
-        //            OnPropertyChanged(nameof(IsInfoMode));
-        //            OnPropertyChanged(nameof(InfoModeButtonText));
-        //        }
-        //        _stateService.EnterDisaggregationMode();
-        //        InfoLayerText = _textGenerationService.GetDisaggregationModeText();
-        //        AggregationSummaryText = _textGenerationService.GetDisaggregationModeMessage();
-        //        _notificationService.ShowMessage("Активирован режим очистки короба", NotificationType.Info);
-        //    }
-        //    else
-        //    {
-        //        _stateService.ExitDisaggregationMode();
-        //        _notificationService.ShowMessage("Режим очистки короба деактивирован", NotificationType.Info);
-        //    }
-        //}
+        private void HandleDisaggregationModeChange(bool value)
+        {
+            if (value)
+            {
+                if (IsInfoMode)
+                {
+                    isInfoMode = false;
+                    OnPropertyChanged(nameof(IsInfoMode));
+                    OnPropertyChanged(nameof(InfoModeButtonText));
+                }
+                _stateService.EnterDisaggregationMode();
+                InfoLayerText = _textGenerationService.GetDisaggregationModeText();
+                AggregationSummaryText = _textGenerationService.GetDisaggregationModeMessage();
+                _notificationService.ShowMessage("Активирован режим очистки короба", NotificationType.Info);
+            }
+            else
+            {
+                _stateService.ExitDisaggregationMode();
+                _notificationService.ShowMessage("Режим очистки короба деактивирован", NotificationType.Info);
+            }
+        }
 
         private void OnPlcConnectionStatusChanged(bool isConnected)
         {

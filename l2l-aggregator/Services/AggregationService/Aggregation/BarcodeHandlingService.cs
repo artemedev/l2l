@@ -76,13 +76,13 @@ namespace l2l_aggregator.Services.AggregationService
         {
             try
             {
-                var validation = ValidateSessionData();
-                if (!validation.IsValid)
-                {
-                    var errorText = _textGenerationService.BuildErrorInfo(barcode, validation.ErrorMessage);
-                    DisaggregationModeTextUpdated?.Invoke(errorText);
-                    return;
-                }
+                //var validation = ValidateSessionData();
+                //if (!validation.IsValid)
+                //{
+                //    var errorText = _textGenerationService.BuildErrorInfo(barcode, validation.ErrorMessage);
+                //    DisaggregationModeTextUpdated?.Invoke(errorText);
+                //    return;
+                //}
 
                 var boxRecord = _sessionService.CachedSsccResponse?.RECORDSET
                     .Where(r => r.TYPEID == (int)SsccType.Box)
@@ -112,12 +112,12 @@ namespace l2l_aggregator.Services.AggregationService
             if (currentStep != AggregationStep.BoxAggregation)
                 return;
 
-            var validation = ValidateSessionData();
-            if (!validation.IsValid)
-            {
-                _notificationService.ShowMessage(validation.ErrorMessage, NotificationType.Error);
-                return;
-            }
+            //var validation = ValidateSessionData();
+            //if (!validation.IsValid)
+            //{
+            //    _notificationService.ShowMessage(validation.ErrorMessage, NotificationType.Error);
+            //    return;
+            //}
 
             ProcessNormalModeBarcode(barcode);
         }

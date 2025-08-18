@@ -1,11 +1,11 @@
-﻿using l2l_aggregator.Services.Notification.Interface;
+﻿using l2l_aggregator.Models;
+using l2l_aggregator.Services.Notification.Interface;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace l2l_aggregator.Services.AggregationService
 {
@@ -48,35 +48,52 @@ namespace l2l_aggregator.Services.AggregationService
         }
     }
 
-    public class AggregationStateService : INotifyPropertyChanged
+    // Интерфейс для получения состояния от ViewModel
+    public interface IAggregationStateProvider
+    {
+        int CurrentLayer { get; }
+        int CurrentBox { get; }
+        int NumberOfLayers { get; }
+        bool IsInfoMode { get; }
+        bool IsDisaggregationMode { get; }
+        bool CanDisaggregation { get; }
+        bool CanScan { get; }
+        bool CanScanHardware { get; }
+        bool CanOpenTemplateSettings { get; }
+        bool CanPrintBoxLabel { get; }
+        bool CanPrintPalletLabel { get; }
+        bool CanClearBox { get; }
+        bool CanCompleteAggregation { get; }
+        bool CanStopSession { get; }
+        bool IsAutoPrintEnabled { get; }
+    }
+
+    // Интерфейс для обновления состояния ViewModel
+    public interface IAggregationStateUpdater
+    {
+        void UpdateCanScan(bool value);
+        void UpdateCanScanHardware(bool value);
+        void UpdateCanOpenTemplateSettings(bool value);
+        void UpdateCanPrintBoxLabel(bool value);
+        void UpdateCanPrintPalletLabel(bool value);
+        void UpdateCanClearBox(bool value);
+        void UpdateCanCompleteAggregation(bool value);
+        void UpdateCanStopSession(bool value);
+        void UpdateCanDisaggregation(bool value);
+        void UpdateCurrentLayer(int value);
+        void UpdateCurrentBox(int value);
+        void UpdateNumberOfLayers(int value);
+    }
+
+    public class AggregationStateService
     {
         private readonly SessionService _sessionService;
         private readonly INotificationService _notificationService;
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-        private readonly DatabaseDataService _databaseDataService;
-
+        private readonly IAggregationStateProvider _stateProvider;
+        private readonly IAggregationStateUpdater _stateUpdater;
 
         private AggregationStep _currentStepIndex = AggregationStep.PackAggregation;
         private AggregationStep _previousStepIndex = AggregationStep.PackAggregation;
-        private int _currentLayer = 1;
-        private int _currentBox = 1;
-        private int _currentPallet = 1;
-        private int _numberOfLayers;
-        private bool _isInfoMode = false;
-        private bool _isDisaggregationMode = false;
-        private bool _canDisaggregation = false;
-
-        // Состояние UI
-        private bool _canScan = true;
-        private bool _canScanHardware = false;
-        private bool _canOpenTemplateSettings = true;
-        private bool _canPrintBoxLabel = false;
-        private bool _canPrintPalletLabel = false;
-        private bool _canClearBox = false;
-        private bool _canCompleteAggregation = true;
-        private bool _canStopSession = false;
-        private bool _isAutoPrintEnabled = true;
 
         // Сохраненное состояние для режимов
         private bool _isNormalStateDataSaved = false;
@@ -84,14 +101,15 @@ namespace l2l_aggregator.Services.AggregationService
         private string _normalModeAggregationSummaryText = "";
 
         public AggregationStateService(
-            SessionService sessionService, 
-            DatabaseDataService databaseDataService, 
-            INotificationService notificationService)
+            SessionService sessionService,
+            INotificationService notificationService,
+            IAggregationStateProvider stateProvider,
+            IAggregationStateUpdater stateUpdater)
         {
             _sessionService = sessionService;
             _notificationService = notificationService;
-            _databaseDataService = databaseDataService;
-
+            _stateProvider = stateProvider;
+            _stateUpdater = stateUpdater;
         }
 
         #region Properties
@@ -99,163 +117,46 @@ namespace l2l_aggregator.Services.AggregationService
         public AggregationStep CurrentStepIndex
         {
             get => _currentStepIndex;
-            set => SetProperty(ref _currentStepIndex, value);
+            set => _currentStepIndex = value;
         }
 
         public AggregationStep PreviousStepIndex
         {
             get => _previousStepIndex;
-            set => SetProperty(ref _previousStepIndex, value);
+            set => _previousStepIndex = value;
         }
 
-        public int CurrentLayer
-        {
-            get => _currentLayer;
-            set => SetProperty(ref _currentLayer, value);
-        }
-
-        public int CurrentBox
-        {
-            get => _currentBox;
-            set => SetProperty(ref _currentBox, value);
-        }
-
-        public int CurrentPallet
-        {
-            get => _currentPallet;
-            set => SetProperty(ref _currentPallet, value);
-        }
-
-        public int NumberOfLayers
-        {
-            get => _numberOfLayers;
-            set => SetProperty(ref _numberOfLayers, value);
-        }
-
-        public bool IsInfoMode
-        {
-            get => _isInfoMode;
-            set => SetProperty(ref _isInfoMode, value);
-        }
-
-        public bool IsDisaggregationMode
-        {
-            get => _isDisaggregationMode;
-            set => SetProperty(ref _isDisaggregationMode, value);
-        }
-
-        public bool CanDisaggregation
-        {
-            get => _canDisaggregation;
-            set => SetProperty(ref _canDisaggregation, value);
-        }
-
-        // UI State Properties
-        public bool CanScan
-        {
-            get => _canScan;
-            set => SetProperty(ref _canScan, value);
-        }
-
-        public bool CanScanHardware
-        {
-            get => _canScanHardware;
-            set => SetProperty(ref _canScanHardware, value);
-        }
-
-        public bool CanOpenTemplateSettings
-        {
-            get => _canOpenTemplateSettings;
-            set => SetProperty(ref _canOpenTemplateSettings, value);
-        }
-
-        public bool CanPrintBoxLabel
-        {
-            get => _canPrintBoxLabel;
-            set => SetProperty(ref _canPrintBoxLabel, value);
-        }
-
-        public bool CanPrintPalletLabel
-        {
-            get => _canPrintPalletLabel;
-            set => SetProperty(ref _canPrintPalletLabel, value);
-        }
-
-        public bool CanClearBox
-        {
-            get => _canClearBox;
-            set => SetProperty(ref _canClearBox, value);
-        }
-
-        public bool CanCompleteAggregation
-        {
-            get => _canCompleteAggregation;
-            set => SetProperty(ref _canCompleteAggregation, value);
-        }
-
-        public bool CanStopSession
-        {
-            get => _canStopSession;
-            set => SetProperty(ref _canStopSession, value);
-        }
-
-        public bool IsAutoPrintEnabled
-        {
-            get => _isAutoPrintEnabled;
-            set => SetProperty(ref _isAutoPrintEnabled, value);
-        }
+        // Все остальные свойства теперь делегируются к _stateProvider
+        public int CurrentLayer => _stateProvider.CurrentLayer;
+        public int CurrentBox => _stateProvider.CurrentBox;
+        public int NumberOfLayers => _stateProvider.NumberOfLayers;
+        public bool IsInfoMode => _stateProvider.IsInfoMode;
+        public bool IsDisaggregationMode => _stateProvider.IsDisaggregationMode;
+        public bool CanDisaggregation => _stateProvider.CanDisaggregation;
+        public bool CanScan => _stateProvider.CanScan;
+        public bool CanScanHardware => _stateProvider.CanScanHardware;
+        public bool CanOpenTemplateSettings => _stateProvider.CanOpenTemplateSettings;
+        public bool CanPrintBoxLabel => _stateProvider.CanPrintBoxLabel;
+        public bool CanPrintPalletLabel => _stateProvider.CanPrintPalletLabel;
+        public bool CanClearBox => _stateProvider.CanClearBox;
+        public bool CanCompleteAggregation => _stateProvider.CanCompleteAggregation;
+        public bool CanStopSession => _stateProvider.CanStopSession;
+        public bool IsAutoPrintEnabled => _stateProvider.IsAutoPrintEnabled;
 
         #endregion
 
         #region Public Methods
 
-        public void Initialize()
+        public void Initialize(int numberOfLayers, int currentBox)
         {
-            InitializeNumberOfLayers();
-            GetCurrentBox();
+            _stateUpdater.UpdateNumberOfLayers(numberOfLayers);
+            _stateUpdater.UpdateCurrentBox(currentBox);
         }
 
-        public void InitializeNumberOfLayers()
+        public void UpdateCurrentBox()
         {
-            var inBoxQty = _sessionService.SelectedTaskInfo.IN_BOX_QTY ?? 0;
-            var layersQty = _sessionService.SelectedTaskInfo.LAYERS_QTY ?? 0;
-
-            if (layersQty > 0)
-            {
-                NumberOfLayers = inBoxQty / layersQty;
-            }
-            else
-            {
-                NumberOfLayers = 0;
-                _notificationService.ShowMessage("Ошибка: некорректное количество слоев (LAYERS_QTY).", NotificationType.Error);
-            }
-        }
-
-        //public void InitializeCurrentBoxFromCounters()
-        //{
-        //    try
-        //    {
-        //        var aggregatedBoxesCount = _databaseDataService.GetAggregatedBoxesCount().Result;
-        //        CurrentBox = aggregatedBoxesCount + 1; 
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _notificationService.ShowMessage($"Ошибка получения значения текущей коробки: {ex.Message}", NotificationType.Error);
-        //    }
-        //}
-
-        public async Task GetCurrentBox()
-        {
-            try
-            {
-                // Логика обновления CurrentBox после агрегации
-                var aggregatedBoxesCount = await _databaseDataService.GetAggregatedBoxesCount();
-                CurrentBox = aggregatedBoxesCount + 1;
-            }
-            catch (Exception ex)
-            {
-                _notificationService.ShowMessage($"Ошибка обновления CurrentBox: {ex.Message}", NotificationType.Error);
-            }
+            // Логика обновления текущего короба
+            // Теперь мы обновляем через _stateUpdater
         }
 
         public AggregationMetrics CalculateMetrics(IEnumerable<dynamic> cells)
@@ -274,27 +175,6 @@ namespace l2l_aggregator.Services.AggregationService
             return new DuplicateInformation(metrics.DuplicatesInCurrentScan, metrics.DuplicatesInAllScans);
         }
 
-        public bool IsLastLayerCompleted(AggregationMetrics metrics)
-        {
-            return CurrentLayer == _sessionService.SelectedTaskInfo?.LAYERS_QTY &&
-                   metrics.ValidCount == metrics.TotalCells &&
-                   metrics.TotalCells > 0;
-        }
-
-        public bool IsLayerCompleted(AggregationMetrics metrics)
-        {
-            return CurrentLayer < _sessionService.SelectedTaskInfo?.LAYERS_QTY &&
-                   metrics.ValidCount == NumberOfLayers &&
-                   metrics.TotalCells > 0;
-        }
-
-        public bool HasValidCodes(AggregationMetrics metrics)
-        {
-            return CurrentLayer < _sessionService.SelectedTaskInfo?.LAYERS_QTY &&
-                   metrics.ValidCount == metrics.TotalCells &&
-                   metrics.TotalCells > 0;
-        }
-
         public void EnterInfoMode()
         {
             if (!_isNormalStateDataSaved)
@@ -302,17 +182,15 @@ namespace l2l_aggregator.Services.AggregationService
                 SaveNormalModeState();
             }
 
-            PreviousStepIndex = CurrentStepIndex;
-            CurrentStepIndex = AggregationStep.InfoMode;
-            IsInfoMode = true;
+            _previousStepIndex = _currentStepIndex;
+            _currentStepIndex = AggregationStep.InfoMode;
 
             DisableAllButtonsForInfoMode();
         }
 
         public void ExitInfoMode()
         {
-            CurrentStepIndex = PreviousStepIndex;
-            IsInfoMode = false;
+            _currentStepIndex = _previousStepIndex;
 
             if (!IsDisaggregationMode)
             {
@@ -329,17 +207,15 @@ namespace l2l_aggregator.Services.AggregationService
                 SaveNormalModeState();
             }
 
-            PreviousStepIndex = CurrentStepIndex;
-            CurrentStepIndex = AggregationStep.DisaggregationMode;
-            IsDisaggregationMode = true;
+            _previousStepIndex = _currentStepIndex;
+            _currentStepIndex = AggregationStep.DisaggregationMode;
 
             DisableAllButtonsForDisaggregationMode();
         }
 
         public void ExitDisaggregationMode()
         {
-            CurrentStepIndex = PreviousStepIndex;
-            IsDisaggregationMode = false;
+            _currentStepIndex = _previousStepIndex;
 
             UpdateScanAvailability();
         }
@@ -366,28 +242,28 @@ namespace l2l_aggregator.Services.AggregationService
 
         private void DisableAllButtonsForInfoMode()
         {
-            CanScan = false;
-            CanScanHardware = false;
-            CanOpenTemplateSettings = false;
-            CanPrintBoxLabel = false;
-            CanClearBox = false;
-            CanCompleteAggregation = false;
+            _stateUpdater.UpdateCanScan(false);
+            _stateUpdater.UpdateCanScanHardware(false);
+            _stateUpdater.UpdateCanOpenTemplateSettings(false);
+            _stateUpdater.UpdateCanPrintBoxLabel(false);
+            _stateUpdater.UpdateCanClearBox(false);
+            _stateUpdater.UpdateCanCompleteAggregation(false);
         }
 
         private void DisableAllButtonsForDisaggregationMode()
         {
-            CanScan = false;
-            CanScanHardware = false;
-            CanOpenTemplateSettings = false;
-            CanPrintBoxLabel = false;
-            CanClearBox = false;
+            _stateUpdater.UpdateCanScan(false);
+            _stateUpdater.UpdateCanScanHardware(false);
+            _stateUpdater.UpdateCanOpenTemplateSettings(false);
+            _stateUpdater.UpdateCanPrintBoxLabel(false);
+            _stateUpdater.UpdateCanClearBox(false);
         }
 
         private void EnableNormalModeButtons()
         {
-            CanScan = true;
-            CanScanHardware = true;
-            CanOpenTemplateSettings = true;
+            _stateUpdater.UpdateCanScan(true);
+            _stateUpdater.UpdateCanScanHardware(true);
+            _stateUpdater.UpdateCanOpenTemplateSettings(true);
             // Остальные кнопки устанавливаются в зависимости от состояния
         }
 
@@ -404,15 +280,6 @@ namespace l2l_aggregator.Services.AggregationService
             {
                 // Восстановление состояния должно происходить через события
                 _isNormalStateDataSaved = false;
-            }
-        }
-
-        private void SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = "")
-        {
-            if (!EqualityComparer<T>.Default.Equals(field, value))
-            {
-                field = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
             }
         }
 

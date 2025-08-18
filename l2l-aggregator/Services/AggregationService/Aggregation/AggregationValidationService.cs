@@ -1,5 +1,6 @@
 ﻿using l2l_aggregator.Models;
 using MD.Aggregation.Marking.Job;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace l2l_aggregator.Services.AggregationService
@@ -58,7 +59,17 @@ namespace l2l_aggregator.Services.AggregationService
 
             return ValidationResult.Success();
         }
+        public ValidationResult ValidateSessionData()
+        {
+            var taskValidation = ValidateTaskInfo();
+            if (!taskValidation.IsValid)
+                return taskValidation;
 
+            if (_sessionService.CachedSsccResponse?.RECORDSET == null || !_sessionService.CachedSsccResponse.RECORDSET.Any())
+                return ValidationResult.Error("Данные SSCC отсутствуют.");
+
+            return ValidationResult.Success();
+        }
         public ValidationResult ValidateLayerParameters()
         {
 
@@ -109,17 +120,41 @@ namespace l2l_aggregator.Services.AggregationService
                    metrics.ValidCount < numberOfLayers;
         }
 
-        public ValidationResult ValidateSessionData()
+
+
+        public bool IsLastLayerCompleted(AggregationMetrics metrics, int currentLayers)
         {
-            var taskValidation = ValidateTaskInfo();
-            if (!taskValidation.IsValid)
-                return taskValidation;
-
-            if (_sessionService.CachedSsccResponse?.RECORDSET == null || !_sessionService.CachedSsccResponse.RECORDSET.Any())
-                return ValidationResult.Error("Данные SSCC отсутствуют.");
-
-            return ValidationResult.Success();
+            return currentLayers == _sessionService.SelectedTaskInfo?.LAYERS_QTY &&
+                   metrics.ValidCount == metrics.TotalCells &&
+                   metrics.TotalCells > 0;
         }
 
+        public bool IsLayerCompleted(AggregationMetrics metrics, int numberOfLayers, int currentLayer)
+        {
+            return currentLayer < _sessionService.SelectedTaskInfo?.LAYERS_QTY &&
+                   metrics.ValidCount == numberOfLayers &&
+                   metrics.TotalCells > 0;
+        }
+
+        public bool HasValidCodes(AggregationMetrics metrics, int currentLayer)
+        {
+            return currentLayer < _sessionService.SelectedTaskInfo?.LAYERS_QTY &&
+                   metrics.ValidCount == metrics.TotalCells &&
+                   metrics.TotalCells > 0;
+        }
+        public AggregationMetrics CalculateMetrics(IEnumerable<dynamic> cells)
+        {
+            var cellsList = cells.ToList();
+            return new AggregationMetrics(
+                ValidCount: cellsList.Count(c => c.IsValid),
+                DuplicatesInCurrentScan: cellsList.Count(c => c.IsDuplicateInCurrentScan),
+                DuplicatesInAllScans: cellsList.Count(c => c.IsDuplicateInAllScans),
+                TotalCells: cellsList.Count
+            );
+        }
+        public DuplicateInformation BuildDuplicateInfo(AggregationMetrics metrics)
+        {
+            return new DuplicateInformation(metrics.DuplicatesInCurrentScan, metrics.DuplicatesInAllScans);
+        }
     }
 }
