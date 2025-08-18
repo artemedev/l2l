@@ -26,12 +26,7 @@ namespace l2l_aggregator.Services.AggregationService
         Pallet = 1
     }
 
-    public record AggregationMetrics(
-        int ValidCount,
-        int DuplicatesInCurrentScan,
-        int DuplicatesInAllScans,
-        int TotalCells
-    );
+
 
     public record DuplicateInformation(int InCurrentScan, int InAllScans)
     {

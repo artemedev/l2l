@@ -10,7 +10,12 @@ namespace l2l_aggregator.Services.AggregationService
         public static ValidationResult Success() => new(true, null);
         public static ValidationResult Error(string message) => new(false, message);
     }
-
+    public record AggregationMetrics(
+        int ValidCount,
+        int DuplicatesInCurrentScan,
+        int DuplicatesInAllScans,
+        int TotalCells
+    );
     public class AggregationValidationService
     {
         private readonly SessionService _sessionService;
@@ -33,10 +38,10 @@ namespace l2l_aggregator.Services.AggregationService
             var positionValidation = ValidatePositioningParameters();
             if (!positionValidation.IsValid)
                 return positionValidation;
-            
+
             return ValidationResult.Success();
         }
-        
+
         public ValidationResult ValidateTaskInfo()
         {
             if (_sessionService.SelectedTaskInfo == null)
