@@ -15,7 +15,7 @@ namespace l2l_aggregator.Services.AggregationService
         {
             _sessionService = sessionService;
         }
-
+        //Использовано
         public string BuildInitialAggregationSummary(int currentBox, int currentLayer)
         {
             var sb = new StringBuilder();
@@ -46,7 +46,9 @@ namespace l2l_aggregator.Services.AggregationService
             sb.AppendLine($"Всего СИ в коробе: {_sessionService.CurrentBoxDmCodes.Count}");
             return sb.ToString();
         }
-
+        /// <summary>
+        /// Обновляет информацию об агрегации после завершения коробки
+        /// </summary>
         public string BuildAggregationSummaryAfterBoxCompletion(int currentBox, int currentLayer)
         {
             var sb = new StringBuilder();
@@ -189,7 +191,14 @@ namespace l2l_aggregator.Services.AggregationService
 
             return sb.ToString();
         }
-
+        public string BuildDisaggregationCancelledInfo(string barcode)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Очистка короба отменена пользователем.");
+            sb.AppendLine();
+            sb.AppendLine($"Отсканированный код: {barcode}");
+            return sb.ToString();
+        }
         public string BuildDisaggregationFailureInfo(string barcode, ArmJobSsccRecord boxRecord)
         {
             var sb = new StringBuilder();

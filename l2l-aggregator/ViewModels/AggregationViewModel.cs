@@ -88,27 +88,22 @@ namespace l2l_aggregator.ViewModels
         public static ValidationResult Error(string message) => new(false, message);
     }
 
-    internal record AggregationMetrics(
-        int ValidCount,
-        int DuplicatesInCurrentScan,
-        int DuplicatesInAllScans,
-        int TotalCells
-    );
 
-    internal record DuplicateInformation(int InCurrentScan, int InAllScans)
-    {
-        public bool HasDuplicates => InCurrentScan > 0 || InAllScans > 0;
 
-        public string GetDisplayText()
-        {
-            if (!HasDuplicates) return "";
+    //internal record DuplicateInformation(int InCurrentScan, int InAllScans)
+    //{
+    //    public bool HasDuplicates => InCurrentScan > 0 || InAllScans > 0;
 
-            var sb = new StringBuilder($"\nДубликаты в текущем скане: {InCurrentScan}");
-            if (InAllScans > 0)
-                sb.Append($"\nДубликаты из предыдущих сканов: {InAllScans}");
-            return sb.ToString();
-        }
-    }
+    //    public string GetDisplayText()
+    //    {
+    //        if (!HasDuplicates) return "";
+
+    //        var sb = new StringBuilder($"\nДубликаты в текущем скане: {InCurrentScan}");
+    //        if (InAllScans > 0)
+    //            sb.Append($"\nДубликаты из предыдущих сканов: {InAllScans}");
+    //        return sb.ToString();
+    //    }
+    //}
 
     internal record CameraConfiguration(
         string CameraName,
@@ -157,6 +152,8 @@ namespace l2l_aggregator.ViewModels
 
         //сервис обработки и работы с библиотекой распознавания
         private readonly DmScanService _dmScanService;
+        //сервис для генерации текстовых сообщений в UI
+        private readonly TextGenerationService _textGenerationService;
 
         private readonly IDialogService _dialogService;
 
@@ -335,6 +332,7 @@ namespace l2l_aggregator.ViewModels
             HistoryRouter<ViewModelBase> router,
             PrintingService printingService,
             ILogger<PcPlcConnectionService> logger,
+            TextGenerationService textGenerationService,
             IDialogService dialogService
             )
         {
@@ -348,6 +346,7 @@ namespace l2l_aggregator.ViewModels
             _logger = logger;
             _dialogService = dialogService;
             _databaseDataService = databaseDataService;
+            _textGenerationService = textGenerationService;
 
             ImageSizeChangedCommand = new RelayCommand<SizeChangedEventArgs>(OnImageSizeChanged);
             ImageSizeCellChangedCommand = new RelayCommand<SizeChangedEventArgs>(OnImageSizeCellChanged);
@@ -385,18 +384,7 @@ namespace l2l_aggregator.ViewModels
             {
                 InfoLayerText = "Продолжаем агрегацию!";
             }
-            AggregationSummaryText = BuildInitialAggregationSummary();
-        }
-
-        private string BuildInitialAggregationSummary()
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine($"Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}");
-            sb.AppendLine($"Количество собранных коробов: {CurrentBox - 1}");
-            sb.AppendLine($"Номер собираемого короба: {CurrentBox}");
-            sb.AppendLine($"Номер слоя: {CurrentLayer}");
-            sb.AppendLine($"Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}");
-            return sb.ToString();
+            AggregationSummaryText = _textGenerationService.BuildInitialAggregationSummary(CurrentBox, CurrentLayer);
         }
 
         private void InitializeBoxTemplate()
@@ -671,20 +659,6 @@ namespace l2l_aggregator.ViewModels
             return new DuplicateInformation(metrics.DuplicatesInCurrentScan, metrics.DuplicatesInAllScans);
         }
 
-        private string BuildAggregationSummary(AggregationMetrics metrics, DuplicateInformation duplicateInfo)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine($"Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}");
-            sb.AppendLine($"Количество собранных коробов: {CurrentBox - 1}");
-            sb.AppendLine($"Номер собираемого короба: {CurrentBox}");
-            sb.AppendLine($"Номер слоя: {CurrentLayer}");
-            sb.AppendLine($"Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}");
-            sb.AppendLine($"Количество СИ, распознанное в слое: {metrics.ValidCount}");
-            sb.AppendLine($"Количество СИ, считанное в слое: {metrics.TotalCells}");
-            sb.AppendLine($"Количество СИ, ожидаемое в слое: {numberOfLayers}{duplicateInfo.GetDisplayText()}");
-            sb.AppendLine($"Всего СИ в коробе: {_sessionService.CurrentBoxDmCodes.Count}");
-            return sb.ToString();
-        }
 
         private bool IsLastLayerCompleted(AggregationMetrics metrics)
         {
@@ -1380,7 +1354,8 @@ namespace l2l_aggregator.ViewModels
 
         private void UpdateAggregationSummaryText(AggregationMetrics metrics, DuplicateInformation duplicateInfo)
         {
-            AggregationSummaryText = BuildAggregationSummary(metrics, duplicateInfo);
+            InfoLayerText = _textGenerationService.BuildInfoLayerText(CurrentLayer, _sessionService.SelectedTaskInfo?.LAYERS_QTY ?? 0, metrics.ValidCount, numberOfLayers);
+            AggregationSummaryText = _textGenerationService.BuildAggregationSummary(metrics, duplicateInfo, CurrentBox, CurrentLayer, numberOfLayers);
         }
 
         private void UpdateButtonStates()
@@ -1595,29 +1570,8 @@ namespace l2l_aggregator.ViewModels
             CurrentLayer = 1;
             CurrentStepIndex = AggregationStep.PackAggregation;
             // Обновляем информацию об агрегации после успешного завершения коробки
-            UpdateAggregationSummaryAfterBoxCompletion();
-        }
-        /// <summary>
-        /// Обновляет информацию об агрегации после завершения коробки
-        /// </summary>
-        private void UpdateAggregationSummaryAfterBoxCompletion()
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine($"Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}");
-            sb.AppendLine($"Количество собранных коробов: {CurrentBox - 1}");
-            sb.AppendLine($"Номер собираемого короба: {CurrentBox}");
-            sb.AppendLine($"Номер слоя: {CurrentLayer}");
-            sb.AppendLine($"Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}");
-            sb.AppendLine($"Количество СИ, ожидаемое в слое: {numberOfLayers}");
-            sb.AppendLine($"Всего агрегированных СИ: {_sessionService.AllScannedDmCodes.Count}");
-            sb.AppendLine();
-            sb.AppendLine("Коробка успешно агрегирована!");
-            sb.AppendLine("Готов к сканированию.");
-
-            AggregationSummaryText = sb.ToString();
-
-            // Обновляем также информационный текст слоя
-            InfoLayerText = $"Коробка {CurrentBox - 1} завершена. Начинаем новую коробку {CurrentBox}. Выберите элементы шаблона для агрегации и нажмите кнопку сканировать!";
+            AggregationSummaryText = _textGenerationService.BuildAggregationSummaryAfterBoxCompletion(CurrentBox, CurrentLayer);
+            InfoLayerText = _textGenerationService.GetNewBoxText(CurrentBox);
         }
         #endregion
 
@@ -1697,7 +1651,7 @@ namespace l2l_aggregator.ViewModels
         {
             var (gtin, serialNumber, duplicateStatus) = ExtractCellData(cell);
 
-            AggregationSummaryText = BuildCellInfoSummary(cell, gtin, serialNumber, duplicateStatus);
+            AggregationSummaryText = _textGenerationService.BuildCellInfoSummary(cell);
         }
 
         private (string gtin, string serialNumber, string duplicateStatus) ExtractCellData(DmCellViewModel cell)
@@ -1724,33 +1678,6 @@ namespace l2l_aggregator.ViewModels
             }
 
             return (gtin, serialNumber, duplicateStatus);
-        }
-
-        private string BuildCellInfoSummary(DmCellViewModel cell, string gtin, string serialNumber, string duplicateStatus)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine($"GTIN-код: {(string.IsNullOrWhiteSpace(gtin) ? "нет данных" : gtin)}");
-            sb.AppendLine($"SerialNumber-код: {(string.IsNullOrWhiteSpace(serialNumber) ? "нет данных" : serialNumber)}");
-            sb.AppendLine($"Валидность: {(cell.Dm_data?.IsValid == true ? "Да" : "Нет")}");
-            sb.AppendLine($"Дубликат: {duplicateStatus}");
-            sb.AppendLine($"Координаты: {(cell.Dm_data is { } dm1 ? $"({dm1.X:0.##}, {dm1.Y:0.##})" : "нет данных")}");
-            sb.AppendLine($"Размер: {(cell.Dm_data is { } dm ? $"({dm.SizeWidth:0.##} x {dm.SizeHeight:0.##})" : "нет данных")}");
-            sb.AppendLine($"Угол: {(cell.Dm_data?.Angle is double a ? $"{a:0.##}°" : "нет данных")}");
-            sb.AppendLine("OCR:");
-
-            if (cell.OcrCells.Count > 0)
-            {
-                foreach (var ocr in cell.OcrCells)
-                {
-                    sb.AppendLine($"- {(string.IsNullOrWhiteSpace(ocr.OcrName) ? "нет данных" : ocr.OcrName)}: {(string.IsNullOrWhiteSpace(ocr.OcrText) ? "нет данных" : ocr.OcrText)} ({(ocr.IsValid ? "валид" : "не валид")})");
-                }
-            }
-            else
-            {
-                sb.AppendLine("- нет данных");
-            }
-
-            return sb.ToString();
         }
 
         #endregion
@@ -1875,7 +1802,7 @@ namespace l2l_aggregator.ViewModels
                 var ssccRecord = await _databaseDataService.FindSsccCode(barcode);
                 if (ssccRecord != null)
                 {
-                    DisplaySsccInfo(ssccRecord);
+                    AggregationSummaryText = _textGenerationService.BuildSsccInfo(ssccRecord);
                     return;
                 }
 
@@ -1886,103 +1813,17 @@ namespace l2l_aggregator.ViewModels
                 var unRecord = await _databaseDataService.FindUnCode(parsedData);
                 if (unRecord != null)
                 {
-                    DisplayUnInfo(unRecord);
+                    AggregationSummaryText = _textGenerationService.BuildUnInfo(unRecord);
                     return;
                 }
 
-                DisplayCodeNotFound(barcode);
+                AggregationSummaryText = _textGenerationService.BuildCodeNotFoundInfo(barcode);
             }
             catch (Exception ex)
             {
-                DisplayErrorInfo(barcode, ex.Message);
+                AggregationSummaryText = _textGenerationService.BuildErrorInfo(barcode, ex.Message);
             }
         }
-
-        private void DisplaySsccInfo(ArmJobSsccRecord ssccRecord)
-        {
-            string typeDescription = ssccRecord.TYPEID switch
-            {
-                (int)SsccType.Box => "Коробка",
-                (int)SsccType.Pallet => "Паллета",
-                _ => $"Неизвестный тип ({ssccRecord.TYPEID})"
-            };
-
-            string stateDescription = ssccRecord.CODE_STATE switch
-            {
-                "0" => "Не используется",
-                "1" => "Активен",
-                "2" => "Заблокирован",
-                _ => $"Неизвестное состояние ({ssccRecord.CODE_STATE})"
-            };
-
-            var sb = new StringBuilder();
-            sb.AppendLine("ИНФОРМАЦИЯ О SSCC КОДЕ");
-            sb.AppendLine();
-            sb.AppendLine($"SSCC ID: {ssccRecord.SSCCID}");
-            sb.AppendLine($"SSCC код: {ssccRecord.SSCC_CODE ?? "нет данных"}");
-            sb.AppendLine($"SSCC: {ssccRecord.SSCC ?? "нет данных"}");
-            sb.AppendLine($"Тип: {typeDescription}");
-            sb.AppendLine($"Состояние ID: {ssccRecord.STATEID}");
-            sb.AppendLine($"Штрих-код (отображение): {ssccRecord.DISPLAY_BAR_CODE ?? "нет данных"}");
-            sb.AppendLine($"Штрих-код (проверка): {ssccRecord.CHECK_BAR_CODE ?? "нет данных"}");
-            sb.AppendLine($"Количество: {ssccRecord.QTY}");
-            sb.AppendLine($"Родительский SSCC ID: {ssccRecord.PARENT_SSCCID ?? null}");
-
-            AggregationSummaryText = sb.ToString();
-            ShowSuccessMessage($"Найден SSCC код: {typeDescription}");
-        }
-
-        private void DisplayUnInfo(ArmJobSgtinRecord unRecord)
-        {
-            string typeDescription = unRecord.UN_TYPE switch
-            {
-                (int)UnType.ConsumerPackage => "Потребительская упаковка",
-                _ => $"Неизвестный тип ({unRecord.UN_TYPE})"
-            };
-
-            var sb = new StringBuilder();
-            sb.AppendLine("ИНФОРМАЦИЯ О UN КОДЕ (SGTIN)");
-            sb.AppendLine();
-            sb.AppendLine($"UN ID: {unRecord.UNID}");
-            sb.AppendLine($"UN код: {unRecord.UN_CODE ?? "нет данных"}");
-            sb.AppendLine($"Тип: {typeDescription}");
-            sb.AppendLine($"Состояние ID: {unRecord.STATEID}");
-            sb.AppendLine($"GS1 поле 91: {unRecord.GS1FIELD91 ?? "нет данных"}");
-            sb.AppendLine($"GS1 поле 92: {unRecord.GS1FIELD92 ?? "нет данных"}");
-            sb.AppendLine($"GS1 поле 93: {unRecord.GS1FIELD93 ?? "нет данных"}");
-            sb.AppendLine($"Родительский SSCC ID: {unRecord.PARENT_SSCCID ?? null}");
-            sb.AppendLine($"Родительский UN ID: {unRecord.PARENT_UNID ?? null}");
-
-            AggregationSummaryText = sb.ToString();
-            ShowSuccessMessage($"Найден UN код: {typeDescription}");
-        }
-
-        private void DisplayCodeNotFound(string barcode)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("Код не найден в базе данных!");
-            sb.AppendLine();
-            sb.AppendLine($"Отсканированный код: {barcode}");
-            sb.AppendLine("Статус: Код не найден в системе");
-            sb.AppendLine();
-            sb.AppendLine("Проверьте правильность кода или обратитесь к администратору.");
-
-            AggregationSummaryText = sb.ToString();
-            ShowErrorMessage($"Код {barcode} не найден в базе данных", NotificationType.Warning);
-        }
-
-        private void DisplayErrorInfo(string barcode, string errorMessage)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("Ошибка поиска кода!");
-            sb.AppendLine();
-            sb.AppendLine($"Отсканированный код: {barcode}");
-            sb.AppendLine($"Ошибка: {errorMessage}");
-
-            AggregationSummaryText = sb.ToString();
-            ShowErrorMessage($"Ошибка поиска кода: {errorMessage}", NotificationType.Error);
-        }
-
         #endregion
 
         #region Disaggregation Mode Methods
@@ -2001,8 +1842,8 @@ namespace l2l_aggregator.ViewModels
             }
             SaveDisaggregationButtonStates();
             DisableAllButtonsForDisaggregationMode();
-            InfoLayerText = "Режим очистки короба: отсканируйте код коробки для очистки короба";
-            AggregationSummaryText = "Режим очистки короба активен. \nОтсканируйте код коробки для выполнения очистки короба.";
+            InfoLayerText = _textGenerationService.GetDisaggregationModeText();
+            AggregationSummaryText = _textGenerationService.GetDisaggregationModeMessage();
 
             ShowInfoMessage("Активирован режим очистки короба");
         }
@@ -2071,7 +1912,7 @@ namespace l2l_aggregator.ViewModels
                 var validation = ValidateSessionData();
                 if (!validation.IsValid)
                 {
-                    DisplayDisaggregationError(barcode, validation.ErrorMessage);
+                    AggregationSummaryText = _textGenerationService.BuildErrorInfo(barcode, validation.ErrorMessage);
                     return;
                 }
 
@@ -2085,12 +1926,12 @@ namespace l2l_aggregator.ViewModels
                 }
                 else
                 {
-                    DisplayBoxNotFound(barcode);
+                  AggregationSummaryText = _textGenerationService.BuildBoxNotFoundInfo(barcode);
                 }
             }
             catch (Exception ex)
             {
-                DisplayDisaggregationError(barcode, ex.Message);
+                AggregationSummaryText = _textGenerationService.BuildErrorInfo(barcode, ex.Message);
             }
         }
 
@@ -2112,7 +1953,7 @@ namespace l2l_aggregator.ViewModels
             }
             else
             {
-                DisplayDisaggregationCancelled(barcode);
+                AggregationSummaryText = _textGenerationService.BuildDisaggregationCancelledInfo(barcode);
             }
         }
 
@@ -2122,78 +1963,16 @@ namespace l2l_aggregator.ViewModels
 
             if (success)
             {
-                DisplayDisaggregationSuccess(barcode, boxRecord);
+                AggregationSummaryText = _textGenerationService.BuildDisaggregationSuccessInfo(barcode, boxRecord);
                 //UpdateScannedCodesAfterDisaggregation();
                 UpdateDisaggregationAvailability();
             }
             else
             {
-                DisplayDisaggregationFailure(barcode, boxRecord);
+                AggregationSummaryText = _textGenerationService.BuildDisaggregationFailureInfo(barcode, boxRecord);
             }
         }
 
-        private void DisplayDisaggregationSuccess(string barcode, ArmJobSsccRecord boxRecord)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("Очистка короба выполнена успешно!");
-            sb.AppendLine();
-            sb.AppendLine($"Отсканированный код: {barcode}");
-            sb.AppendLine($"SSCC ID: {boxRecord.SSCCID}");
-            sb.AppendLine($"CHECK_BAR_CODE: {boxRecord.CHECK_BAR_CODE}");
-            sb.AppendLine("Статус: Коробка успешно разагрегирована");
-
-            AggregationSummaryText = sb.ToString();
-            ShowSuccessMessage($"Коробка с кодом {barcode} успешно разагрегирована");
-        }
-
-        private void DisplayDisaggregationFailure(string barcode, ArmJobSsccRecord boxRecord)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("Ошибка очистки короба!");
-            sb.AppendLine();
-            sb.AppendLine($"Отсканированный код: {barcode}");
-            sb.AppendLine($"SSCC ID: {boxRecord.SSCCID}");
-            sb.AppendLine("Статус: Не удалось выполнить очистку короба");
-
-            AggregationSummaryText = sb.ToString();
-            ShowErrorMessage($"Ошибка очистки короба, коробки с кодом {barcode}", NotificationType.Error);
-        }
-
-        private void DisplayDisaggregationCancelled(string barcode)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("Очистка короба отменена пользователем.");
-            sb.AppendLine();
-            sb.AppendLine($"Отсканированный код: {barcode}");
-
-            AggregationSummaryText = sb.ToString();
-        }
-
-        private void DisplayBoxNotFound(string barcode)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("Код коробки не найден!");
-            sb.AppendLine();
-            sb.AppendLine($"Отсканированный код: {barcode}");
-            sb.AppendLine("Статус: Код не найден среди доступных коробок");
-            sb.AppendLine();
-            sb.AppendLine("Проверьте правильность кода или убедитесь, что коробка существует в текущем задании.");
-
-            AggregationSummaryText = sb.ToString();
-            ShowErrorMessage($"Код коробки {barcode} не найден", NotificationType.Warning);
-        }
-
-        private void DisplayDisaggregationError(string barcode, string errorMessage)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("Ошибка при выполнении очистки короба!");
-            sb.AppendLine();
-            sb.AppendLine($"Отсканированный код: {barcode}");
-            sb.AppendLine($"Ошибка: {errorMessage}");
-
-            AggregationSummaryText = sb.ToString();
-            ShowErrorMessage($"Ошибка очистки короба: {errorMessage}", NotificationType.Error);
-        }
         // Метод для обновления CurrentBox
         private async Task UpdateCurrentBox()
         {
@@ -2233,17 +2012,8 @@ namespace l2l_aggregator.ViewModels
                 // Обновляем CurrentBox после разагрегации
                 UpdateCurrentBox();
 
-                // Обновляем информационный текст
-                InfoLayerText = $"Слой {CurrentLayer} из {_sessionService.SelectedTaskInfo.LAYERS_QTY}. Распознано 0 из {numberOfLayers}";
-
-                // Обновляем сводку агрегации
-                var sb = new StringBuilder();
-                sb.AppendLine($"Агрегируемая серия: {_sessionService.SelectedTaskInfo.RESOURCEID}");
-                sb.AppendLine($"Количество собранных коробов: {CurrentBox - 1}");
-                sb.AppendLine($"Номер собираемого короба: {CurrentBox}");
-                sb.AppendLine($"Номер слоя: {CurrentLayer}");
-                sb.AppendLine($"Количество слоев в коробе: {_sessionService.SelectedTaskInfo.LAYERS_QTY}");
-                AggregationSummaryText = sb.ToString();
+                InfoLayerText = _textGenerationService.BuildInfoLayerText(CurrentLayer, _sessionService.SelectedTaskInfo?.LAYERS_QTY ?? 0, 0, numberOfLayers);
+                AggregationSummaryText = _textGenerationService.BuildInitialAggregationSummary(CurrentBox, CurrentLayer);
             }
             catch (Exception ex)
             {
