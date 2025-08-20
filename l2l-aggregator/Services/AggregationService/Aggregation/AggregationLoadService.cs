@@ -92,10 +92,10 @@ namespace l2l_aggregator.Services
             try
             {
                 _sessionService.CachedSsccResponse = await _databaseDataService.GetSscc(docId);
-                if (_sessionService.CachedSsccResponse.RECORDSET.Any())
+                if (_validationService.ValidateSessionData().IsValid)
                 {
                     // Сохраняем первую запись SSCC в сессию
-                    _sessionService.SelectedTaskSscc = _sessionService.CachedSsccResponse.RECORDSET.FirstOrDefault();
+                    _sessionService.SelectedTaskSscc = await _databaseDataService.ReserveFreeBox();
                     var infoMessage = "SSCC данные загружены успешно.";
                     _notificationService.ShowMessage(infoMessage, NotificationType.Success);
                     return true;

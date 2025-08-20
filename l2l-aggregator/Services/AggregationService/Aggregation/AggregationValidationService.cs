@@ -66,10 +66,6 @@ namespace l2l_aggregator.Services.AggregationService
         }
         public ValidationResult ValidateSessionData()
         {
-            var taskValidation = ValidateTaskInfo();
-            if (!taskValidation.IsValid)
-                return taskValidation;
-
             if (_sessionService.CachedSsccResponse?.RECORDSET == null || !_sessionService.CachedSsccResponse.RECORDSET.Any())
                 return ValidationResult.Error("Данные SSCC отсутствуют.");
 
