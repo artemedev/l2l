@@ -1,12 +1,10 @@
-﻿using l2l_aggregator.Services;
-using l2l_aggregator.Services.AggregationService;
-using l2l_aggregator.Services.Notification.Interface;
+﻿using l2l_aggregator.Services.Notification.Interface;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace l2l_aggregator.Services
+namespace l2l_aggregator.Services.AggregationService
 {
     public class AggregationLoadService
     {
@@ -121,7 +119,7 @@ namespace l2l_aggregator.Services
             {
                 _sessionService.CachedSgtinResponse = await _databaseDataService.GetSgtin(docId);
                 if (_sessionService.CachedSgtinResponse.RECORDSET.Any())
-                    {
+                {
                     var infoMessage = "SGTIN данные загружены успешно.";
                     _notificationService.ShowMessage(infoMessage, NotificationType.Success);
                     return true;

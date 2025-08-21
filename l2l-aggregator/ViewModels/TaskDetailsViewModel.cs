@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using l2l_aggregator.Models;
 using l2l_aggregator.Services;
+using l2l_aggregator.Services.AggregationService;
 using l2l_aggregator.Services.Configuration;
 using l2l_aggregator.Services.Notification.Interface;
 using System;

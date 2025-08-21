@@ -2,6 +2,7 @@
 using MD.Aggregation.Marking.Job;
 using System.Collections.Generic;
 using System.Linq;
+using static l2l_aggregator.ViewModels.AggregationViewModel;
 
 namespace l2l_aggregator.Services.AggregationService
 {

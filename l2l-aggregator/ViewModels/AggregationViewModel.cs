@@ -800,6 +800,20 @@ namespace l2l_aggregator.ViewModels
             return true;
         }
         #region UpdateInfoAndUI
+        public record DuplicateInformation(int InCurrentScan, int InAllScans)
+        {
+            public bool HasDuplicates => InCurrentScan > 0 || InAllScans > 0;
+
+            public string GetDisplayText()
+            {
+                if (!HasDuplicates) return "";
+
+                var sb = new StringBuilder($"\nДубликаты в текущем скане: {InCurrentScan}");
+                if (InAllScans > 0)
+                    sb.Append($"\nДубликаты из предыдущих сканов: {InAllScans}");
+                return sb.ToString();
+            }
+        }
         private async Task UpdateInfoAndUI()
         {
             var metrics = CalculateAggregationMetrics();

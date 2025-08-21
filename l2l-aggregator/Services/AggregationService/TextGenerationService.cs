@@ -4,6 +4,7 @@ using l2l_aggregator.ViewModels.VisualElements;
 using System;
 using System.Linq;
 using System.Text;
+using static l2l_aggregator.ViewModels.AggregationViewModel;
 
 namespace l2l_aggregator.Services.AggregationService
 {
