@@ -819,8 +819,8 @@ namespace l2l_aggregator.ViewModels
             var metrics = CalculateAggregationMetrics();
             var duplicateInfo = BuildDuplicateInfo(metrics);
 
-            UpdateInfoLayerText(metrics);
-            UpdateAggregationSummaryText(metrics, duplicateInfo);
+            InfoLayerText = _textGenerationService.BuildInfoLayerText(CurrentLayer, _sessionService.SelectedTaskInfo?.LAYERS_QTY ?? 0, metrics.ValidCount, numberOfLayers);
+            AggregationSummaryText = _textGenerationService.BuildAggregationSummary(metrics, duplicateInfo, CurrentBox, CurrentLayer, numberOfLayers);
             UpdateButtonStates();
 
             var validCodes = DMCells.Where(c => c.IsValid && !string.IsNullOrWhiteSpace(c.Dm_data?.Data))
@@ -844,15 +844,6 @@ namespace l2l_aggregator.ViewModels
             return new DuplicateInformation(metrics.DuplicatesInCurrentScan, metrics.DuplicatesInAllScans);
         }
 
-        private void UpdateInfoLayerText(AggregationMetrics metrics)
-        {
-            InfoLayerText = $"Слой {CurrentLayer} из {_sessionService.SelectedTaskInfo.LAYERS_QTY}. Распознано {metrics.ValidCount} из {numberOfLayers}";
-        }
-        private void UpdateAggregationSummaryText(AggregationMetrics metrics, DuplicateInformation duplicateInfo)
-        {
-            InfoLayerText = _textGenerationService.BuildInfoLayerText(CurrentLayer, _sessionService.SelectedTaskInfo?.LAYERS_QTY ?? 0, metrics.ValidCount, numberOfLayers);
-            AggregationSummaryText = _textGenerationService.BuildAggregationSummary(metrics, duplicateInfo, CurrentBox, CurrentLayer, numberOfLayers);
-        }
         private void UpdateButtonStates()
         {
             CanScan = true;
@@ -1721,4 +1712,3 @@ namespace l2l_aggregator.ViewModels
         #endregion
     }
 }
-
