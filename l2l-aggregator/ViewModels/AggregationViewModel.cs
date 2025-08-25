@@ -675,15 +675,8 @@ namespace l2l_aggregator.ViewModels
         #region Scanning Software
         private async Task StartScanningSoftwareAsync()
         {
-            if (_lastUsedTemplateJson == null)
-            {
-                ShowMessage("Шаблон не отправлен. Сначала выполните отправку шаблона.", NotificationType.Error);
-                return;
-            }
-
-            GetCurrentBoxRecord();
-
-            if (!await TryReceiveScanDataSoftwareAsync() ||
+            if (!await GetCurrentBoxRecord() ||
+                !await TryReceiveScanDataSoftwareAsync() ||
                 !await TryCropImageAsync() ||
                 !await TryBuildCellsAsync())
                 return;
@@ -691,7 +684,7 @@ namespace l2l_aggregator.ViewModels
             await UpdateInfoAndUI();
         }
         //Загрузка свободной коробки
-        private async Task GetCurrentBoxRecord()
+        private async Task<bool> GetCurrentBoxRecord()
         {
             try
             {
@@ -699,11 +692,17 @@ namespace l2l_aggregator.ViewModels
                 if (freeBox != null)
                 {
                     _sessionService.SelectedTaskSscc = freeBox;
+                    return true;
+                }
+                else
+                {
+                    return false;
                 }
             }
             catch (Exception ex)
             {
                 ShowMessage($"Ошибка загрузки текущей коробки {ex.Message}", NotificationType.Error);
+                return false;
             }
 
         }
@@ -771,18 +770,6 @@ namespace l2l_aggregator.ViewModels
 
         private async Task<bool> TryBuildCellsAsync()
         {
-            var docId = _sessionService.SelectedTaskInfo.DOCID;
-            if (docId == 0)
-            {
-                ShowMessage("Ошибка: некорректный ID документа.", NotificationType.Error);
-                return false;
-            }
-
-            if (_sessionService.CachedSgtinResponse == null)
-            {
-                ShowMessage("Ошибка загрузки данных SGTIN.", NotificationType.Error);
-                return false;
-            }
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
@@ -921,31 +908,7 @@ namespace l2l_aggregator.ViewModels
         [RelayCommand]
         public async Task ScanHardware()
         {
-            //var validation = ValidateTaskInfo();
-            //if (!validation.IsValid)
-            //{
-            //    ShowErrorMessage(validation.ErrorMessage);
-            //    return;
-            //}
 
-            //if (!templateOk)
-            //{
-            //    ShowErrorMessage("Задание не инициализировано. Сначала нажмите 'Начать задание'.");
-            //    return;
-            //}
-
-            //if (!await MoveCameraToCurrentLayerAsync())
-            //    return;
-
-            //try
-            //{
-            //    await _plcConnection.TriggerPhotoAsync();
-            //    await StartScanningHardwareAsync();
-            //}
-            //catch (Exception ex)
-            //{
-            //    ShowErrorMessage($"Ошибка hardware trigger: {ex.Message}");
-            //}
         }
         #endregion
         
